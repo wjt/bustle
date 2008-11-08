@@ -169,7 +169,7 @@ returnArc m currentx = do
     currenty <- gets row
 
     case Map.lookup (destination m, inReplyTo m) ps of
-        Nothing -> return ()
+        Nothing -> return False
         Just (m, (callx, cally)) -> lift $ do
             let vdiff = (currenty - cally) / 3
                 curvey1 = currenty - vdiff
@@ -189,8 +189,10 @@ returnArc m currentx = do
 --            curveTo curvex curvey1 curvex curvey2 callx cally
             stroke
 
+            setSourceRGB 0 0 0
             setDash [] 0
             -- XXX Remove from pending
+            return True
 
 munge :: Message -> StateT BustleState Render ()
 munge m = do
@@ -211,9 +213,10 @@ munge m = do
         MethodReturn {} -> do
             dc <- destinationCoordinate m
 
-            methodReturn sc dc
+            found <- returnArc m sc
 
-            returnArc m sc
+            if found then methodReturn sc dc else traceM "dropping return"
+
 
         Error {}        -> error "eh"
 
