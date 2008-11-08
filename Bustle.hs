@@ -46,18 +46,6 @@ main = do
     let Right log = readLog input
     run $ process log
 
-{-
-Plan:
-    State is ( application => x-coordinate
-             , (application, serial) => (Message, y-coordinate of the call)
-             , current position
-             )
-    * Generate a bunch of Render actions
-    * When encountering a Return, add a curve back to where it came from and
-      remove it from state.
-    * Could optimize the position of applications if we wanted
--}
-
 data BustleState =
     BustleState { coordinates :: Map BusName Double
                 , pending :: Map (BusName, Serial) (Message, (Double, Double))
