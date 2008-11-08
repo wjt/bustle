@@ -55,21 +55,70 @@ data BustleState =
     BustleState { coordinates :: Map BusName Double
                 , pending :: Map (BusName, Serial) (Message, Double)
                 , row :: Double
+                , mostRecentLabels :: Double
                 }
 
-modifyRow f = modify (\bs -> bs { row = f (row bs)})
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
+
+advanceBy :: Double -> StateT BustleState Render ()
+advanceBy d = do
+    lastLabelling <- gets mostRecentLabels
+
+    current <- gets row
+
+    when (current - lastLabelling > 400) $ do
+        xs <- gets (Map.toList . coordinates)
+        forM_ xs $ \(name, x) -> lift $ do
+            drawHeader name x (current + d)
+        modify $ \bs -> bs { mostRecentLabels = (current + d)
+                           , row = row bs + d
+                           }
+
+    current <- gets row
+    modify (\bs -> bs { row = row bs + d })
+    next <- gets row
+
+    lift $ do setSourceRGB 0.7 0.7 0.7
+              setLineWidth 1
+
+    xs <- gets (Map.fold (:) [] . coordinates)
+    forM_ xs $ \x -> lift $ do
+        moveTo x (current + 15)
+        lineTo x (next + 15)
+        stroke
+
+    lift $ do setSourceRGB 0 0 0
+              setLineWidth 2
 
 lastComponent :: BusName -> String
 lastComponent = reverse . takeWhile (/= '.') . reverse
 
+drawHeader :: BusName -> Double -> Double -> Render ()
+drawHeader name x y = do
+    extents <- textExtents name
+    let diff = textExtentsWidth extents / 2
+    moveTo (x - diff) (y + 10)
+    showText name
+
+
 addApplication :: BusName -> Double -> StateT BustleState Render Double
 addApplication s c = do
-    let name = lastComponent s
-    lift $ do extents <- textExtents name
-              let diff = textExtentsWidth extents / 2
-              moveTo (c - diff) 10
-              showText name
+    let name = s --lastComponent s
+    currentRow <- gets row
+    start <- gets mostRecentLabels
+
+    lift $ do drawHeader name c start
+
+              setSourceRGB 0.7 0.7 0.7
+              setLineWidth 1
+
+              moveTo c (start + 15)
+              lineTo c (currentRow + 15)
+              stroke
+
+              setSourceRGB 0 0 0
+              setLineWidth 2
+
     modifyCoordinates (Map.insert s c)
     return c
 
@@ -78,7 +127,7 @@ appCoordinate s = do
     cs <- gets coordinates
     case Map.lookup s cs of
         Just c  -> return c
-        Nothing -> do let c = Map.fold max 0 cs + 40
+        Nothing -> do let c = Map.fold max 0 cs + 70
                       addApplication s c
 
 senderCoordinate :: Message -> StateT BustleState Render Double
@@ -89,7 +138,7 @@ destinationCoordinate m = appCoordinate (destination m)
 
 munge :: Message -> StateT BustleState Render ()
 munge m = do
-    modifyRow (+30) -- FIXME: use some function of timestamp
+    advanceBy 30 -- FIXME: use some function of timestamp
     sc <- senderCoordinate m
     case m of
         Signal {} -> signal sc
@@ -97,25 +146,12 @@ munge m = do
         MethodReturn {} -> destinationCoordinate m >>= methodReturn sc
         Error {}        -> error "eh"
 
-drawApplicationGuides :: StateT BustleState Render ()
-drawApplicationGuides = do
-    lift $ do setSourceRGB 0.7 0.7 0.7
-              setLineWidth 1
-    xs <- gets (Map.fold (:) [] . coordinates)
-    y <- gets row
-    forM_ xs $ \x -> lift $ do
-        moveTo x 15
-        lineTo x y
-        stroke
-
 process' :: [Message] -> StateT BustleState Render ()
-process' log = do
-    mapM_ munge log
-    drawApplicationGuides
+process' = mapM_ munge
 
 process :: [Message] -> Render ()
 process log = evalStateT (process' log) bs
-    where bs = BustleState Map.empty Map.empty 10
+    where bs = BustleState Map.empty Map.empty 0 0
 
 halfArrow above x x' = do
     t <- gets row
@@ -145,11 +181,14 @@ run act = do
   dia <- dialogNew
   dialogAddButton dia stockClose ResponseClose
   contain <- dialogGetUpper dia
-  canvas <- drawingAreaNew
-  canvas `onSizeRequest` return (Requisition 250 250)
-  canvas `onExpose` updateCanvas canvas act
-  boxPackStartDefaults contain canvas
-  widgetShow canvas
+  layout <- layoutNew Nothing Nothing
+  layout `onSizeRequest` return (Requisition 1000 700)
+  layout `onExpose` updateLayout layout act
+  layoutSetSize layout 10000 10000
+  scrolledWindow <- scrolledWindowNew Nothing Nothing
+  containerAdd scrolledWindow layout
+  boxPackStartDefaults contain scrolledWindow
+  widgetShowAll dia
   dialogRun dia
   widgetDestroy dia
   -- Flush all commands that are waiting to be sent to the graphics server.
@@ -157,11 +196,11 @@ run act = do
   -- prompt again.
   flush
 
-  where updateCanvas :: DrawingArea -> Render () -> Event -> IO Bool
-        updateCanvas canvas act (Expose {}) = do
-          win <- widgetGetDrawWindow canvas
+  where updateLayout :: Layout -> Render () -> Event -> IO Bool
+        updateLayout layout act (Expose {}) = do
+          win <- layoutGetDrawWindow layout
           renderWithDrawable win act
           return True
-        updateCanvas canvas act _ = return False
+        updateLayout layout act _ = return False
 
 -- vim: sw=2 sts=2
