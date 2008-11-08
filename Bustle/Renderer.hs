@@ -84,10 +84,18 @@ advanceBy d = do
         modify $ \bs -> bs { mostRecentLabels = (current + d)
                            , row = row bs + d
                            }
-
     current <- gets row
     modify (\bs -> bs { row = row bs + d })
     next <- gets row
+
+    margin <- rightmostApp
+
+    lift $ do
+        moveTo 0 (current + 15)
+        setSourceRGB 0.7 0.4 0.4
+        setLineWidth 0.2
+        lineTo (margin + 35) (current + 15)
+        stroke
 
     lift $ do setSourceRGB 0.7 0.7 0.7
               setLineWidth 1
@@ -135,8 +143,10 @@ appCoordinate s = do
     cs <- gets coordinates
     case Map.lookup s cs of
         Just c  -> return c
-        Nothing -> do let c = Map.fold max firstAppX cs + 70
-                      addApplication s c
+        Nothing -> do c <- rightmostApp
+                      addApplication s (c + 70)
+
+rightmostApp = Map.fold max firstAppX `fmap` gets coordinates
 
 senderCoordinate :: Message -> StateT BustleState Render Double
 senderCoordinate m = appCoordinate (sender m)
