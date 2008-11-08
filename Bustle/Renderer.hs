@@ -156,33 +156,16 @@ memberName m = do
 returnArc mr = do
     call <- findCorrespondingCall mr
     case call of
-        Nothing -> return False
-        Just (_, (callx, cally)) -> do
-          currentx <- senderCoordinate mr
-          currenty <- gets row
+      Nothing -> return False
+      Just (_, (callx, cally)) -> do
+        destinationx <- destinationCoordinate mr
+        currentx     <- senderCoordinate mr
+        currenty     <- gets row
 
-          destinationx <- destinationCoordinate mr
 
-          lift $ do
-            let returnIsRTL = destinationx < currentx
-                offset = if returnIsRTL then (+) else (-)
+        lift $ dottyArc (destinationx > currentx) currentx currenty callx cally
 
-                curveByReturnX = currentx `offset` 60
-                curveByCallX   = callx    `offset` 60
-
-            setSourceRGB 0.4 0.7 0.4
-            setDash [3, 3] 0
-
-            moveTo currentx currenty
-            curveTo curveByReturnX (currenty - 10)
-                    curveByCallX (cally + 10)
-                    callx cally
-            stroke
-
-            setSourceRGB 0 0 0
-            setDash [] 0
-
-          return True
+        return True
 
 munge :: Message -> StateT BustleState Render ()
 munge m = do
@@ -205,49 +188,22 @@ munge m = do
 
         Error {}        -> error "eh"
 
-halfArrowHead above left = do
-    (x,y) <- getCurrentPoint
-    let x' = if left then x - 10 else x + 10
-    let y' = if above then y - 5 else y + 5
-    if left -- work around weird artifacts
-      then moveTo x' y' >> lineTo x y
-      else lineTo x' y' >> moveTo x y
 
-arrowHead left = halfArrowHead False left >> halfArrowHead True left
+methodCall = methodLike True
+methodReturn = methodLike False
 
-halfArrow above m = do
+methodLike above m = do
     sc <- senderCoordinate m
     dc <- destinationCoordinate m
     t <- gets row
-    lift $ do
-        moveTo sc t
-        lineTo dc t
-        halfArrowHead above (sc < dc)
-        stroke
-
-methodCall = halfArrow True
-methodReturn = halfArrow False
+    lift $ halfArrow above sc dc t
 
 signal m = do
     x <- senderCoordinate m
     t <- gets row
     cs <- gets coordinates
     let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
-    lift $ do
-        newPath
-        arc x t 5 0 (2 * pi)
-        stroke
-
-        moveTo (left - 20) t
-        arrowHead False
-        lineTo (x - 5) t
-        stroke
-
-        moveTo (x + 5) t
-        lineTo (right + 20) t
-        arrowHead True
-        stroke
-
+    lift $ signalArrow x left right t
 
 process' :: [Message] -> StateT BustleState Render ()
 process' = mapM_ munge
@@ -258,5 +214,62 @@ process log = evalStateT (process' (filter relevant log)) bs
           relevant (MethodReturn {}) = True
           relevant (Error        {}) = True
           relevant m                 = path m /= "/org/freedesktop/DBus"
+
+
+--
+-- Shapes
+--
+
+halfArrowHead :: Bool -> Bool -> Render ()
+halfArrowHead above left = do
+    (x,y) <- getCurrentPoint
+    let x' = if left then x - 10 else x + 10
+    let y' = if above then y - 5 else y + 5
+    if left -- work around weird artifacts
+      then moveTo x' y' >> lineTo x y
+      else lineTo x' y' >> moveTo x y
+
+arrowHead :: Bool -> Render ()
+arrowHead left = halfArrowHead False left >> halfArrowHead True left
+
+halfArrow :: Bool -> Double -> Double -> Double -> Render ()
+halfArrow above from to y = do
+    moveTo from y
+    lineTo to y
+    halfArrowHead above (from < to)
+    stroke
+
+signalArrow :: Double -> Double -> Double -> Double -> Render ()
+signalArrow epicentre left right y = do
+    newPath
+    arc epicentre y 5 0 (2 * pi)
+    stroke
+
+    moveTo (left - 20) y
+    arrowHead False
+    lineTo (epicentre - 5) y
+    stroke
+
+    moveTo (epicentre + 5) y
+    lineTo (right + 20) y
+    arrowHead True
+    stroke
+
+
+dottyArc :: Bool -> Double -> Double -> Double -> Double -> Render ()
+dottyArc left startx starty endx endy = do
+    let offset = if left then (-) else (+)
+
+    setSourceRGB 0.4 0.7 0.4
+    setDash [3, 3] 0
+
+    moveTo startx starty
+    curveTo (startx `offset` 60) (starty - 10)
+            (endx   `offset` 60) (endy   + 10)
+            endx endy
+    stroke
+
+    setSourceRGB 0 0 0
+    setDash [] 0
 
 -- vim: sw=2 sts=2
