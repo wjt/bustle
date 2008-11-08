@@ -105,14 +105,13 @@ addApplication :: BusName -> Double -> StateT BustleState Render Double
 addApplication s c = do
     let name = s --lastComponent s
     currentRow <- gets row
-    start <- gets mostRecentLabels
 
-    lift $ do drawHeader name c start
+    lift $ do drawHeader name c (currentRow - 20)
 
               setSourceRGB 0.7 0.7 0.7
               setLineWidth 1
 
-              moveTo c (start + 15)
+              moveTo c (currentRow - 5)
               lineTo c (currentRow + 15)
               stroke
 
@@ -122,12 +121,14 @@ addApplication s c = do
     modifyCoordinates (Map.insert s c)
     return c
 
+firstAppX = 100
+
 appCoordinate :: BusName -> StateT BustleState Render Double
 appCoordinate s = do
     cs <- gets coordinates
     case Map.lookup s cs of
         Just c  -> return c
-        Nothing -> do let c = Map.fold max 0 cs + 70
+        Nothing -> do let c = Map.fold max firstAppX cs + 70
                       addApplication s c
 
 senderCoordinate :: Message -> StateT BustleState Render Double
