@@ -36,6 +36,15 @@ import Data.Maybe (fromMaybe)
 
 import Graphics.Rendering.Cairo
 
+
+process :: [Message] -> Render ()
+process log = evalStateT (mapM_ munge (filter relevant log)) bs
+    where bs = BustleState Map.empty Map.empty 0 0
+          relevant (MethodReturn {}) = True
+          relevant (Error        {}) = True
+          relevant m                 = path m /= "/org/freedesktop/DBus"
+
+
 data BustleState =
     BustleState { coordinates :: Map BusName Double
                 , pending :: Map (BusName, Serial) (Message, (Double, Double))
@@ -204,16 +213,6 @@ signal m = do
     cs <- gets coordinates
     let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
     lift $ signalArrow x left right t
-
-process' :: [Message] -> StateT BustleState Render ()
-process' = mapM_ munge
-
-process :: [Message] -> Render ()
-process log = evalStateT (process' (filter relevant log)) bs
-    where bs = BustleState Map.empty Map.empty 0 0
-          relevant (MethodReturn {}) = True
-          relevant (Error        {}) = True
-          relevant m                 = path m /= "/org/freedesktop/DBus"
 
 
 --
