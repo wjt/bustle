@@ -153,14 +153,22 @@ process :: [Message] -> Render ()
 process log = evalStateT (process' log) bs
     where bs = BustleState Map.empty Map.empty 0 0
 
+halfArrowHead above left = do
+    (x,y) <- getCurrentPoint
+    let x' = if left then x - 10 else x + 10
+    let y' = if above then y - 5 else y + 5
+    if left -- work around weird artifacts
+      then moveTo x' y' >> lineTo x y
+      else lineTo x' y' >> moveTo x y
+
+arrowHead left = halfArrowHead False left >> halfArrowHead True left
+
 halfArrow above x x' = do
     t <- gets row
     lift $ do
         moveTo x t
         lineTo x' t
-        let arrowHeadX = if x < x' then x' - 10 else x' + 10
-        let arrowHeadY = if above then t - 5 else t + 5
-        lineTo arrowHeadX arrowHeadY
+        halfArrowHead above (x < x')
         stroke
 
 methodCall = halfArrow True
@@ -168,11 +176,13 @@ methodReturn = halfArrow False
 
 signal x = do
     t <- gets row
+    cs <- gets coordinates
+    let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
     lift $ do
-        moveTo (x - 20) t
-        lineTo (x + 20) t
---        let arrowHeadX = if x < x' then x' - 10 else x' + 10
---        mapM_ (\y -> lineTo arrowHeadX y >> moveTo x' t) [t-5, t+5]
+        moveTo (left - 20) t
+        arrowHead False
+        lineTo (right + 20) t
+        arrowHead True
         stroke
 
 run :: Render () -> IO ()
