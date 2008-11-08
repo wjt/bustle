@@ -10,4 +10,4 @@ Build-Depends:  mtl, cairo, gtk, base, containers, parsec
 
 Executable:     bustle
 Main-is:        Bustle.hs
-Other-modules:  Bustle.Types, Bustle.Parser
+Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Renderer
