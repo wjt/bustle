@@ -143,31 +143,30 @@ memberName m = do
         showText . abbreviate $ iface m ++ " . " ++ member m
 
 
-returnArc m = do
+returnArc mr = do
     ps <- gets pending
-    case Map.lookup (destination m, inReplyTo m) ps of
+    case Map.lookup (destination mr, inReplyTo mr) ps of
         Nothing -> return False
         Just (_, (callx, cally)) -> do
-          currentx <- senderCoordinate m
+          currentx <- senderCoordinate mr
           currenty <- gets row
 
+          destinationx <- destinationCoordinate mr
+
           lift $ do
-            let vdiff = (currenty - cally) / 3
-                curvey1 = currenty - vdiff
-                curvey2 = currenty - vdiff * 2
+            let returnIsRTL = destinationx < currentx
+                offset = if returnIsRTL then (+) else (-)
 
-                direction = if callx > currentx then (+) else (-)
-
-                curvex = (max currentx callx) `direction` 30
+                curveByReturnX = currentx `offset` 60
+                curveByCallX   = callx    `offset` 60
 
             setSourceRGB 0.4 0.7 0.4
             setDash [3, 3] 0
 
             moveTo currentx currenty
-            lineTo curvex curvey1
-            lineTo curvex curvey2
-            lineTo callx cally
---            curveTo curvex curvey1 curvex curvey2 callx cally
+            curveTo curveByReturnX (currenty - 10)
+                    curveByCallX (cally + 10)
+                    callx cally
             stroke
 
             setSourceRGB 0 0 0
