@@ -27,7 +27,7 @@ import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 
-import Data.List (stripPrefix)
+import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (fromMaybe)
 
 import Control.Monad.State
@@ -224,8 +224,15 @@ process' :: [Message] -> StateT BustleState Render ()
 process' = mapM_ munge
 
 process :: [Message] -> Render ()
-process log = evalStateT (process' log) bs
+process log = evalStateT (process' (filter relevant log)) bs
     where bs = BustleState Map.empty Map.empty 0 0
+          relevant (MethodReturn {}) = True
+          relevant (Error        {}) = True
+          relevant m                 = and
+              [ path m /= "/org/freedesktop/DBus"
+              , not $ "/org/gtk" `isPrefixOf` path m
+              ]
+
 
 halfArrowHead above left = do
     (x,y) <- getCurrentPoint
