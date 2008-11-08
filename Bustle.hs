@@ -122,7 +122,7 @@ addApplication s c = do
     modifyCoordinates (Map.insert s c)
     return c
 
-firstAppX = 150
+firstAppX = 300
 
 appCoordinate :: BusName -> StateT BustleState Render Double
 appCoordinate s = do
@@ -141,13 +141,16 @@ destinationCoordinate m = appCoordinate (destination m)
 abbreviate :: Interface -> Interface
 abbreviate i = fromMaybe i $ stripPrefix "org.freedesktop." i
 
+prettyPath :: ObjectPath -> ObjectPath
+prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/" p
+
 memberName :: Message -> StateT BustleState Render ()
 memberName m = do
     current <- gets row
 
     lift $ do
         moveTo 0 current
-        showText $ path m
+        showText . prettyPath $ path m
 
         moveTo 0 (current + 10)
         showText . abbreviate $ iface m ++ " . " ++ member m
@@ -215,11 +218,7 @@ process log = evalStateT (process' (filter relevant log)) bs
     where bs = BustleState Map.empty Map.empty 0 0
           relevant (MethodReturn {}) = True
           relevant (Error        {}) = True
-          relevant m                 = and
-              [ path m /= "/org/freedesktop/DBus"
-              , path m /= "/org/gnome/Epiphany"
-              , not $ "/org/gtk" `isPrefixOf` path m
-              ]
+          relevant m                 = path m /= "/org/freedesktop/DBus"
 
 
 halfArrowHead above left = do
