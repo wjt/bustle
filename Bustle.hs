@@ -178,23 +178,21 @@ signal x = do
 run :: Render () -> IO ()
 run act = do
   initGUI
-  dia <- dialogNew
-  dialogAddButton dia stockClose ResponseClose
-  contain <- dialogGetUpper dia
+  window <- windowNew
+
   layout <- layoutNew Nothing Nothing
-  layout `onSizeRequest` return (Requisition 1000 700)
   layout `onExpose` updateLayout layout act
-  layoutSetSize layout 10000 10000
+  layoutSetSize layout 5000 10000
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   containerAdd scrolledWindow layout
-  boxPackStartDefaults contain scrolledWindow
-  widgetShowAll dia
-  dialogRun dia
-  widgetDestroy dia
-  -- Flush all commands that are waiting to be sent to the graphics server.
-  -- This ensures that the window is actually closed before ghci displays the
-  -- prompt again.
-  flush
+  containerAdd window scrolledWindow
+
+  windowSetDefaultSize window 900 700
+  widgetShowAll window
+
+  window `onDestroy` mainQuit
+
+  mainGUI
 
   where updateLayout :: Layout -> Render () -> Event -> IO Bool
         updateLayout layout act (Expose {}) = do
