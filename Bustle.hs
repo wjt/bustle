@@ -55,7 +55,8 @@ data BustleState =
 
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
 
-addPending m x = do
+addPending m = do
+    x <- destinationCoordinate m
     y <- gets row
     let update = Map.insert (sender m, serial m) (m, (x, y))
 
@@ -152,13 +153,15 @@ memberName m = do
         showText . abbreviate $ iface m ++ " . " ++ member m
 
 
-returnArc m currentx = do
+returnArc m = do
     ps <- gets pending
-    currenty <- gets row
-
     case Map.lookup (destination m, inReplyTo m) ps of
         Nothing -> return False
-        Just (m, (callx, cally)) -> lift $ do
+        Just (_, (callx, cally)) -> do
+          currentx <- senderCoordinate m
+          currenty <- gets row
+
+          lift $ do
             let vdiff = (currenty - cally) / 3
                 curvey1 = currenty - vdiff
                 curvey2 = currenty - vdiff * 2
@@ -186,24 +189,20 @@ munge :: Message -> StateT BustleState Render ()
 munge m = do
     advanceBy 30 -- FIXME: use some function of timestamp
 
-    sc <- senderCoordinate m
     case m of
-        Signal {}       -> memberName m >> signal sc
+        Signal {}       -> do
+            memberName m
+            signal m
 
         MethodCall {}   -> do
             memberName m
-
-            dc <- destinationCoordinate m
-            methodCall sc dc
-
-            addPending m dc
+            methodCall m
+            addPending m
 
         MethodReturn {} -> do
-            dc <- destinationCoordinate m
+            found <- returnArc m
 
-            found <- returnArc m sc
-
-            if found then methodReturn sc dc else traceM "dropping return"
+            if found then methodReturn m else traceM "dropping return"
 
 
         Error {}        -> error "eh"
@@ -218,6 +217,7 @@ process log = evalStateT (process' (filter relevant log)) bs
           relevant (Error        {}) = True
           relevant m                 = and
               [ path m /= "/org/freedesktop/DBus"
+              , path m /= "/org/gnome/Epiphany"
               , not $ "/org/gtk" `isPrefixOf` path m
               ]
 
@@ -232,24 +232,35 @@ halfArrowHead above left = do
 
 arrowHead left = halfArrowHead False left >> halfArrowHead True left
 
-halfArrow above x x' = do
+halfArrow above m = do
+    sc <- senderCoordinate m
+    dc <- destinationCoordinate m
     t <- gets row
     lift $ do
-        moveTo x t
-        lineTo x' t
-        halfArrowHead above (x < x')
+        moveTo sc t
+        lineTo dc t
+        halfArrowHead above (sc < dc)
         stroke
 
 methodCall = halfArrow True
 methodReturn = halfArrow False
 
-signal x = do
+signal m = do
+    x <- senderCoordinate m
     t <- gets row
     cs <- gets coordinates
     let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
     lift $ do
+        newPath
+        arc x t 5 0 (2 * pi)
+        stroke
+
         moveTo (left - 20) t
         arrowHead False
+        lineTo (x - 5) t
+        stroke
+
+        moveTo (x + 5) t
         lineTo (right + 20) t
         arrowHead True
         stroke
