@@ -162,40 +162,37 @@ memberName m = do
         showText . abbreviate $ iface m ++ " . " ++ member m
 
 
-returnArc mr = do
-    call <- findCorrespondingCall mr
-    case call of
-      Nothing -> return False
-      Just (_, (callx, cally)) -> do
-        destinationx <- destinationCoordinate mr
-        currentx     <- senderCoordinate mr
-        currenty     <- gets row
+returnArc mr callx cally = do
+    destinationx <- destinationCoordinate mr
+    currentx     <- senderCoordinate mr
+    currenty     <- gets row
 
-
-        lift $ dottyArc (destinationx > currentx) currentx currenty callx cally
-
-        return True
+    lift $ dottyArc (destinationx > currentx) currentx currenty callx cally
 
 munge :: Message -> StateT BustleState Render ()
-munge m = do
-    advanceBy 30 -- FIXME: use some function of timestamp
-
-    case m of
+munge m = case m of
         Signal {}       -> do
+            advance
             memberName m
             signal m
 
         MethodCall {}   -> do
+            advance
             memberName m
             methodCall m
             addPending m
 
         MethodReturn {} -> do
-            found <- returnArc m
-
-            when found $ methodReturn m
+            call <- findCorrespondingCall m
+            case call of
+                Nothing         -> return ()
+                Just (_, (x,y)) -> do
+                    advance
+                    methodReturn m
+                    returnArc m x y
 
         Error {}        -> error "eh"
+  where advance = advanceBy 30 -- FIXME: use some function of timestamp
 
 
 methodCall = methodLike True
