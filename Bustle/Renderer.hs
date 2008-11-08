@@ -145,7 +145,8 @@ memberName m = do
 
 returnArc mr = do
     ps <- gets pending
-    case Map.lookup (destination mr, inReplyTo mr) ps of
+    key = (destination mr, inReplyTo mr)
+    case Map.lookup key ps of
         Nothing -> return False
         Just (_, (callx, cally)) -> do
           currentx <- senderCoordinate mr
@@ -171,8 +172,9 @@ returnArc mr = do
 
             setSourceRGB 0 0 0
             setDash [] 0
-            -- XXX Remove from pending
-            return True
+
+          modify (\bs -> bs { pending = Map.delete key (pending bs })
+          return True
 
 munge :: Message -> StateT BustleState Render ()
 munge m = do
@@ -192,7 +194,6 @@ munge m = do
             found <- returnArc m
 
             when found $ methodReturn m
-
 
         Error {}        -> error "eh"
 
