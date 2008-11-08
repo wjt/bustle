@@ -52,6 +52,16 @@ addPending m = do
 
     modify $ \bs -> bs { pending = update (pending bs) }
 
+findCorrespondingCall mr@(MethodReturn {}) = do
+    let key = (destination mr, inReplyTo mr)
+    ps <- gets pending
+    case Map.lookup key ps of
+        Nothing  -> return Nothing
+        Just mcc -> do modify (\bs -> bs { pending = Map.delete key ps })
+                       return $ Just mcc
+findCorrespondingCall _ = return Nothing
+
+
 advanceBy :: Double -> StateT BustleState Render ()
 advanceBy d = do
     lastLabelling <- gets mostRecentLabels
@@ -144,9 +154,8 @@ memberName m = do
 
 
 returnArc mr = do
-    ps <- gets pending
-    key = (destination mr, inReplyTo mr)
-    case Map.lookup key ps of
+    call <- findCorrespondingCall mr
+    case call of
         Nothing -> return False
         Just (_, (callx, cally)) -> do
           currentx <- senderCoordinate mr
@@ -173,7 +182,6 @@ returnArc mr = do
             setSourceRGB 0 0 0
             setDash [] 0
 
-          modify (\bs -> bs { pending = Map.delete key (pending bs })
           return True
 
 munge :: Message -> StateT BustleState Render ()
@@ -250,3 +258,5 @@ process log = evalStateT (process' (filter relevant log)) bs
           relevant (MethodReturn {}) = True
           relevant (Error        {}) = True
           relevant m                 = path m /= "/org/freedesktop/DBus"
+
+-- vim: sw=2 sts=2
