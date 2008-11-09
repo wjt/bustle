@@ -39,9 +39,13 @@ parseMember = many1 (oneOf "_" <|> alphaNum) <?> "member"
 
 parseSerial = read <$> many1 digit <?> "serial"
 
-parseTimestamp :: Parser Int
-parseTimestamp = i >> t >> i
-    where i = read <$> many1 digit <?> "timestamp"
+parseTimestamp :: Parser Milliseconds
+parseTimestamp = do
+    seconds <- i
+    t
+    ms <- i
+    return (seconds * 1000000 + ms)
+  where i = read <$> many1 digit <?> "timestamp"
 
 t = char '\t'
 
@@ -60,7 +64,7 @@ methodCall :: Parser Message
 methodCall = do
     char 'c'
     t
-    parseTimestamp
+    timestamp <- parseTimestamp
     t
     serial <- parseSerial
     t
@@ -70,14 +74,14 @@ methodCall = do
     t
     (path, iface, member) <- entireMember
 
-    return (MethodCall path iface member serial sender destination)
+    return (MethodCall timestamp path iface member serial sender destination)
   <?> "method call"
 
 methodReturn :: Parser Message
 methodReturn = do
     char 'r'
     t
-    parseTimestamp
+    timestamp <- parseTimestamp
     t
     serial <- parseSerial
     t
@@ -87,14 +91,14 @@ methodReturn = do
     t
     destination <- parseBusName
 
-    return (MethodReturn replySerial sender destination)
+    return (MethodReturn timestamp replySerial sender destination)
   <?> "method return"
 
 signal :: Parser Message
 signal = do
     string "sig"
     t
-    parseTimestamp
+    timestamp <- parseTimestamp
     t
     serial <- parseSerial
     t
@@ -102,7 +106,7 @@ signal = do
     t
     (path, iface, member) <- entireMember
 
-    return (Signal path iface member sender)
+    return (Signal timestamp path iface member sender)
   <?> "signal"
 
 

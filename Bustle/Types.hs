@@ -27,23 +27,29 @@ type ErrorName = String
 type Serial = Word32
 type BusName = String
 
-data Message = MethodCall { path :: ObjectPath
+type Milliseconds = Integer
+
+data Message = MethodCall { timestamp :: Milliseconds
+                          , path :: ObjectPath
                           , iface :: Interface
                           , member :: Member
                           , serial :: Serial
                           , sender :: BusName
                           , destination :: BusName
                           }
-             | MethodReturn { inReplyTo :: Serial
+             | MethodReturn { timestamp :: Milliseconds
+                            , inReplyTo :: Serial
                             , sender :: BusName
                             , destination :: BusName
                             }
-             | Signal { path :: ObjectPath
+             | Signal { timestamp :: Milliseconds
+                      , path :: ObjectPath
                       , iface :: Interface
                       , member :: Member
                       , sender :: BusName
                       }
-             | Error { name :: String
+             | Error { timestamp :: Milliseconds
+                     , name :: String
                      , inReplyTo :: Serial
                      , sender :: BusName
                      , destination :: BusName
