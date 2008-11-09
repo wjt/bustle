@@ -27,6 +27,7 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Ratio
 
 import Control.Monad.State
 import Control.Monad (forM_)
@@ -38,18 +39,24 @@ import Graphics.Rendering.Cairo
 
 
 process :: [Message] -> Render ()
-process log = evalStateT (mapM_ munge (filter relevant log)) bs
-    where bs = BustleState Map.empty Map.empty 0 0
+process log = evalStateT (mapM_ munge log') bs
+    where bs = BustleState Map.empty Map.empty 0 0 startTime
           relevant (MethodReturn {}) = True
           relevant (Error        {}) = True
           relevant m                 = path m /= "/org/freedesktop/DBus"
 
+          log' = filter relevant log
+
+          startTime = case log' of
+              m:_ -> timestamp m
+              _   -> 0
 
 data BustleState =
     BustleState { coordinates :: Map BusName Double
                 , pending :: Map (BusName, Serial) (Message, (Double, Double))
                 , row :: Double
                 , mostRecentLabels :: Double
+                , startTime :: Milliseconds
                 }
 
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
@@ -136,7 +143,7 @@ addApplication s c = do
     modifyCoordinates (Map.insert s c)
     return c
 
-firstAppX = 300
+firstAppX = 360
 
 appCoordinate :: BusName -> StateT BustleState Render Double
 appCoordinate s = do
@@ -165,11 +172,20 @@ memberName m = do
     current <- gets row
 
     lift $ do
-        moveTo 0 current
+        moveTo 60 current
         showText . prettyPath $ path m
 
-        moveTo 0 (current + 10)
+        moveTo 60 (current + 10)
         showText . abbreviate $ iface m ++ " . " ++ member m
+
+relativeTimestamp :: Message -> StateT BustleState Render ()
+relativeTimestamp m = do
+    base <- gets startTime
+    let relative = (timestamp m - base) `div` 1000
+    current <- gets row
+    lift $ do
+        moveTo 0 current
+        showText $ show relative ++ "ms"
 
 
 returnArc mr callx cally = do
@@ -183,11 +199,13 @@ munge :: Message -> StateT BustleState Render ()
 munge m = case m of
         Signal {}       -> do
             advance
+            relativeTimestamp m
             memberName m
             signal m
 
         MethodCall {}   -> do
             advance
+            relativeTimestamp m
             memberName m
             methodCall m
             addPending m
@@ -198,6 +216,7 @@ munge m = case m of
                 Nothing         -> return ()
                 Just (_, (x,y)) -> do
                     advance
+                    relativeTimestamp m
                     methodReturn m
                     returnArc m x y
 
