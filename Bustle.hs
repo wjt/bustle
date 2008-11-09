@@ -31,14 +31,15 @@ main = do
     case args of
       [f] -> do input <- readFile f
                 let Right log = readLog input
-                run $ process log
+                run f (process log)
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
-run :: Render (Double, Double) -> IO ()
-run act = do
+run :: String -> Render (Double, Double) -> IO ()
+run filename act = do
   initGUI
   window <- windowNew
+  windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
 
   layout <- layoutNew Nothing Nothing
   layout `onExpose` updateLayout layout act
