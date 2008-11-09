@@ -34,8 +34,13 @@ main = do
     args <- getArgs
     case args of
       [f] -> do input <- readFile f
-                let Right log = readLog input
-                run f (process log)
+                case readLog input of
+                  Left err -> putStrLn $ concat [ "Couldn't parse "
+                                                , f
+                                                , ": "
+                                                , show err
+                                                ]
+                  Right log -> run f (process log)
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
