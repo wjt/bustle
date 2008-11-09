@@ -128,6 +128,7 @@ parseError = do
 
 
 method = char 'm' >> (methodCall <|> methodReturn)
+  <?> "method call or return"
 
 event = method <|> signal <|> parseError
 
