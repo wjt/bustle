@@ -116,9 +116,11 @@ advanceBy d = do
     lift $ do setSourceRGB 0 0 0
               setLineWidth 2
 
+lastComponent = reverse . takeWhile (/= '.') . reverse
+
 drawHeader :: BusName -> Double -> Double -> Render ()
 drawHeader name' x y = do
-    let name = abbreviate name'
+    let name = lastComponent name'
     extents <- textExtents name
     let diff = textExtentsWidth extents / 2
     moveTo (x - diff) (y + 10)
@@ -143,7 +145,7 @@ addApplication s c = do
     modifyCoordinates (Map.insert s c)
     return c
 
-firstAppX = 360
+firstAppX = 400
 
 appCoordinate :: BusName -> StateT BustleState Render Double
 appCoordinate s = do
