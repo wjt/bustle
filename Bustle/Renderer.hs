@@ -75,7 +75,11 @@ addPending m = do
 
     modify $ \bs -> bs { pending = update (pending bs) }
 
-findCorrespondingCall mr@(MethodReturn {}) = do
+returnLike m@(MethodReturn {}) = True
+returnLike m@(Error {})        = True
+retrunLike m                   = False
+
+findCorrespondingCall mr | returnLike mr = do
     let key = (destination mr, inReplyTo mr)
     ps <- gets pending
     case Map.lookup key ps of
@@ -231,12 +235,24 @@ munge m = case m of
                     methodReturn m
                     returnArc m x y
 
-        Error {}        -> error "eh"
+        Error {} -> do
+            call <- findCorrespondingCall m
+            case call of
+                Nothing         -> return ()
+                Just (_, (x,y)) -> do
+                    advance
+                    relativeTimestamp m
+                    errorReturn m
+                    returnArc m x y
+
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
 
 
 methodCall = methodLike True
 methodReturn = methodLike False
+errorReturn m = do lift $ setSourceRGB 1 0 0
+                   methodLike False m
+                   lift $ setSourceRGB 0 0 0
 
 methodLike above m = do
     sc <- senderCoordinate m
