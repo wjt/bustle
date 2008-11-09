@@ -25,10 +25,16 @@ import Bustle.Renderer
 import Graphics.UI.Gtk
 import Graphics.Rendering.Cairo
 
+import System.Environment (getArgs)
+
 main = do
-    input <- readFile "/tmp/face"
-    let Right log = readLog input
-    run $ process log
+    args <- getArgs
+    case args of
+      [f] -> do input <- readFile f
+                let Right log = readLog input
+                run $ process log
+      _   -> do putStrLn "Usage: bustle log-file-name"
+                putStrLn "See the README"
 
 run :: Render () -> IO ()
 run act = do

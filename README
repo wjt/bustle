@@ -1,0 +1,20 @@
+Compile the monitor:
+
+    % make
+
+Compile the charting application:
+
+    % ./Setup.lhs configure --user
+    % ./Setup.lhs build
+    % ./Setup.lhs install
+
+--
+
+Capture some D-Bus traffic:
+
+    % ./bustle-dbus-monitor > log
+    ^C
+
+Now chart it:
+
+    % ~/bin/bustle ./log
