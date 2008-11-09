@@ -114,8 +114,10 @@ method = char 'm' >> (methodCall <|> methodReturn)
 
 event = method <|> signal
 
+m <* n = do ret <- m; n; return ret
+
 readLog :: String -> Either ParseError [Message]
-readLog = parse (sepEndBy event (char '\n')) ""
+readLog = parse (sepEndBy event (char '\n') <* eof) ""
 
 
 -- vim: sw=2 sts=2
