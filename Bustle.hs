@@ -18,6 +18,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Main where
 
+import Prelude hiding (catch)
+import Control.Exception (catch)
+
+import Paths_bustle
 import Bustle.Parser
 import Bustle.Renderer
 
@@ -40,6 +44,14 @@ run filename act = do
   initGUI
   window <- windowNew
   windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
+
+  iconName <- getDataFileName "bustle.png"
+  let load x = pixbufNewFromFile x >>= windowSetIcon window
+  foldl1 (\m n -> m `catch` const n)
+    [ load iconName
+    , load "bustle.png"
+    , putStrLn "Couldn't find window icon. Oh well."
+    ]
 
   layout <- layoutNew Nothing Nothing
   layout `onExpose` updateLayout layout act
