@@ -109,10 +109,27 @@ signal = do
     return (Signal timestamp path iface member sender)
   <?> "signal"
 
+parseError :: Parser Message
+parseError = do
+    string "err"
+    t
+    timestamp <- parseTimestamp
+    t
+    serial <- parseSerial
+    t
+    replySerial <- parseSerial
+    t
+    sender <- parseBusName
+    t
+    destination <- parseBusName
+
+    return (Error timestamp replySerial sender destination)
+  <?> "error"
+
 
 method = char 'm' >> (methodCall <|> methodReturn)
 
-event = method <|> signal
+event = method <|> signal <|> parseError
 
 m <* n = do ret <- m; n; return ret
 

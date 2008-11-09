@@ -49,7 +49,6 @@ data Message = MethodCall { timestamp :: Milliseconds
                       , sender :: BusName
                       }
              | Error { timestamp :: Milliseconds
-                     , name :: String
                      , inReplyTo :: Serial
                      , sender :: BusName
                      , destination :: BusName
