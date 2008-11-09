@@ -38,18 +38,25 @@ import Data.Maybe (fromMaybe)
 import Graphics.Rendering.Cairo
 
 
-process :: [Message] -> Render ()
-process log = evalStateT (mapM_ munge log') bs
-    where bs = BustleState Map.empty Map.empty 0 0 startTime
-          relevant (MethodReturn {}) = True
-          relevant (Error        {}) = True
-          relevant m                 = path m /= "/org/freedesktop/DBus"
+process :: [Message] -> Render (Double, Double)
+process log = do
+    finalState <- execStateT (mapM_ munge log') initialState
 
-          log' = filter relevant log
+    let width = Map.fold max firstAppX (coordinates finalState) + 70
+    let height = row finalState + 30
 
-          startTime = case log' of
-              m:_ -> timestamp m
-              _   -> 0
+    return (width, height)
+
+  where initialState = BustleState Map.empty Map.empty 0 0 startTime
+        relevant (MethodReturn {}) = True
+        relevant (Error        {}) = True
+        relevant m                 = path m /= "/org/freedesktop/DBus"
+
+        log' = filter relevant log
+
+        startTime = case log' of
+            m:_ -> timestamp m
+            _   -> 0
 
 data BustleState =
     BustleState { coordinates :: Map BusName Double

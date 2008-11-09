@@ -35,18 +35,17 @@ main = do
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
-run :: Render () -> IO ()
+run :: Render (Double, Double) -> IO ()
 run act = do
   initGUI
   window <- windowNew
 
   layout <- layoutNew Nothing Nothing
   layout `onExpose` updateLayout layout act
-  layoutSetSize layout 5000 10000
   scrolledWindow <- scrolledWindowNew Nothing Nothing
+  scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
   containerAdd scrolledWindow layout
   containerAdd window scrolledWindow
-
   windowSetDefaultSize window 900 700
   widgetShowAll window
 
@@ -54,10 +53,11 @@ run act = do
 
   mainGUI
 
-  where updateLayout :: Layout -> Render () -> Event -> IO Bool
+  where updateLayout :: Layout -> Render (Double, Double) -> Event -> IO Bool
         updateLayout layout act (Expose {}) = do
           win <- layoutGetDrawWindow layout
-          renderWithDrawable win act
+          (width, height) <- renderWithDrawable win act
+          layoutSetSize layout (floor width) (floor height)
           return True
         updateLayout layout act _ = return False
 
