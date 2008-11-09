@@ -116,11 +116,13 @@ advanceBy d = do
     lift $ do setSourceRGB 0 0 0
               setLineWidth 2
 
-lastComponent = reverse . takeWhile (/= '.') . reverse
+abbreviateBusName :: BusName -> BusName
+abbreviateBusName n@(':':_) = n
+abbreviateBusName n = reverse . takeWhile (/= '.') . reverse $ n
 
 drawHeader :: BusName -> Double -> Double -> Render ()
 drawHeader name' x y = do
-    let name = lastComponent name'
+    let name = abbreviateBusName name'
     extents <- textExtents name
     let diff = textExtentsWidth extents / 2
     moveTo (x - diff) (y + 10)
