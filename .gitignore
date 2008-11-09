@@ -1,0 +1,5 @@
+*.swp
+dist
+Setup
+*.hi
+*.o
