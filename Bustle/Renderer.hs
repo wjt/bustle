@@ -38,16 +38,14 @@ import Data.Maybe (fromMaybe)
 import Graphics.Rendering.Cairo
 
 
-process :: [Message] -> Render (Double, Double)
-process log = do
-    finalState <- execStateT (mapM_ munge log') initialState
+process :: [Message] -> (Double, Double, Render ())
+process log =
+    let finalState = execState (mapM_ munge log') initialState
+        width = Map.fold max firstAppX (coordinates finalState) + 70
+        height = row finalState + 30
+    in (width, height, renderer finalState)
 
-    let width = Map.fold max firstAppX (coordinates finalState) + 70
-    let height = row finalState + 30
-
-    return (width, height)
-
-  where initialState = BustleState Map.empty Map.empty 0 0 startTime
+  where initialState = BustleState Map.empty Map.empty 0 0 startTime (return ())
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
         relevant m                 = path m /= "/org/freedesktop/DBus"
@@ -64,9 +62,15 @@ data BustleState =
                 , row :: Double
                 , mostRecentLabels :: Double
                 , startTime :: Milliseconds
+                , renderer :: Render ()
                 }
 
+type Bustle a = State BustleState a
+
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
+
+render :: Render () -> Bustle ()
+render r = modify $ \bs -> bs { renderer = renderer bs >> r }
 
 addPending m = do
     x <- destinationCoordinate m
@@ -89,7 +93,7 @@ findCorrespondingCall mr | returnLike mr = do
 findCorrespondingCall _ = return Nothing
 
 
-advanceBy :: Double -> StateT BustleState Render ()
+advanceBy :: Double -> Bustle ()
 advanceBy d = do
     lastLabelling <- gets mostRecentLabels
 
@@ -97,8 +101,7 @@ advanceBy d = do
 
     when (current - lastLabelling > 400) $ do
         xs <- gets (Map.toList . coordinates)
-        forM_ xs $ \(name, x) -> lift $ do
-            drawHeader name x (current + d)
+        forM_ xs $ \(name, x) -> render $ drawHeader name x (current + d)
         modify $ \bs -> bs { mostRecentLabels = (current + d)
                            , row = row bs + d
                            }
@@ -108,24 +111,24 @@ advanceBy d = do
 
     margin <- rightmostApp
 
-    lift $ do
+    render $ do
         moveTo 0 (current + 15)
         setSourceRGB 0.7 0.4 0.4
         setLineWidth 0.2
         lineTo (margin + 35) (current + 15)
         stroke
 
-    lift $ do setSourceRGB 0.7 0.7 0.7
-              setLineWidth 1
+    render $ do setSourceRGB 0.7 0.7 0.7
+                setLineWidth 1
 
     xs <- gets (Map.fold (:) [] . coordinates)
-    forM_ xs $ \x -> lift $ do
+    forM_ xs $ \x -> render $ do
         moveTo x (current + 15)
         lineTo x (next + 15)
         stroke
 
-    lift $ do setSourceRGB 0 0 0
-              setLineWidth 2
+    render $ do setSourceRGB 0 0 0
+                setLineWidth 2
 
 abbreviateBusName :: BusName -> BusName
 abbreviateBusName n@(':':_) = n
@@ -139,28 +142,28 @@ drawHeader name' x y = do
     moveTo (x - diff) (y + 10)
     showText name
 
-addApplication :: BusName -> Double -> StateT BustleState Render Double
+addApplication :: BusName -> Double -> Bustle Double
 addApplication s c = do
     currentRow <- gets row
 
-    lift $ do drawHeader s c (currentRow - 20)
+    render $ do drawHeader s c (currentRow - 20)
 
-              setSourceRGB 0.7 0.7 0.7
-              setLineWidth 1
+                setSourceRGB 0.7 0.7 0.7
+                setLineWidth 1
 
-              moveTo c (currentRow - 5)
-              lineTo c (currentRow + 15)
-              stroke
+                moveTo c (currentRow - 5)
+                lineTo c (currentRow + 15)
+                stroke
 
-              setSourceRGB 0 0 0
-              setLineWidth 2
+                setSourceRGB 0 0 0
+                setLineWidth 2
 
     modifyCoordinates (Map.insert s c)
     return c
 
 firstAppX = 400
 
-appCoordinate :: BusName -> StateT BustleState Render Double
+appCoordinate :: BusName -> Bustle Double
 appCoordinate s = do
     cs <- gets coordinates
     case Map.lookup s cs of
@@ -170,10 +173,10 @@ appCoordinate s = do
 
 rightmostApp = Map.fold max firstAppX `fmap` gets coordinates
 
-senderCoordinate :: Message -> StateT BustleState Render Double
+senderCoordinate :: Message -> Bustle Double
 senderCoordinate m = appCoordinate (sender m)
 
-destinationCoordinate :: Message -> StateT BustleState Render Double
+destinationCoordinate :: Message -> Bustle Double
 destinationCoordinate m = appCoordinate (destination m)
 
 abbreviate :: Interface -> Interface
@@ -182,23 +185,23 @@ abbreviate i = fromMaybe i $ stripPrefix "org.freedesktop." i
 prettyPath :: ObjectPath -> ObjectPath
 prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/" p
 
-memberName :: Message -> StateT BustleState Render ()
+memberName :: Message -> Bustle ()
 memberName m = do
     current <- gets row
 
-    lift $ do
+    render $ do
         moveTo 60 current
         showText . prettyPath $ path m
 
         moveTo 60 (current + 10)
         showText . abbreviate $ iface m ++ " . " ++ member m
 
-relativeTimestamp :: Message -> StateT BustleState Render ()
+relativeTimestamp :: Message -> Bustle ()
 relativeTimestamp m = do
     base <- gets startTime
     let relative = (timestamp m - base) `div` 1000
     current <- gets row
-    lift $ do
+    render $ do
         moveTo 0 current
         showText $ show relative ++ "ms"
 
@@ -208,9 +211,9 @@ returnArc mr callx cally = do
     currentx     <- senderCoordinate mr
     currenty     <- gets row
 
-    lift $ dottyArc (destinationx > currentx) currentx currenty callx cally
+    render $ dottyArc (destinationx > currentx) currentx currenty callx cally
 
-munge :: Message -> StateT BustleState Render ()
+munge :: Message -> Bustle ()
 munge m = case m of
         Signal {}       -> do
             advance
@@ -250,22 +253,22 @@ munge m = case m of
 
 methodCall = methodLike True
 methodReturn = methodLike False
-errorReturn m = do lift $ setSourceRGB 1 0 0
+errorReturn m = do render $ setSourceRGB 1 0 0
                    methodLike False m
-                   lift $ setSourceRGB 0 0 0
+                   render $ setSourceRGB 0 0 0
 
 methodLike above m = do
     sc <- senderCoordinate m
     dc <- destinationCoordinate m
     t <- gets row
-    lift $ halfArrow above sc dc t
+    render $ halfArrow above sc dc t
 
 signal m = do
     x <- senderCoordinate m
     t <- gets row
     cs <- gets coordinates
     let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
-    lift $ signalArrow x left right t
+    render $ signalArrow x left right t
 
 
 --

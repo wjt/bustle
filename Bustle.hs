@@ -40,12 +40,13 @@ main = do
                                                 , ": "
                                                 , show err
                                                 ]
-                  Right log -> run f (process log)
+                  Right log -> let (width, height, act) = process log
+                               in run f width height act
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
-run :: String -> Render (Double, Double) -> IO ()
-run filename act = do
+run :: String -> Double -> Double -> Render () -> IO ()
+run filename width height act = do
   initGUI
   window <- windowNew
   windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
@@ -59,6 +60,7 @@ run filename act = do
     ]
 
   layout <- layoutNew Nothing Nothing
+  layoutSetSize layout (floor width) (floor height)
   layout `onExpose` updateLayout layout act
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
@@ -71,11 +73,10 @@ run filename act = do
 
   mainGUI
 
-  where updateLayout :: Layout -> Render (Double, Double) -> Event -> IO Bool
+  where updateLayout :: Layout -> Render () -> Event -> IO Bool
         updateLayout layout act (Expose {}) = do
           win <- layoutGetDrawWindow layout
-          (width, height) <- renderWithDrawable win act
-          layoutSetSize layout (floor width) (floor height)
+          renderWithDrawable win act
           return True
         updateLayout layout act _ = return False
 
