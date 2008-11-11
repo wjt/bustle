@@ -40,14 +40,15 @@ main = do
                                                 , ": "
                                                 , show err
                                                 ]
-                  Right log -> let (width, height, act) = process log
-                               in run f width height act
+                  Right log -> run f log
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
-run :: String -> Double -> Double -> Render () -> IO ()
-run filename width height act = do
+run :: FilePath -> [Message] -> IO ()
+run filename log = do
   initGUI
+
+  let (width, height, act) = process log
 
   window <- mkWindow filename
 
