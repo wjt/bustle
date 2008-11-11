@@ -48,16 +48,8 @@ main = do
 run :: String -> Double -> Double -> Render () -> IO ()
 run filename width height act = do
   initGUI
-  window <- windowNew
-  windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
 
-  iconName <- getDataFileName "bustle.png"
-  let load x = pixbufNewFromFile x >>= windowSetIcon window
-  foldl1 (\m n -> m `catch` const n)
-    [ load iconName
-    , load "bustle.png"
-    , putStrLn "Couldn't find window icon. Oh well."
-    ]
+  window <- mkWindow filename
 
   layout <- layoutNew Nothing Nothing
   layoutSetSize layout (floor width) (floor height)
@@ -69,8 +61,6 @@ run filename width height act = do
   windowSetDefaultSize window 900 700
   widgetShowAll window
 
-  window `onDestroy` mainQuit
-
   mainGUI
 
   where updateLayout :: Layout -> Render () -> Event -> IO Bool
@@ -79,5 +69,21 @@ run filename width height act = do
           renderWithDrawable win act
           return True
         updateLayout layout act _ = return False
+
+mkWindow :: FilePath -> IO Window
+mkWindow filename = do
+    window <- windowNew
+    windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
+    window `onDestroy` mainQuit
+
+    iconName <- getDataFileName "bustle.png"
+    let load x = pixbufNewFromFile x >>= windowSetIcon window
+    foldl1 (\m n -> m `catch` const n)
+      [ load iconName
+      , load "bustle.png"
+      , putStrLn "Couldn't find window icon. Oh well."
+      ]
+
+    return window
 
 -- vim: sw=2 sts=2
