@@ -24,6 +24,7 @@ import Control.Exception (catch)
 import Paths_bustle
 import Bustle.Parser
 import Bustle.Renderer
+import Bustle.Types
 
 import Graphics.UI.Gtk
 import Graphics.Rendering.Cairo
