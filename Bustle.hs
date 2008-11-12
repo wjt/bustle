@@ -68,6 +68,17 @@ run filename log = do
   where updateLayout :: Layout -> Render () -> Event -> IO Bool
         updateLayout layout act (Expose {}) = do
           win <- layoutGetDrawWindow layout
+
+          hadj <- layoutGetHAdjustment layout
+          hpos <- adjustmentGetValue hadj
+          hpage <- adjustmentGetPageSize hadj
+
+          vadj <- layoutGetVAdjustment layout
+          vpos <- adjustmentGetValue vadj
+          vpage <- adjustmentGetPageSize vadj
+
+          print (hpos, vpos, hpage, vpage)
+
           renderWithDrawable win act
           return True
         updateLayout layout act _ = return False
