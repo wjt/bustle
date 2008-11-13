@@ -16,6 +16,9 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+-- there's lots of shadowing here. it'd go away with applicative instances for
+-- Parsec.
 module Bustle.Parser (readLog)
 where
 
@@ -85,7 +88,7 @@ methodReturn = do
     t
     timestamp <- parseTimestamp
     t
-    serial <- parseSerial
+    parseSerial
     t
     replySerial <- parseSerial
     t
@@ -102,7 +105,7 @@ signal = do
     t
     timestamp <- parseTimestamp
     t
-    serial <- parseSerial
+    parseSerial
     t
     sender <- parseBusName
     t
@@ -117,7 +120,7 @@ parseError = do
     t
     timestamp <- parseTimestamp
     t
-    serial <- parseSerial
+    parseSerial
     t
     replySerial <- parseSerial
     t
@@ -128,12 +131,14 @@ parseError = do
     return (Error timestamp replySerial sender destination)
   <?> "error"
 
-
+method :: Parser Message
 method = char 'm' >> (methodCall <|> methodReturn)
   <?> "method call or return"
 
+event :: Parser Message
 event = method <|> signal <|> parseError
 
+(<*) :: Monad m => m a -> m b -> m a
 m <* n = do ret <- m; n; return ret
 
 readLog :: String -> Either ParseError [Message]
