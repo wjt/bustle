@@ -72,20 +72,20 @@ typedef struct _ReadableNameMapping ReadableNameMapping;
 struct _ReadableNameMapping {
     char *unique_name;
     char *readable_name;
-    ReadableNameMapping *next;
 };
 
-static ReadableNameMapping *mappings;
+static GList *mappings;
 
 const char *
 lookup_name (const char *un)
 {
-  ReadableNameMapping *l = mappings;
+  GList *l = mappings;
 
   while (l != NULL)
     {
-      if (!strcmp (l->unique_name, un))
-        return l->readable_name;
+      ReadableNameMapping *m = l->data;
+      if (!strcmp (m->unique_name, un))
+        return m->readable_name;
 
       l = l->next;
     }
@@ -300,9 +300,8 @@ get_well_known_names (DBusConnection *connection)
           mapping = malloc (sizeof (ReadableNameMapping));
           mapping->unique_name = owner;
           mapping->readable_name = names[i];
-          mapping->next = mappings;
 
-          mappings = mapping;
+          mappings = g_list_prepend (mappings, mapping);
         }
     }
 }
