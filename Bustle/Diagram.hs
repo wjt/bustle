@@ -24,6 +24,7 @@ module Bustle.Diagram
   , Rect
   , bounds
   , draw
+  , clearCanvas
   , drawBoundingBox
   , intersects
   )
@@ -149,6 +150,12 @@ intersects (x,y,w,z) (x', y', w', z') =
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore
+
+clearCanvas :: Render ()
+clearCanvas = saved $ do
+    setSourceRGB 1 1 1
+    setOperator OperatorSource
+    paint
 
 drawBoundingBox :: Shape -> Render ()
 drawBoundingBox s = saved $ do

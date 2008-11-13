@@ -121,14 +121,6 @@ incdec (+-) adj = do
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
 
-clearCanvas :: Render ()
-clearCanvas = do
-    save
-    setSourceRGB 1 1 1
-    setOperator OperatorSource
-    paint
-    restore
-
 visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
 visibleShapes r = map snd . filter (intersects r . fst)
 
