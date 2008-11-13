@@ -37,6 +37,7 @@ parseIface = many1 (oneOf "._" <|> alphaNum) <?> "iface"
 parseMember :: Parser Member
 parseMember = many1 (oneOf "_" <|> alphaNum) <?> "member"
 
+parseSerial :: Parser Serial
 parseSerial = read <$> many1 digit <?> "serial"
 
 parseTimestamp :: Parser Milliseconds
@@ -47,6 +48,7 @@ parseTimestamp = do
     return (seconds * 1000000 + ms)
   where i = read <$> many1 digit <?> "timestamp"
 
+t :: Parser Char
 t = char '\t'
 
 entireMember :: Parser (ObjectPath, Interface, Member)
