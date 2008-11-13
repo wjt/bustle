@@ -1,8 +1,8 @@
 Name:           bustle
-Version:        0.0
+Version:        0.1
 Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
-License:        LGPL
+License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will.thompson@collabora.co.uk>
 Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
