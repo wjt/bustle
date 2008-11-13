@@ -38,14 +38,8 @@ import Control.Monad (forM_)
 import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (fromMaybe)
 
---process :: [Message] -> (Double, Double, Render ())
+process :: [Message] -> (Double, Double, [Shape])
 process log =
-  let (w, h, ss) = process' log
-      act = mapM_ draw ss
-  in (w, h, act)
-
-process' :: [Message] -> (Double, Double, [Shape])
-process' log =
     let finalState = execState (mapM_ munge log') initialState
         width = Map.fold max firstAppX (coordinates finalState) + 70
         height = row finalState + 30

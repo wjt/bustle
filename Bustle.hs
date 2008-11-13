@@ -25,6 +25,7 @@ import Paths_bustle
 import Bustle.Parser
 import Bustle.Renderer
 import Bustle.Types
+import Bustle.Diagram
 
 import Graphics.UI.Gtk
 import Graphics.Rendering.Cairo
@@ -50,13 +51,14 @@ run :: FilePath -> [Message] -> IO ()
 run filename log = do
   initGUI
 
-  let (width, height, act) = process log
+  let (width, height, shapes) = process log
+  let boundsAndShapes = zip (map bounds shapes) shapes
 
   window <- mkWindow filename
 
   layout <- layoutNew Nothing Nothing
   layoutSetSize layout (floor width) (floor height)
-  layout `onExpose` update layout act
+  layout `onExpose` update layout boundsAndShapes
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
   containerAdd scrolledWindow layout
@@ -66,8 +68,8 @@ run filename log = do
 
   mainGUI
 
-  where update :: Layout -> Render () -> Event -> IO Bool
-        update layout act (Expose {}) = do
+  where update :: Layout -> [(Rect, Shape)] -> Event -> IO Bool
+        update layout shapes (Expose {}) = do
           win <- layoutGetDrawWindow layout
 
           hadj <- layoutGetHAdjustment layout
@@ -78,11 +80,25 @@ run filename log = do
           vpos <- adjustmentGetValue vadj
           vpage <- adjustmentGetPageSize vadj
 
-          print (hpos, vpos, hpage, vpage)
+          let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-          renderWithDrawable win act
+          renderWithDrawable win $ clearCanvas >> drawVisible r shapes
           return True
         update _layout _act _ = return False
+
+clearCanvas :: Render ()
+clearCanvas = do
+    save
+    setSourceRGB 1 1 1
+    setOperator OperatorSource
+    paint
+    restore
+
+visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
+visibleShapes r = map snd . filter (intersects r . fst)
+
+drawVisible :: Rect -> [(Rect, Shape)] -> Render ()
+drawVisible r = mapM_ draw . visibleShapes r
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do
