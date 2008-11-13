@@ -29,6 +29,7 @@ module Bustle.Diagram
   )
 where
 
+import Data.Maybe (maybe)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
 
@@ -145,14 +146,16 @@ intersects (x,y,w,z) (x', y', w', z') =
 --
 -- Drawing
 --
+
+saved :: Render () -> Render ()
+saved act = save >> act >> restore
+
 drawBoundingBox :: Shape -> Render ()
-drawBoundingBox s = do
+drawBoundingBox s = saved $ do
     let (x,y,w,z) = bounds s
-    save
     setSourceRGB 0 0 1
     rectangle x y (w - x) (z - y)
     stroke
-    restore
 
 draw :: Shape -> Render ()
 draw s = draw' s
@@ -185,18 +188,13 @@ arrowHead left = halfArrowHead Above left >> halfArrowHead Below left
 
 drawArrow :: Maybe Colour -> Arrowhead -> Double -> Double -> Double
           -> Render ()
-drawArrow c a from to y = do
-    save
-
-    case c of Nothing -> return ()
-              Just (Colour r g b) -> setSourceRGB r g b
+drawArrow c a from to y = saved $ do
+    maybe (return ()) (\(Colour r g b) -> setSourceRGB r g b) c
 
     moveTo from y
     lineTo to y
     halfArrowHead a (from < to)
     stroke
-
-    restore
 
 drawSignalArrow :: Double -> Double -> Double -> Double -> Render ()
 drawSignalArrow e left right y = do
@@ -250,27 +248,19 @@ drawTimestamp ts y = do
     showText ts
 
 drawClientLine :: Double -> Double -> Double -> Render ()
-drawClientLine x y1 y2 = do
-    save
-
+drawClientLine x y1 y2 = saved $ do
     setSourceRGB 0.7 0.7 0.7
     moveTo x y1
     lineTo x y2
     stroke
 
-    restore
-
 drawRule :: Double -> Double -> Render ()
-drawRule x y = do
-    save
-
+drawRule x y = saved $ do
     setSourceRGB 0.7 0.1 0.1
     setLineWidth 0.2
 
     moveTo 0 y
     lineTo x y
     stroke
-
-    restore
 
 -- vim: sw=2 sts=2

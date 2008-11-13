@@ -21,7 +21,7 @@ module Main where
 import Prelude hiding (catch, log)
 import Control.Exception (catch)
 
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), (***))
 
 import Paths_bustle
 import Bustle.Parser
