@@ -23,6 +23,7 @@ module Bustle.Diagram
   , Colour(..)
   , bounds
   , draw
+  , intersects
   )
 where
 
@@ -134,6 +135,10 @@ bounds s = case s of
   MemberLabel _ _ y -> fromCentre memberx y memberWidth
   Header { shapex = x, shapey = y} -> fromCentre x y columnWidth
 
+
+intersects :: Rect -> Rect -> Bool
+intersects (x,y,w,z) (x', y', w', z') =
+  not $ or [x > w', w < x', y > y', z < z']
 
 --
 -- Drawing
