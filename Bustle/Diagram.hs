@@ -24,6 +24,7 @@ module Bustle.Diagram
   , Rect
   , bounds
   , draw
+  , drawBoundingBox
   , intersects
   )
 where
@@ -139,11 +140,20 @@ bounds s = case s of
 
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
-  not $ or [x > w', w < x', y > y', z < z']
+  not $ or [x > w', w < x', y > z', z < y']
 
 --
 -- Drawing
 --
+drawBoundingBox :: Shape -> Render ()
+drawBoundingBox s = do
+    let (x,y,w,z) = bounds s
+    save
+    setSourceRGB 0 0 1
+    rectangle x y (w - x) (z - y)
+    stroke
+    restore
+
 draw :: Shape -> Render ()
 draw s = draw' s
   where draw' = case s of
