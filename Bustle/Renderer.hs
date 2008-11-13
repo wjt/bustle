@@ -46,7 +46,7 @@ process log =
   where initialState = BustleState Map.empty Map.empty 0 0 initTime []
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
-        relevant m                 = path m /= "/org/freedesktop/DBus"
+        relevant m                 = (path . member) m /= "/org/freedesktop/DBus"
 
         log' = filter relevant log
 
@@ -160,12 +160,13 @@ prettyPath :: ObjectPath -> ObjectPath
 prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/" p
 
 memberName :: Message -> Bustle ()
-memberName m = do
+memberName message = do
     current <- gets row
-    let p = prettyPath $ path m
-        meth = abbreviate $ iface m ++ "." ++ member m
+    let Member p i m = member message
+        p' = prettyPath p
+        meth = abbreviate $ i ++ "." ++ m
 
-    shape $ MemberLabel p meth current
+    shape $ MemberLabel p' meth current
 
 relativeTimestamp :: Message -> Bustle ()
 relativeTimestamp m = do

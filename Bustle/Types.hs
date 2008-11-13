@@ -22,16 +22,20 @@ import Data.Word (Word32)
 
 type ObjectPath = String
 type Interface = String
-type Member = String
+type MemberName = String
 type ErrorName = String
 type Serial = Word32
 type BusName = String
 
 type Milliseconds = Integer
 
+data Member = Member { path :: ObjectPath
+                     , iface :: Interface
+                     , membername :: MemberName
+                     }
+  deriving (Ord, Show, Read, Eq)
+
 data Message = MethodCall { timestamp :: Milliseconds
-                          , path :: ObjectPath
-                          , iface :: Interface
                           , member :: Member
                           , serial :: Serial
                           , sender :: BusName
@@ -43,8 +47,6 @@ data Message = MethodCall { timestamp :: Milliseconds
                             , destination :: BusName
                             }
              | Signal { timestamp :: Milliseconds
-                      , path :: ObjectPath
-                      , iface :: Interface
                       , member :: Member
                       , sender :: BusName
                       }

@@ -31,15 +31,6 @@ import Control.Applicative ((<$>))
 parseBusName :: Parser BusName
 parseBusName = many1 (oneOf ":._-" <|> alphaNum) <?> "bus name"
 
-parsePath :: Parser ObjectPath
-parsePath = many1 (oneOf "/_" <|> alphaNum) <?> "path"
-
-parseIface :: Parser Interface
-parseIface = many1 (oneOf "._" <|> alphaNum) <?> "iface"
-
-parseMember :: Parser Member
-parseMember = many1 (oneOf "_" <|> alphaNum) <?> "member"
-
 parseSerial :: Parser Serial
 parseSerial = read <$> many1 digit <?> "serial"
 
@@ -54,16 +45,16 @@ parseTimestamp = do
 t :: Parser Char
 t = char '\t'
 
-entireMember :: Parser (ObjectPath, Interface, Member)
+entireMember :: Parser Member
 entireMember = do
-    path <- parsePath
+    path <- many1 (oneOf "/_" <|> alphaNum) <?> "path"
     t
-    iface <- parseIface
+    iface <- many1 (oneOf "._" <|> alphaNum) <?> "iface"
     t
-    member <- parseMember
+    membername <- many1 (oneOf "_" <|> alphaNum) <?> "membername"
 
-    return (path, iface, member)
-  <?> "path-iface-member"
+    return $ Member path iface membername
+  <?> "member"
 
 methodCall :: Parser Message
 methodCall = do
@@ -77,9 +68,9 @@ methodCall = do
     t
     destination <- parseBusName
     t
-    (path, iface, member) <- entireMember
+    member <- entireMember
 
-    return (MethodCall timestamp path iface member serial sender destination)
+    return (MethodCall timestamp member serial sender destination)
   <?> "method call"
 
 methodReturn :: Parser Message
@@ -109,9 +100,9 @@ signal = do
     t
     sender <- parseBusName
     t
-    (path, iface, member) <- entireMember
+    member <- entireMember
 
-    return (Signal timestamp path iface member sender)
+    return (Signal timestamp member sender)
   <?> "signal"
 
 parseError :: Parser Message
