@@ -264,7 +264,7 @@ drawRule :: Double -> Double -> Render ()
 drawRule x y = do
     save
 
-    setSourceRGB 0.7 0.4 0.4
+    setSourceRGB 0.7 0.1 0.1
     setLineWidth 0.2
 
     moveTo 0 y
