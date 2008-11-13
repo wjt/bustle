@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Main where
 
-import Prelude hiding (catch)
+import Prelude hiding (catch, log)
 import Control.Exception (catch)
 
 import Paths_bustle
@@ -31,6 +31,7 @@ import Graphics.Rendering.Cairo
 
 import System.Environment (getArgs)
 
+main :: IO ()
 main = do
     args <- getArgs
     case args of
@@ -55,7 +56,7 @@ run filename log = do
 
   layout <- layoutNew Nothing Nothing
   layoutSetSize layout (floor width) (floor height)
-  layout `onExpose` updateLayout layout act
+  layout `onExpose` update layout act
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
   containerAdd scrolledWindow layout
@@ -65,8 +66,8 @@ run filename log = do
 
   mainGUI
 
-  where updateLayout :: Layout -> Render () -> Event -> IO Bool
-        updateLayout layout act (Expose {}) = do
+  where update :: Layout -> Render () -> Event -> IO Bool
+        update layout act (Expose {}) = do
           win <- layoutGetDrawWindow layout
 
           hadj <- layoutGetHAdjustment layout
@@ -81,7 +82,7 @@ run filename log = do
 
           renderWithDrawable win act
           return True
-        updateLayout layout act _ = return False
+        update _layout _act _ = return False
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do
