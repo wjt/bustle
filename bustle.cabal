@@ -13,4 +13,4 @@ Extra-source-files: bustle-dbus-monitor.c, Makefile, README
 
 Executable:     bustle
 Main-is:        Bustle.hs
-Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Renderer
+Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer
