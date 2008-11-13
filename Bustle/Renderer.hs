@@ -21,6 +21,8 @@ module Bustle.Renderer
     )
 where
 
+import Prelude hiding (log)
+
 import Bustle.Types
 
 import qualified Data.Set as Set
@@ -45,14 +47,14 @@ process log =
         height = row finalState + 30
     in (width, height, renderer finalState)
 
-  where initialState = BustleState Map.empty Map.empty 0 0 startTime (return ())
+  where initialState = BustleState Map.empty Map.empty 0 0 initTime (return ())
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
         relevant m                 = path m /= "/org/freedesktop/DBus"
 
         log' = filter relevant log
 
-        startTime = case log' of
+        initTime = case log' of
             m:_ -> timestamp m
             _   -> 0
 
@@ -79,9 +81,10 @@ addPending m = do
 
     modify $ \bs -> bs { pending = update (pending bs) }
 
-returnLike m@(MethodReturn {}) = True
-returnLike m@(Error {})        = True
-retrunLike m                   = False
+returnLike :: Message -> Bool
+returnLike (MethodReturn {}) = True
+returnLike (Error {})        = True
+returnLike _                 = False
 
 findCorrespondingCall mr | returnLike mr = do
     let key = (destination mr, inReplyTo mr)
@@ -97,12 +100,12 @@ advanceBy :: Double -> Bustle ()
 advanceBy d = do
     lastLabelling <- gets mostRecentLabels
 
-    current <- gets row
+    current' <- gets row
 
-    when (current - lastLabelling > 400) $ do
+    when (current' - lastLabelling > 400) $ do
         xs <- gets (Map.toList . coordinates)
-        forM_ xs $ \(name, x) -> render $ drawHeader name x (current + d)
-        modify $ \bs -> bs { mostRecentLabels = (current + d)
+        forM_ xs $ \(name, x) -> render $ drawHeader name x (current' + d)
+        modify $ \bs -> bs { mostRecentLabels = (current' + d)
                            , row = row bs + d
                            }
     current <- gets row
