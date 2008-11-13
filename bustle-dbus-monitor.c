@@ -76,6 +76,29 @@ struct _ReadableNameMapping {
 
 static GList *mappings;
 
+static ReadableNameMapping *
+readable_name_mapping_new (char *unique_name,
+                           char *readable_name)
+{
+  ReadableNameMapping *ret = g_slice_new (ReadableNameMapping);
+
+  ret->unique_name = g_strdup (unique_name);
+  ret->readable_name = g_strdup (readable_name);
+
+  return ret;
+}
+
+static void
+readable_name_mapping_free (ReadableNameMapping *m)
+{
+  fprintf (stderr, "%s =/> %s\n",
+      m->unique_name, m->readable_name);
+
+  g_free (m->unique_name);
+  g_free (m->readable_name);
+  g_slice_free (ReadableNameMapping, m);
+}
+
 const char *
 lookup_name (const char *un)
 {
@@ -103,6 +126,85 @@ readable (const char *un)
 
   return un;
 }
+
+static void
+add_mapping (char *unique_name,
+             char *readable_name)
+{
+  GList *l = mappings;
+
+  if (*readable_name == ':')
+    return;
+
+  fprintf (stderr, "%s => %s\n", unique_name, readable_name);
+
+  while (l != NULL)
+    {
+      ReadableNameMapping *m = l->data;
+
+      if (!strcmp (m->unique_name, unique_name))
+        {
+          if (strlen (readable_name) < strlen (m->readable_name))
+            {
+              g_free (m->readable_name);
+              m->readable_name = g_strdup (readable_name);
+            }
+          return;
+        }
+
+      l = l->next;
+    }
+
+  mappings = g_list_prepend (mappings,
+      readable_name_mapping_new (unique_name, readable_name));
+}
+
+static void
+name_owner_changed_cb (DBusMessage *message)
+{
+  char *name, *old_owner, *new_owner;
+  GList *l = mappings;
+  DBusError error;
+
+  dbus_error_init (&error);
+  dbus_message_get_args (message, &error,
+      DBUS_TYPE_STRING, &name,
+      DBUS_TYPE_STRING, &old_owner,
+      DBUS_TYPE_STRING, &new_owner,
+      DBUS_TYPE_INVALID);
+
+  if (dbus_error_is_set (&error))
+    {
+      fprintf (stderr, "name_owner_changed_cb: %s\n", error.message);
+      dbus_error_free (&error);
+      return;
+    }
+
+  fprintf (stderr, "name_owner_changed_cb: %s '%s' '%s'\n",
+      name, old_owner, new_owner);
+
+  if (*old_owner != '\0')
+    {
+      while (l != NULL)
+        {
+          ReadableNameMapping *m = l->data;
+
+          if (!strcmp (m->readable_name, name))
+            {
+              readable_name_mapping_free (m);
+              mappings = g_list_delete_link (mappings, l);
+
+              break;
+            }
+
+          l = l->next;
+        }
+    }
+
+  if (*new_owner != '\0')
+    add_mapping (new_owner, name);
+}
+
 
 #define PROFILE_TIMED_FORMAT "%s\t%lu\t%lu"
 #define TRAP_NULL_STRING(str) ((str) ? (str) : "<none>")
@@ -209,6 +311,9 @@ profile_filter_func (DBusConnection	*connection,
 {
   print_message_profile (message);
 
+  if (dbus_message_is_signal (message, DBUS_INTERFACE_DBUS, "NameOwnerChanged"))
+    name_owner_changed_cb (message);
+
   if (dbus_message_is_signal (message,
                               DBUS_INTERFACE_LOCAL,
                               "Disconnected"))
@@ -258,10 +363,8 @@ get_well_known_names (DBusConnection *connection)
 
   for (i = 0; i < n_names; i++)
     {
-      ReadableNameMapping *mapping;
       DBusMessage *owner_ret;
       char *owner;
-      const char *existing;
 
       if (*names[i] == ':')
         continue;
@@ -293,17 +396,10 @@ get_well_known_names (DBusConnection *connection)
           return;
         }
 
-      existing = lookup_name (owner);
-
-      if (existing == NULL || strlen (existing) > strlen (names[i]))
-        {
-          mapping = malloc (sizeof (ReadableNameMapping));
-          mapping->unique_name = owner;
-          mapping->readable_name = names[i];
-
-          mappings = g_list_prepend (mappings, mapping);
-        }
+      add_mapping (owner, names[i]);
     }
+
+  dbus_free_string_array (names);
 }
 
 
