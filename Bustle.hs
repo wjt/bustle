@@ -69,8 +69,23 @@ run filename log = do
   containerAdd scrolledWindow layout
   containerAdd window scrolledWindow
   windowSetDefaultSize window 900 700
-  widgetShowAll window
 
+  hadj <- layoutGetHAdjustment layout
+  adjustmentSetStepIncrement hadj 50
+  vadj <- layoutGetVAdjustment layout
+  adjustmentSetStepIncrement vadj 50
+
+  window `onKeyPress` \event -> case event of
+      Key { eventKeyName=kn } -> case kn of
+        "Up"    -> dec vadj
+        "Down"  -> inc vadj
+        "Left"  -> dec hadj
+        "Right" -> inc hadj
+        _ -> return False
+      _ -> return False
+
+
+  widgetShowAll window
   mainGUI
 
   where update :: Layout -> [(Rect, Shape)] -> Event -> IO Bool
@@ -90,6 +105,21 @@ run filename log = do
           renderWithDrawable win $ clearCanvas >> drawVisible r shapes
           return True
         update _layout _act _ = return False
+
+-- Add or remove one step increment from an Adjustment, limited to the top of
+-- the last page.
+inc, dec :: Adjustment -> IO Bool
+inc = incdec (+)
+dec = incdec (-)
+
+incdec :: (Double -> Double -> Double) -> Adjustment -> IO Bool
+incdec (+-) adj = do
+    pos <- adjustmentGetValue adj
+    step <- adjustmentGetStepIncrement adj
+    page <- adjustmentGetPageSize adj
+    lim <- adjustmentGetUpper adj
+    adjustmentSetValue adj $ min (pos +- step) (lim - page)
+    return True
 
 clearCanvas :: Render ()
 clearCanvas = do
