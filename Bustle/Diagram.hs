@@ -120,7 +120,7 @@ fromCentre x y width =
 bounds :: Shape -> Rect
 bounds s = case s of
   ClientLine {} -> (shapex s, shapey1 s, shapex s, shapey2 s)
-  Rule {} -> (shapex1 s, shapey s, shapex2 s, shapey s)
+  Rule {} -> (0, shapey s, shapex s, shapey s)
   Arrow {} ->
     let (x1, x2) = xMinMax s
         y1 = shapey s - (if above (arrowhead s) then 5 else 0)
