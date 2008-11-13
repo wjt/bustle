@@ -21,6 +21,8 @@ module Main where
 import Prelude hiding (catch, log)
 import Control.Exception (catch)
 
+import Control.Arrow ((&&&))
+
 import Paths_bustle
 import Bustle.Parser
 import Bustle.Renderer
@@ -51,14 +53,17 @@ run :: FilePath -> [Message] -> IO ()
 run filename log = do
   initGUI
 
-  let (width, height, shapes) = process log
-  let boundsAndShapes = zip (map bounds shapes) shapes
+  let shapes :: [(Rect, Shape)]
+      shapes = map (bounds &&& id) $ process log
+
+      (width, height) = (maximum *** maximum) $
+                          unzip [ (x2, y2) | ((_, _, x2, y2), _) <- shapes ]
 
   window <- mkWindow filename
 
   layout <- layoutNew Nothing Nothing
   layoutSetSize layout (floor width) (floor height)
-  layout `onExpose` update layout boundsAndShapes
+  layout `onExpose` update layout shapes
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
   containerAdd scrolledWindow layout

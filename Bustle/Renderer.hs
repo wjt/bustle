@@ -38,12 +38,10 @@ import Control.Monad (forM_)
 import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (fromMaybe)
 
-process :: [Message] -> (Double, Double, [Shape])
+process :: [Message] -> [Shape]
 process log =
     let finalState = execState (mapM_ munge log') initialState
-        width = Map.fold max firstAppX (coordinates finalState) + 70
-        height = row finalState + 30
-    in (width, height, reverse (shapes finalState))
+    in reverse $ shapes finalState
 
   where initialState = BustleState Map.empty Map.empty 0 0 initTime []
         relevant (MethodReturn {}) = True
