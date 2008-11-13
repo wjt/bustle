@@ -204,13 +204,13 @@ drawSignalArrow e left right y = do
     arc e y 5 0 (2 * pi)
     stroke
 
-    moveTo (left - 20) y
+    moveTo left y
     arrowHead False
     lineTo (e - 5) y
     stroke
 
     moveTo (e + 5) y
-    lineTo (right + 20) y
+    lineTo right y
     arrowHead True
     stroke
 
