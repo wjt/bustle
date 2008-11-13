@@ -46,6 +46,10 @@ above _ = True
 data Side = L | R
   deriving (Eq, Show, Read, Ord)
 
+offset :: Num a => Side -> (a -> a -> a)
+offset L = (-)
+offset R = (+)
+
 data Colour = Colour Double Double Double
   deriving (Eq, Show, Read, Ord)
 
@@ -127,9 +131,9 @@ bounds s = case s of
 
 arcControlPoints :: Shape -> (Point, Point)
 arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, side=s }) =
-    let offset = case s of L -> (-); R -> (+)
-        cp1 = (x1 `offset` 60, y1 + 10)
-        cp2 = (x2 `offset` 60, y2 - 10)
+    let (+-) = offset s
+        cp1 = (x1 +- 60, y1 + 10)
+        cp2 = (x2 +- 60, y2 - 10)
     in (cp1, cp2)
 arcControlPoints _ = error "i see you've played arcy-shapey before"
 
