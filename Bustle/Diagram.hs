@@ -63,7 +63,7 @@ data Shape = Header { str :: String, shapex, shapey :: Double
            | Timestamp { str :: String, shapey :: Double }
            | ClientLine { shapex, shapey1, shapey2 :: Double }
            | Rule { shapex, shapey :: Double }
-           | Arrow { shapecolour :: Colour
+           | Arrow { shapecolour :: Maybe Colour
                    , arrowhead :: Arrowhead
                    , shapex1, shapex2, shapey :: Double
                    }
@@ -172,11 +172,13 @@ halfArrowHead a left = do
 arrowHead :: Bool -> Render ()
 arrowHead left = halfArrowHead Above left >> halfArrowHead Below left
 
-drawArrow :: Colour -> Arrowhead -> Double -> Double -> Double -> Render ()
-drawArrow (Colour r g b) a from to y = do
+drawArrow :: Maybe Colour -> Arrowhead -> Double -> Double -> Double
+          -> Render ()
+drawArrow c a from to y = do
     save
 
-    setSourceRGB r g b
+    case c of Nothing -> return ()
+              Just (Colour r g b) -> setSourceRGB r g b
 
     moveTo from y
     lineTo to y

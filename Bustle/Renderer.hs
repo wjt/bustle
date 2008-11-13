@@ -24,6 +24,7 @@ where
 import Prelude hiding (log)
 
 import Bustle.Types
+import Bustle.Diagram
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -37,17 +38,20 @@ import Control.Monad (forM_)
 import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (fromMaybe)
 
-import Graphics.Rendering.Cairo
-
-
-process :: [Message] -> (Double, Double, Render ())
+--process :: [Message] -> (Double, Double, Render ())
 process log =
+  let (w, h, ss) = process' log
+      act = mapM_ draw ss
+  in (w, h, act)
+
+process' :: [Message] -> (Double, Double, [Shape])
+process' log =
     let finalState = execState (mapM_ munge log') initialState
         width = Map.fold max firstAppX (coordinates finalState) + 70
         height = row finalState + 30
-    in (width, height, renderer finalState)
+    in (width, height, reverse (shapes finalState))
 
-  where initialState = BustleState Map.empty Map.empty 0 0 initTime (return ())
+  where initialState = BustleState Map.empty Map.empty 0 0 initTime []
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
         relevant m                 = path m /= "/org/freedesktop/DBus"
@@ -64,16 +68,18 @@ data BustleState =
                 , row :: Double
                 , mostRecentLabels :: Double
                 , startTime :: Milliseconds
-                , renderer :: Render ()
+                , shapes :: [Shape] -- in reverse order
                 }
 
 type Bustle a = State BustleState a
 
+modifyCoordinates :: (Map BusName Double -> Map BusName Double) -> Bustle ()
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
 
-render :: Render () -> Bustle ()
-render r = modify $ \bs -> bs { renderer = renderer bs >> r }
+shape :: Shape -> Bustle ()
+shape s = modify $ \bs -> bs { shapes = s:shapes bs }
 
+addPending :: Message -> Bustle ()
 addPending m = do
     x <- destinationCoordinate m
     y <- gets row
@@ -86,6 +92,7 @@ returnLike (MethodReturn {}) = True
 returnLike (Error {})        = True
 returnLike _                 = False
 
+findCorrespondingCall :: Message -> Bustle (Maybe (Message, (Double, Double)))
 findCorrespondingCall mr | returnLike mr = do
     let key = (destination mr, inReplyTo mr)
     ps <- gets pending
@@ -104,7 +111,8 @@ advanceBy d = do
 
     when (current' - lastLabelling > 400) $ do
         xs <- gets (Map.toList . coordinates)
-        forM_ xs $ \(name, x) -> render $ drawHeader name x (current' + d)
+        forM_ xs $ \(name, x) ->
+          shape $ Header (abbreviateBusName name) x (current' + d)
         modify $ \bs -> bs { mostRecentLabels = (current' + d)
                            , row = row bs + d
                            }
@@ -114,56 +122,26 @@ advanceBy d = do
 
     margin <- rightmostApp
 
-    render $ do
-        moveTo 0 (current + 15)
-        setSourceRGB 0.7 0.4 0.4
-        setLineWidth 0.2
-        lineTo (margin + 35) (current + 15)
-        stroke
-
-    render $ do setSourceRGB 0.7 0.7 0.7
-                setLineWidth 1
+    shape $ Rule (margin + 35) (current + 15)
 
     xs <- gets (Map.fold (:) [] . coordinates)
-    forM_ xs $ \x -> render $ do
-        moveTo x (current + 15)
-        lineTo x (next + 15)
-        stroke
-
-    render $ do setSourceRGB 0 0 0
-                setLineWidth 2
+    forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
 
 abbreviateBusName :: BusName -> BusName
 abbreviateBusName n@(':':_) = n
 abbreviateBusName n = reverse . takeWhile (/= '.') . reverse $ n
 
-drawHeader :: BusName -> Double -> Double -> Render ()
-drawHeader name' x y = do
-    let name = abbreviateBusName name'
-    extents <- textExtents name
-    let diff = textExtentsWidth extents / 2
-    moveTo (x - diff) (y + 10)
-    showText name
-
 addApplication :: BusName -> Double -> Bustle Double
 addApplication s c = do
     currentRow <- gets row
 
-    render $ do drawHeader s c (currentRow - 20)
-
-                setSourceRGB 0.7 0.7 0.7
-                setLineWidth 1
-
-                moveTo c (currentRow - 5)
-                lineTo c (currentRow + 15)
-                stroke
-
-                setSourceRGB 0 0 0
-                setLineWidth 2
+    shape $ Header (abbreviateBusName s) c (currentRow - 20)
+    shape $ ClientLine c (currentRow - 5) (currentRow + 15)
 
     modifyCoordinates (Map.insert s c)
     return c
 
+firstAppX :: Double
 firstAppX = 400
 
 appCoordinate :: BusName -> Bustle Double
@@ -174,6 +152,7 @@ appCoordinate s = do
         Nothing -> do c <- rightmostApp
                       addApplication s (c + 70)
 
+rightmostApp :: Bustle Double
 rightmostApp = Map.fold max firstAppX `fmap` gets coordinates
 
 senderCoordinate :: Message -> Bustle Double
@@ -191,30 +170,28 @@ prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/
 memberName :: Message -> Bustle ()
 memberName m = do
     current <- gets row
+    let p = prettyPath $ path m
+        meth = abbreviate $ iface m ++ "." ++ member m
 
-    render $ do
-        moveTo 60 current
-        showText . prettyPath $ path m
-
-        moveTo 60 (current + 10)
-        showText . abbreviate $ iface m ++ " . " ++ member m
+    shape $ MemberLabel p meth current
 
 relativeTimestamp :: Message -> Bustle ()
 relativeTimestamp m = do
     base <- gets startTime
     let relative = (timestamp m - base) `div` 1000
     current <- gets row
-    render $ do
-        moveTo 0 current
-        showText $ show relative ++ "ms"
+    shape $ Timestamp (show relative ++ "ms") current
 
-
+returnArc :: Message -> Double -> Double -> Bustle ()
 returnArc mr callx cally = do
     destinationx <- destinationCoordinate mr
     currentx     <- senderCoordinate mr
     currenty     <- gets row
 
-    render $ dottyArc (destinationx > currentx) currentx currenty callx cally
+    shape $ Arc { topx = callx, topy = cally
+                , bottomx = currentx, bottomy = currenty
+                , arcside = if (destinationx > currentx) then L else R
+                }
 
 munge :: Message -> Bustle ()
 munge m = case m of
@@ -254,80 +231,24 @@ munge m = case m of
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
 
 
-methodCall = methodLike True
-methodReturn = methodLike False
-errorReturn m = do render $ setSourceRGB 1 0 0
-                   methodLike False m
-                   render $ setSourceRGB 0 0 0
+methodCall, methodReturn, errorReturn :: Message -> Bustle ()
+methodCall = methodLike Nothing Above
+methodReturn = methodLike Nothing Below
+errorReturn = methodLike (Just $ Colour 1 0 0) Below
 
-methodLike above m = do
+methodLike :: Maybe Colour -> Arrowhead -> Message -> Bustle ()
+methodLike colour a m = do
     sc <- senderCoordinate m
     dc <- destinationCoordinate m
     t <- gets row
-    render $ halfArrow above sc dc t
+    shape $ Arrow colour a sc dc t
 
+signal :: Message -> Bustle ()
 signal m = do
     x <- senderCoordinate m
     t <- gets row
     cs <- gets coordinates
     let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
-    render $ signalArrow x left right t
-
-
---
--- Shapes
---
-
-halfArrowHead :: Bool -> Bool -> Render ()
-halfArrowHead above left = do
-    (x,y) <- getCurrentPoint
-    let x' = if left then x - 10 else x + 10
-    let y' = if above then y - 5 else y + 5
-    if left -- work around weird artifacts
-      then moveTo x' y' >> lineTo x y
-      else lineTo x' y' >> moveTo x y
-
-arrowHead :: Bool -> Render ()
-arrowHead left = halfArrowHead False left >> halfArrowHead True left
-
-halfArrow :: Bool -> Double -> Double -> Double -> Render ()
-halfArrow above from to y = do
-    moveTo from y
-    lineTo to y
-    halfArrowHead above (from < to)
-    stroke
-
-signalArrow :: Double -> Double -> Double -> Double -> Render ()
-signalArrow epicentre left right y = do
-    newPath
-    arc epicentre y 5 0 (2 * pi)
-    stroke
-
-    moveTo (left - 20) y
-    arrowHead False
-    lineTo (epicentre - 5) y
-    stroke
-
-    moveTo (epicentre + 5) y
-    lineTo (right + 20) y
-    arrowHead True
-    stroke
-
-
-dottyArc :: Bool -> Double -> Double -> Double -> Double -> Render ()
-dottyArc left startx starty endx endy = do
-    let offset = if left then (-) else (+)
-
-    setSourceRGB 0.4 0.7 0.4
-    setDash [3, 3] 0
-
-    moveTo startx starty
-    curveTo (startx `offset` 60) (starty - 10)
-            (endx   `offset` 60) (endy   + 10)
-            endx endy
-    stroke
-
-    setSourceRGB 0 0 0
-    setDash [] 0
+    shape $ SignalArrow (left - 20) x (right + 20) t
 
 -- vim: sw=2 sts=2
