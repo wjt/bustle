@@ -21,6 +21,7 @@ module Bustle.Diagram
   , Arrowhead(..)
   , Side(..)
   , Colour(..)
+  , Rect
   , bounds
   , draw
   , intersects
