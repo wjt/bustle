@@ -36,6 +36,9 @@ infixl 4 <*>
 (<*>) :: Monad m => m (a -> b) -> m a -> m b
 (<*>) = ap
 
+t :: Parser Char
+t = char '\t'
+
 parseBusName :: Parser BusName
 parseBusName = many1 (oneOf ":._-" <|> alphaNum) <?> "bus name"
 
@@ -50,84 +53,49 @@ parseTimestamp = do
     return (seconds * 1000000 + ms)
   where i = read <$> many1 digit <?> "timestamp"
 
-t :: Parser Char
-t = char '\t'
-
 entireMember :: Parser Member
 entireMember = do
-    path <- many1 (oneOf "/_" <|> alphaNum) <?> "path"
-    t
-    iface <- many1 (oneOf "._" <|> alphaNum) <?> "iface"
-    t
-    membername <- many1 (oneOf "_" <|> alphaNum) <?> "membername"
-
-    return $ Member path iface membername
+    let p = many1 (oneOf "/_" <|> alphaNum) <?> "path"
+        i = many1 (oneOf "._" <|> alphaNum) <?> "iface"
+        m = many1 (oneOf "_" <|> alphaNum) <?> "membername"
+    Member <$> p <* t <*> i <* t <*> m
   <?> "member"
 
 methodCall :: Parser Message
 methodCall = do
     char 'c'
     t
-    timestamp <- parseTimestamp
-    t
-    serial <- parseSerial
-    t
-    sender <- parseBusName
-    t
-    destination <- parseBusName
-    t
-    member <- entireMember
-
-    return (MethodCall timestamp serial sender destination member)
+    MethodCall <$> parseTimestamp <* t <*> parseSerial <* t
+               <*> parseBusName <* t <*> parseBusName <* t <*> entireMember
   <?> "method call"
 
 methodReturn :: Parser Message
 methodReturn = do
     char 'r'
     t
-    timestamp <- parseTimestamp
-    t
-    parseSerial
-    t
-    replySerial <- parseSerial
-    t
-    sender <- parseBusName
-    t
-    destination <- parseBusName
-
-    return (MethodReturn timestamp replySerial sender destination)
+    MethodReturn <$> parseTimestamp <* t
+                 --   own serial         serial of call
+                 <*> (parseSerial >> t >> parseSerial) <* t
+                 <*> parseBusName <* t <*> parseBusName
   <?> "method return"
 
 signal :: Parser Message
 signal = do
     string "sig"
     t
-    timestamp <- parseTimestamp
-    t
-    parseSerial
-    t
-    sender <- parseBusName
-    t
-    member <- entireMember
-
-    return (Signal timestamp sender member)
+    -- Ignore serial
+    Signal <$> parseTimestamp <* t <*> (parseSerial >> t >> parseBusName) <* t
+           <*> entireMember
   <?> "signal"
 
 parseError :: Parser Message
 parseError = do
     string "err"
     t
-    timestamp <- parseTimestamp
-    t
-    parseSerial
-    t
-    replySerial <- parseSerial
-    t
-    sender <- parseBusName
-    t
-    destination <- parseBusName
-
-    return (Error timestamp replySerial sender destination)
+    Error <$> parseTimestamp <* t
+          --   own serial         serial of call
+          <*> (parseSerial >> t >> parseSerial) <* t
+          <*> parseBusName <* t <*> parseBusName
   <?> "error"
 
 method :: Parser Message
