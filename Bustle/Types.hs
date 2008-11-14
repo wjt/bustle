@@ -36,10 +36,10 @@ data Member = Member { path :: ObjectPath
   deriving (Ord, Show, Read, Eq)
 
 data Message = MethodCall { timestamp :: Milliseconds
-                          , member :: Member
                           , serial :: Serial
                           , sender :: BusName
                           , destination :: BusName
+                          , member :: Member
                           }
              | MethodReturn { timestamp :: Milliseconds
                             , inReplyTo :: Serial
@@ -47,8 +47,8 @@ data Message = MethodCall { timestamp :: Milliseconds
                             , destination :: BusName
                             }
              | Signal { timestamp :: Milliseconds
-                      , member :: Member
                       , sender :: BusName
+                      , member :: Member
                       }
              | Error { timestamp :: Milliseconds
                      , inReplyTo :: Serial

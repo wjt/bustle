@@ -78,7 +78,7 @@ methodCall = do
     t
     member <- entireMember
 
-    return (MethodCall timestamp member serial sender destination)
+    return (MethodCall timestamp serial sender destination member)
   <?> "method call"
 
 methodReturn :: Parser Message
@@ -110,7 +110,7 @@ signal = do
     t
     member <- entireMember
 
-    return (Signal timestamp member sender)
+    return (Signal timestamp sender member)
   <?> "signal"
 
 parseError :: Parser Message
