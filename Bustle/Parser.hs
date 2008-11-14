@@ -22,11 +22,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Bustle.Parser (readLog)
 where
 
-
 import Bustle.Types
 import Text.ParserCombinators.Parsec
 import Data.Char (isSpace)
+import Control.Monad (ap)
 import Control.Applicative ((<$>))
+
+infixl 4 <*
+(<*) :: Monad m => m a -> m b -> m a
+m <* n = do ret <- m; n; return ret
+
+infixl 4 <*>
+(<*>) :: Monad m => m (a -> b) -> m a -> m b
+(<*>) = ap
 
 parseBusName :: Parser BusName
 parseBusName = many1 (oneOf ":._-" <|> alphaNum) <?> "bus name"
@@ -128,9 +136,6 @@ method = char 'm' >> (methodCall <|> methodReturn)
 
 event :: Parser Message
 event = method <|> signal <|> parseError
-
-(<*) :: Monad m => m a -> m b -> m a
-m <* n = do ret <- m; n; return ret
 
 readLog :: String -> Either ParseError [Message]
 readLog = parse (sepEndBy event (char '\n') <* eof) ""
