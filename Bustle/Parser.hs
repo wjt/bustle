@@ -69,15 +69,20 @@ methodCall = do
                <*> parseBusName <* t <*> parseBusName <* t <*> entireMember
   <?> "method call"
 
-methodReturn :: Parser Message
-methodReturn = do
-    char 'r'
-    t
-    MethodReturn <$> parseTimestamp <* t
-                 --   own serial         serial of call
-                 <*> (parseSerial >> t >> parseSerial) <* t
-                 <*> parseBusName <* t <*> parseBusName
-  <?> "method return"
+parseReturnOrError :: String
+                   -> (Milliseconds -> Serial -> BusName -> BusName -> Message)
+                   -> Parser Message
+parseReturnOrError prefix constructor = do
+    string prefix <* t
+    constructor <$> parseTimestamp <* t
+                --   own serial         serial of call
+                <*> (parseSerial >> t >> parseSerial) <* t
+                <*> parseBusName <* t <*> parseBusName
+ <?> "method return or error"
+
+methodReturn, parseError :: Parser Message
+methodReturn = parseReturnOrError "r" MethodReturn <?> "method return"
+parseError = parseReturnOrError "err" Error <?> "error"
 
 signal :: Parser Message
 signal = do
@@ -87,16 +92,6 @@ signal = do
     Signal <$> parseTimestamp <* t <*> (parseSerial >> t >> parseBusName) <* t
            <*> entireMember
   <?> "signal"
-
-parseError :: Parser Message
-parseError = do
-    string "err"
-    t
-    Error <$> parseTimestamp <* t
-          --   own serial         serial of call
-          <*> (parseSerial >> t >> parseSerial) <* t
-          <*> parseBusName <* t <*> parseBusName
-  <?> "error"
 
 method :: Parser Message
 method = char 'm' >> (methodCall <|> methodReturn)
