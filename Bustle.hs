@@ -67,6 +67,12 @@ run filename log = do
   file <- menuItemNewWithMnemonic "_File"
   fileMenu <- menuNew
   menuItemSetSubmenu file fileMenu
+  saveItem <- imageMenuItemNewFromStock stockSave
+  menuShellAppend fileMenu saveItem
+  onActivateLeaf saveItem $
+    withImageSurface FormatARGB32 (floor width) (floor height) $ \surface -> do
+      renderWith surface $ clearCanvas >> mapM_ (draw . snd) shapes
+      surfaceWriteToPNG surface $ filename ++ ".png"
 
   menuShellAppend menuBar file
   boxPackStart vbox menuBar PackNatural 0
