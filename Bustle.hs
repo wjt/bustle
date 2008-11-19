@@ -60,6 +60,16 @@ run filename log = do
                           unzip [ (x2, y2) | ((_, _, x2, y2), _) <- shapes ]
 
   window <- mkWindow filename
+  vbox <- vBoxNew False 0
+  containerAdd window vbox
+
+  menuBar <- menuBarNew
+  file <- menuItemNewWithMnemonic "_File"
+  fileMenu <- menuNew
+  menuItemSetSubmenu file fileMenu
+
+  menuShellAppend menuBar file
+  boxPackStart vbox menuBar PackNatural 0
 
   layout <- layoutNew Nothing Nothing
   layoutSetSize layout (floor width) (floor height)
@@ -67,7 +77,7 @@ run filename log = do
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
   containerAdd scrolledWindow layout
-  containerAdd window scrolledWindow
+  boxPackStart vbox scrolledWindow PackGrow 0
   windowSetDefaultSize window 900 700
 
   hadj <- layoutGetHAdjustment layout
