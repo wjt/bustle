@@ -42,7 +42,7 @@ data Message = MethodCall { timestamp :: Milliseconds
                           , member :: Member
                           }
              | MethodReturn { timestamp :: Milliseconds
-                            , inReplyTo :: Serial
+                            , inReplyTo :: Message
                             , sender :: BusName
                             , destination :: BusName
                             }
@@ -51,11 +51,11 @@ data Message = MethodCall { timestamp :: Milliseconds
                       , member :: Member
                       }
              | Error { timestamp :: Milliseconds
-                     , inReplyTo :: Serial
+                     , inReplyTo :: Message
                      , sender :: BusName
                      , destination :: BusName
                      }
-  deriving Show
+  deriving (Show, Eq, Ord)
 
 type Log = [Message]
 

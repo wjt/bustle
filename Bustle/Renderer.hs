@@ -56,7 +56,7 @@ process log =
 
 data BustleState =
     BustleState { coordinates :: Map BusName Double
-                , pending :: Map (BusName, Serial) (Message, (Double, Double))
+                , pending :: Map Message (Double, Double)
                 , row :: Double
                 , mostRecentLabels :: Double
                 , startTime :: Milliseconds
@@ -71,29 +71,25 @@ modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
 shape :: Shape -> Bustle ()
 shape s = modify $ \bs -> bs { shapes = s:shapes bs }
 
+modifyPending :: (Map Message (Double, Double) -> Map Message (Double, Double))
+              -> Bustle ()
+modifyPending f = modify $ \bs -> bs { pending = f (pending bs) }
+
 addPending :: Message -> Bustle ()
 addPending m = do
     x <- destinationCoordinate m
     y <- gets row
-    let update = Map.insert (sender m, serial m) (m, (x, y))
+    modifyPending $ Map.insert m (x, y)
 
-    modify $ \bs -> bs { pending = update (pending bs) }
-
-returnLike :: Message -> Bool
-returnLike (MethodReturn {}) = True
-returnLike (Error {})        = True
-returnLike _                 = False
-
-findCorrespondingCall :: Message -> Bustle (Maybe (Message, (Double, Double)))
-findCorrespondingCall mr | returnLike mr = do
-    let key = (destination mr, inReplyTo mr)
-    ps <- gets pending
-    case Map.lookup key ps of
-        Nothing  -> return Nothing
-        Just mcc -> do modify (\bs -> bs { pending = Map.delete key ps })
-                       return $ Just mcc
-findCorrespondingCall _ = return Nothing
-
+findCallCoordinates :: Message -> Bustle (Maybe (Double, Double))
+findCallCoordinates m = do
+    gets pending >>= \p -> traceM $ unlines
+          [ "Finding method call " ++ show m
+          , "Map contains: " ++ show p
+          ]
+    ret <- gets (Map.lookup m . pending)
+    modifyPending $ Map.delete m
+    return ret
 
 advanceBy :: Double -> Bustle ()
 advanceBy d = do
@@ -201,27 +197,18 @@ munge m = case m of
             methodCall m
             addPending m
 
-        MethodReturn {} -> do
-            call <- findCorrespondingCall m
-            case call of
-                Nothing         -> return ()
-                Just (_, (x,y)) -> do
-                    advance
-                    relativeTimestamp m
-                    methodReturn m
-                    returnArc m x y
-
-        Error {} -> do
-            call <- findCorrespondingCall m
-            case call of
-                Nothing         -> return ()
-                Just (_, (x,y)) -> do
-                    advance
-                    relativeTimestamp m
-                    errorReturn m
-                    returnArc m x y
-
+        MethodReturn {} -> returnOrError methodReturn
+        Error {}        -> returnOrError errorReturn
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
+        returnOrError f = do
+            coords <- findCallCoordinates (inReplyTo m)
+            case coords of
+                Nothing    -> return ()
+                Just (x,y) -> do
+                    advance
+                    relativeTimestamp m
+                    f m
+                    returnArc m x y
 
 
 methodCall, methodReturn, errorReturn :: Message -> Bustle ()

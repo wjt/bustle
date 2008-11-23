@@ -20,9 +20,12 @@ module Bustle.Parser (readLog)
 where
 
 import Bustle.Types
-import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec hiding (Parser)
 import Data.Char (isSpace)
-import Control.Monad (ap)
+import Data.Map (Map)
+import Data.Maybe (isJust)
+import qualified Data.Map as Map
+import Control.Monad (ap, when)
 import Control.Applicative ((<$>))
 
 infixl 4 <*
@@ -32,6 +35,8 @@ m <* n = do ret <- m; n; return ret
 infixl 4 <*>
 (<*>) :: Monad m => m (a -> b) -> m a -> m b
 (<*>) = ap
+
+type Parser a = GenParser Char (Map (BusName, Serial) Message) a
 
 t :: Parser Char
 t = char '\t'
@@ -58,23 +63,41 @@ entireMember = do
     Member <$> p <* t <*> i <* t <*> m
   <?> "member"
 
+addPendingCall :: Message -> Parser ()
+addPendingCall m = updateState $ Map.insert (sender m, serial m) m
+
+findPendingCall :: BusName -> Serial -> Parser (Maybe Message)
+findPendingCall dest s = do
+    pending <- getState
+    let key = (dest, s)
+        ret = Map.lookup key pending
+    when (isJust ret) $ updateState (Map.delete key)
+    return ret
+
 methodCall :: Parser Message
 methodCall = do
     char 'c'
     t
-    MethodCall <$> parseTimestamp <* t <*> parseSerial <* t
-               <*> parseBusName <* t <*> parseBusName <* t <*> entireMember
+    m <- MethodCall <$> parseTimestamp <* t <*> parseSerial <* t
+                    <*> parseBusName <* t <*> parseBusName <* t <*> entireMember
+    addPendingCall m
+    return m
   <?> "method call"
 
 parseReturnOrError :: String
-                   -> (Milliseconds -> Serial -> BusName -> BusName -> Message)
+                   -> (Milliseconds -> Message -> BusName -> BusName -> Message)
                    -> Parser Message
 parseReturnOrError prefix constructor = do
     string prefix <* t
-    constructor <$> parseTimestamp <* t
-                --   own serial         serial of call
-                <*> (parseSerial >> t >> parseSerial) <* t
-                <*> parseBusName <* t <*> parseBusName
+    ts <- parseTimestamp <* t
+    parseSerial <* t
+    replySerial <- parseSerial <* t
+    s <- parseBusName <* t
+    d <- parseBusName
+    call <- findPendingCall d replySerial
+    case call of
+      Just m  -> return $ constructor ts m s d
+      Nothing -> fail "return doesn't match any calls"
  <?> "method return or error"
 
 methodReturn, parseError :: Parser Message
@@ -98,7 +121,7 @@ event :: Parser Message
 event = method <|> signal <|> parseError
 
 readLog :: String -> Either ParseError [Message]
-readLog = parse (sepEndBy event (char '\n') <* eof) ""
+readLog = runParser (sepEndBy event (char '\n') <* eof) Map.empty ""
 
 
 -- vim: sw=2 sts=2
