@@ -16,9 +16,6 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
--- there's lots of shadowing here. it'd go away with applicative instances for
--- Parsec.
 module Bustle.Parser (readLog)
 where
 
