@@ -85,7 +85,7 @@ methodCall = do
   <?> "method call"
 
 parseReturnOrError :: String
-                   -> (Milliseconds -> Message -> BusName -> BusName -> Message)
+                   -> (Milliseconds -> Maybe Message -> BusName -> BusName -> Message)
                    -> Parser Message
 parseReturnOrError prefix constructor = do
     string prefix <* t
@@ -95,9 +95,7 @@ parseReturnOrError prefix constructor = do
     s <- parseBusName <* t
     d <- parseBusName
     call <- findPendingCall d replySerial
-    case call of
-      Just m  -> return $ constructor ts m s d
-      Nothing -> fail "return doesn't match any calls"
+    return $ constructor ts call s d
  <?> "method return or error"
 
 methodReturn, parseError :: Parser Message

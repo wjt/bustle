@@ -42,7 +42,7 @@ data Message = MethodCall { timestamp :: Milliseconds
                           , member :: Member
                           }
              | MethodReturn { timestamp :: Milliseconds
-                            , inReplyTo :: Message
+                            , inReplyTo :: Maybe Message
                             , sender :: BusName
                             , destination :: BusName
                             }
@@ -51,7 +51,7 @@ data Message = MethodCall { timestamp :: Milliseconds
                       , member :: Member
                       }
              | Error { timestamp :: Milliseconds
-                     , inReplyTo :: Message
+                     , inReplyTo :: Maybe Message
                      , sender :: BusName
                      , destination :: BusName
                      }

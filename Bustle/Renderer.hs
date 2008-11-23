@@ -81,12 +81,8 @@ addPending m = do
     y <- gets row
     modifyPending $ Map.insert m (x, y)
 
-findCallCoordinates :: Message -> Bustle (Maybe (Double, Double))
-findCallCoordinates m = do
-    gets pending >>= \p -> traceM $ unlines
-          [ "Finding method call " ++ show m
-          , "Map contains: " ++ show p
-          ]
+findCallCoordinates :: Maybe Message -> Bustle (Maybe (Double, Double))
+findCallCoordinates = maybe (return Nothing) $ \m -> do
     ret <- gets (Map.lookup m . pending)
     modifyPending $ Map.delete m
     return ret
