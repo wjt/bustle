@@ -43,8 +43,6 @@
 
 #include <dbus/dbus.h>
 
-#include <glib.h>
-
 #ifdef DBUS_WIN
 
 /* gettimeofday is not defined on windows */
