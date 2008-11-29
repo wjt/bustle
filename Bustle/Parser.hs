@@ -95,7 +95,12 @@ parseReturnOrError prefix constructor = do
     s <- parseBusName <* t
     d <- parseBusName
     call <- findPendingCall d replySerial
-    return $ constructor ts call s d
+    -- If we can see a call, use its sender and destination as the destination
+    -- and sender for the reply. This might prove unnecessary in the event of
+    -- moving the name collapsing into the UI.
+    let (s', d') = case call of Just call_ -> (destination call_, sender call_)
+                                Nothing    -> (s, d)
+    return $ constructor ts call s' d'
  <?> "method return or error"
 
 methodReturn, parseError :: Parser Message
