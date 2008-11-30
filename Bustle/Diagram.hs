@@ -74,6 +74,7 @@ data Shape = Header { str :: String, shapex, shapey :: Double
            | SignalArrow { shapex1, epicentre, shapex2, shapey :: Double }
            | Arc { topx, topy, bottomx, bottomy :: Double
                  , arcside :: Side
+                 , caption :: String
                  }
   deriving (Show, Read, Eq)
 
@@ -169,7 +170,7 @@ draw s = draw' s
   where draw' = case s of
           Arc {} -> let ((cx, cy), (dx, dy)) = arcControlPoints s
                     in drawArc cx cy dx dy <$>
-                          topx <*> topy <*> bottomx <*> bottomy
+                          topx <*> topy <*> bottomx <*> bottomy <*> caption
           SignalArrow {} -> drawSignalArrow <$> epicentre <*> shapex1 <*>
                               shapex2 <*> shapey
           Arrow {} -> drawArrow <$> shapecolour <*> arrowhead <*> shapex1 <*>
@@ -221,8 +222,9 @@ drawSignalArrow e left right y = do
 
 drawArc :: Double -> Double -> Double -> Double
         -> Double -> Double -> Double -> Double
+        -> String
         -> Render ()
-drawArc cx cy dx dy x1 y1 x2 y2 = do
+drawArc cx cy dx dy x1 y1 x2 y2 cap = do
     save
 
     setSourceRGB 0.4 0.7 0.4
@@ -231,6 +233,21 @@ drawArc cx cy dx dy x1 y1 x2 y2 = do
     moveTo x1 y1
     curveTo cx cy dx dy x2 y2
     stroke
+
+    setSourceRGB 0 0 0
+    extents <- textExtents cap
+    let textWidth = textExtentsWidth extents
+        tx = min x2 dx + abs (x2 - dx) / 2
+    moveTo (if x1 > cx then tx - textWidth else tx) y2
+    showText cap
+
+{-
+    -- bounding box of arc; useful as a guide to the coordinates we have to
+    -- play with.
+    setSourceRGB 0 0 1
+    rectangle x1 y1 (cx - x1) (y2 - y1)
+    stroke
+-}
 
     restore
 

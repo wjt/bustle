@@ -81,11 +81,11 @@ addPending m = do
     y <- gets row
     modifyPending $ Map.insert m (x, y)
 
-findCallCoordinates :: Maybe Message -> Bustle (Maybe (Double, Double))
+findCallCoordinates :: Maybe Message -> Bustle (Maybe (Message, (Double, Double)))
 findCallCoordinates = maybe (return Nothing) $ \m -> do
     ret <- gets (Map.lookup m . pending)
     modifyPending $ Map.delete m
-    return ret
+    return $ fmap ((,) m) ret
 
 advanceBy :: Double -> Bustle ()
 advanceBy d = do
@@ -167,8 +167,8 @@ relativeTimestamp m = do
     current <- gets row
     shape $ Timestamp (show relative ++ "ms") current
 
-returnArc :: Message -> Double -> Double -> Bustle ()
-returnArc mr callx cally = do
+returnArc :: Message -> Double -> Double -> Milliseconds -> Bustle ()
+returnArc mr callx cally duration = do
     destinationx <- destinationCoordinate mr
     currentx     <- senderCoordinate mr
     currenty     <- gets row
@@ -176,6 +176,7 @@ returnArc mr callx cally = do
     shape $ Arc { topx = callx, topy = cally
                 , bottomx = currentx, bottomy = currenty
                 , arcside = if (destinationx > currentx) then L else R
+                , caption = show (duration `div` 1000) ++ "ms"
                 }
 
 munge :: Message -> Bustle ()
@@ -197,14 +198,15 @@ munge m = case m of
         Error {}        -> returnOrError errorReturn
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
-            coords <- findCallCoordinates (inReplyTo m)
-            case coords of
+            call <- findCallCoordinates (inReplyTo m)
+            case call of
                 Nothing    -> return ()
-                Just (x,y) -> do
+                Just (m', (x,y)) -> do
                     advance
                     relativeTimestamp m
                     f m
-                    returnArc m x y
+                    let duration = timestamp m - timestamp m'
+                    returnArc m x y duration
 
 
 methodCall, methodReturn, errorReturn :: Message -> Bustle ()
