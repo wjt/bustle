@@ -123,8 +123,20 @@ method :: Parser Message
 method = char 'm' >> (methodCall <|> methodReturn)
   <?> "method call or return"
 
+maybeBusName :: Parser (Maybe BusName)
+maybeBusName = (char '!' >> return Nothing)
+           <|> fmap Just parseBusName
+           <?> "a bus name, or !"
+
+nameOwnerChanged :: Parser Message
+nameOwnerChanged = do
+    string "nameownerchanged"
+    t
+    NameOwnerChanged <$> parseTimestamp <* t <*> parseBusName <* t
+                     <*> maybeBusName <* t <*> maybeBusName
+
 event :: Parser Message
-event = method <|> signal <|> parseError
+event = method <|> signal <|> nameOwnerChanged <|> parseError
 
 readLog :: String -> Either ParseError [Message]
 readLog = runParser (sepEndBy event (char '\n') <* eof) Map.empty ""

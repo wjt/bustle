@@ -46,6 +46,7 @@ process log =
   where initialState = BustleState Map.empty Map.empty 0 0 initTime []
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
+        relevant (NameOwnerChanged {}) = True
         relevant m                 = (path . member) m /= "/org/freedesktop/DBus"
 
         log' = filter relevant log
@@ -196,6 +197,7 @@ munge m = case m of
 
         MethodReturn {} -> returnOrError methodReturn
         Error {}        -> returnOrError errorReturn
+        NameOwnerChanged {} -> return ()
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
             call <- findCallCoordinates (inReplyTo m)

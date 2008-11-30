@@ -55,6 +55,11 @@ data Message = MethodCall { timestamp :: Milliseconds
                      , sender :: BusName
                      , destination :: BusName
                      }
+             | NameOwnerChanged { timestamp :: Milliseconds
+                                , changedName :: BusName
+                                , oldOwner :: Maybe BusName
+                                , newOwner :: Maybe BusName
+                                }
   deriving (Show, Eq, Ord)
 
 type Log = [Message]
