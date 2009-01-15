@@ -55,10 +55,13 @@ parseTimestamp = do
     return (seconds * 1000000 + ms)
   where i = read <$> many1 digit <?> "timestamp"
 
+none :: Parser String
+none = string "<none>"
+
 entireMember :: Parser Member
 entireMember = do
     let p = many1 (oneOf "/_" <|> alphaNum) <?> "path"
-        i = many1 (oneOf "._" <|> alphaNum) <?> "iface"
+        i = none <|> many1 (oneOf "._" <|> alphaNum) <?> "iface"
         m = many1 (oneOf "_" <|> alphaNum) <?> "membername"
     Member <$> p <* t <*> i <* t <*> m
   <?> "member"
