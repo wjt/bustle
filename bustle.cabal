@@ -6,7 +6,7 @@ License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will.thompson@collabora.co.uk>
 Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
-Build-Depends:  mtl, cairo, gtk, base, containers, parsec
+Build-Depends:  haskell98, mtl, cairo, gtk, base, containers, parsec
 Data-files:     bustle.png
 Build-type:     Simple
 Extra-source-files: bustle-dbus-monitor.c, Makefile, README
@@ -14,4 +14,14 @@ Extra-source-files: bustle-dbus-monitor.c, Makefile, README
 Executable:     bustle
 Main-is:        Bustle.hs
 Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer
+Ghc-options:    -Wall -fno-warn-unused-imports
+
+Executable:     bustle-count
+Main-is:        bustle-count.hs
+Other-modules:  Bustle.Parser, Bustle.Types
+Ghc-options:    -Wall -fno-warn-unused-imports
+
+Executable:     bustle-time
+Main-is:        bustle-time.hs
+Other-modules:  Bustle.Parser, Bustle.Types
 Ghc-options:    -Wall -fno-warn-unused-imports
