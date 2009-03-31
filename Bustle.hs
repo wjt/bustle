@@ -30,6 +30,7 @@ import Bustle.Types
 import Bustle.Diagram
 
 import Graphics.UI.Gtk
+import Graphics.UI.Gtk.Gdk.Events
 import Graphics.Rendering.Cairo
 
 import System.Environment (getArgs)
