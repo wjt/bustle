@@ -30,6 +30,7 @@ import Bustle.Types
 import Bustle.Diagram
 
 import Graphics.UI.Gtk
+-- FIXME: Events is deprecated in favour of EventM
 import Graphics.UI.Gtk.Gdk.Events
 import Graphics.Rendering.Cairo
 
