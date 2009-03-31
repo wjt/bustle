@@ -18,8 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Main where
 
-import Prelude hiding (catch, log)
-import Control.Exception (catch)
+import Prelude hiding (log)
 
 import Control.Arrow ((&&&), (***))
 
@@ -29,6 +28,7 @@ import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
 
+import System.Glib.GError (catchGError)
 import Graphics.UI.Gtk
 -- FIXME: Events is deprecated in favour of EventM
 import Graphics.UI.Gtk.Gdk.Events
@@ -152,7 +152,7 @@ mkWindow filename = do
 
     iconName <- getDataFileName "bustle.png"
     let load x = pixbufNewFromFile x >>= windowSetIcon window
-    foldl1 (\m n -> m `catch` const n)
+    foldl1 (\m n -> m `catchGError` const n)
       [ load iconName
       , load "bustle.png"
       , putStrLn "Couldn't find window icon. Oh well."
