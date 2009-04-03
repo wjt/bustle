@@ -1,0 +1,25 @@
+Bustle 0.2 (UNRELEASED)
+=======================
+
+Enhancements:
+
+ * Add a menu item to save a PDF of the diagram.
+
+ * Show the elapsed time between a method call and its return.
+
+ * Add new tools to count method calls and signals, sum the total time
+   spent per method call, and generate .dot graphs (Dafydd Harries).
+
+Fixes:
+
+ * Don't crash on empty logs, or logs containing calls on interface
+   "<none>".
+
+ * Compile with new Gtk2HS and GHC 6.10 (Chris Lamb).
+
+Bustle 0.1 (2008-11-13)
+=======================
+
+Initial release.
+
+vim: tw=72
