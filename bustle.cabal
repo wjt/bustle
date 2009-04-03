@@ -9,7 +9,7 @@ Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
 Build-Depends:  haskell98, mtl, cairo, gtk, base, containers, parsec, glib
 Data-files:     bustle.png
 Build-type:     Simple
-Extra-source-files: bustle-dbus-monitor.c, Makefile, README
+Extra-source-files: bustle-dbus-monitor.c, Makefile, README, NEWS, HACKING
 
 Executable:     bustle
 Main-is:        Bustle.hs
