@@ -2,7 +2,7 @@ Compile the monitor:
 
     % make
 
-Compile the charting application:
+Compile the charting application and utilities:
 
     % ./Setup.lhs configure --user
     % ./Setup.lhs build
@@ -17,4 +17,17 @@ Capture some D-Bus traffic:
 
 Now chart it:
 
-    % ~/bin/bustle ./log
+    % ~/bin/bustle log
+
+Count the method calls and signal emissions:
+
+    % ~/bin/bustle-count log
+
+Make a .dot graph of method caller -> callee:
+
+    % ~/bin/bustle-dot log >log.dot
+    % dot -Tpng -o log-callers.png <log.dot
+
+Count the total time spent in each method:
+
+    % ~/bin/bustle-time log
