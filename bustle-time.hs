@@ -1,3 +1,4 @@
+import Prelude hiding (log)
 
 import Data.Function
 import qualified Data.Map as M
@@ -15,14 +16,14 @@ mean = acc 0 0
          acc n t [] = t / n
          acc n t (x:xs) = acc (n + 1) (t + x) xs
 
-times :: [Message] -> [(String, Double, Int, Double)]
-times = map (\(method, (total, times)) ->
+mkTimes :: [Message] -> [(String, Double, Int, Double)]
+mkTimes = map (\(method, (total, times)) ->
                   (method,
                    fromInteger total / 1000,
                    length times,
                    (mean $ map fromInteger times) / 1000))
       . M.toList
-      . foldr (\(method, time) map -> M.alter (alt time) method map) M.empty
+      . foldr (\(method, time) -> M.alter (alt time) method) M.empty
       . mapMaybe methodReturn
     where alt newtime Nothing = Just (newtime, [newtime])
           alt newtime (Just (total, times)) =
@@ -36,20 +37,22 @@ times = map (\(method, (total, times)) ->
 
           memberStr m = iface m ++ "." ++ membername m
 
-run path = do
-    input <- readFile path
+run :: FilePath -> IO ()
+run filepath = do
+    input <- readFile filepath
     case readLog input of
-        Left err -> putStrLn $ concat ["Couldn't parse ", path, ": ", show err]
-        Right log -> mapM_ (\(method, total, ncalls, mean) ->
+        Left err -> putStrLn $ concat ["Couldn't parse ", filepath, ": ", show err]
+        Right log -> mapM_ (\(method, total, ncalls, mean_) ->
                                  printf " %9.4f %3d %9.4f %s\n"
-                                     total ncalls mean method)
+                                     total ncalls mean_ method)
                          . reverse
                          . sortBy (compare `on` (\(_, b, _, _) -> b))
-                         . times $ log
+                         . mkTimes $ log
 
+main :: IO ()
 main = do
    args <- getArgs
    case args of
-       [path] -> run path
+       [filepath] -> run filepath
        _ -> exitFailure
 
