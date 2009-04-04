@@ -54,8 +54,8 @@ process log =
 
         log' = filter relevant log
 
-        initTime = case log' of
-            m:_ -> timestamp m
+        initTime = case dropWhile (== 0) (map timestamp log') of
+            t:_ -> t
             _   -> 0
 
 type Bustle a = State BustleState a
