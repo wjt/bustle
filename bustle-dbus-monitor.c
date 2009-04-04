@@ -270,6 +270,12 @@ get_well_known_names (DBusConnection *connection)
       DBUS_TYPE_ARRAY, DBUS_TYPE_STRING, &names, &n_names,
       DBUS_TYPE_INVALID);
 
+  /* First, print the unique names */
+  for (i = 0; i < n_names; i++)
+    if (*names[i] == ':')
+        print_name_owner_changed (&t, names[i], "", names[i]);
+
+  /* Now print the well-known names */
   for (i = 0; i < n_names; i++)
     {
       DBusMessage *owner_ret;
