@@ -75,6 +75,9 @@ print_name_owner_changed (struct timeval *t,
     const char *old_owner,
     const char *new_owner)
 {
+  if (!strcmp (name, "org.freedesktop.DBus"))
+    return;
+
   printf (PROFILE_TIMED_FORMAT, "nameownerchanged", t->tv_sec, t->tv_usec);
 
   /* Use '!' to represent "no name here". */
