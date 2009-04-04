@@ -112,9 +112,9 @@ advanceBy d = do
     xs <- gets (Map.fold (:) [] . coordinates)
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
 
-abbreviateBusName :: BusName -> BusName
-abbreviateBusName n@(':':_) = n
-abbreviateBusName n = reverse . takeWhile (/= '.') . reverse $ n
+abbreviateBusName :: BusName -> String
+abbreviateBusName (U (UniqueName n)) = n
+abbreviateBusName (O (OtherName  n)) = reverse . takeWhile (/= '.') . reverse $ n
 
 addApplication :: BusName -> Double -> Bustle Double
 addApplication s c = do

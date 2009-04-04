@@ -25,7 +25,18 @@ type Interface = String
 type MemberName = String
 type ErrorName = String
 type Serial = Word32
-type BusName = String
+
+newtype UniqueName = UniqueName String
+  deriving (Ord, Show, Eq)
+newtype OtherName = OtherName String
+  deriving (Ord, Show, Eq)
+data BusName = U UniqueName
+             | O OtherName
+  deriving (Ord, Show, Eq)
+
+unBusName :: BusName -> String
+unBusName (U (UniqueName x)) = x
+unBusName (O (OtherName  x)) = x
 
 type Milliseconds = Integer
 

@@ -42,7 +42,10 @@ t :: Parser Char
 t = char '\t'
 
 parseBusName :: Parser BusName
-parseBusName = many1 (oneOf ":._-" <|> alphaNum) <?> "bus name"
+parseBusName = unique <|> other <?> "bus name"
+  where nameChars = many1 (oneOf "._-" <|> alphaNum)
+        unique = char ':' >> fmap (U . UniqueName . (':':)) nameChars
+        other = fmap (O . OtherName) nameChars
 
 parseSerial :: Parser Serial
 parseSerial = read <$> many1 digit <?> "serial"
