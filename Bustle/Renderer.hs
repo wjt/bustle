@@ -74,31 +74,41 @@ data BustleState =
 modifyCoordinates :: (Map BusName Double -> Map BusName Double) -> Bustle ()
 modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
 
--- Maps unique connection name to the column representing that name, and a set
--- of non-unique names for the connection, if any.
--- XXX this can't represent messages to unowned names. I guess we can just draw
--- those arrows as going to a question mark? That's something to consider
--- whenever a BusName is looked up in this map. Indeed this problem existed
--- before.
--- XXX lazily allocate coordinate
-type Applications = Map UniqueName (Double, Set OtherName)
+-- Maps unique connection name to the column representing that name, if
+-- allocated, and a set of non-unique names for the connection, if any.
+type Applications = Map UniqueName (Maybe Double, Set OtherName)
 
--- Finds a BusName in a map of applications, yielding its column (if any)
-lookupApp :: BusName -> Applications -> Maybe Double
+-- Finds a BusName in a map of applications
+lookupApp :: BusName
+          -> Applications
+          -> Maybe (UniqueName, (Maybe Double, Set OtherName))
 lookupApp name as = case name of
-    U u -> fst <$> Map.lookup u as
-    O o -> case filter (Set.member o . snd) (Map.elems as) of
+    U u -> (,) u <$> Map.lookup u as
+    O o -> case filter (Set.member o . snd . snd) (Map.assocs as) of
               []         -> Nothing
-              [(col, _)] -> Just col
+              [details]  -> Just details
               several    -> error $ concat [ "internal error: "
                                            , show o
                                            , " in several apps: "
                                            , show several
                                            ]
 
--- Finds a BusName in the current state, yielding its column (if any)
+-- Finds a BusName in the current state, yielding its column if it exists.  If
+-- it exists, but previously lacked a column, a column is allocated.
 getApp :: BusName -> Bustle (Maybe Double)
-getApp n = gets (lookupApp n . apps)
+getApp n = do
+    app <- gets (lookupApp n . apps)
+    case app of
+        Nothing -> return Nothing
+        Just (u, details) -> Just <$> case details of
+            (Just col, _) -> return col
+            (Nothing, os) -> assignColumn u os
+  where assignColumn :: UniqueName -> Set OtherName -> Bustle Double
+        assignColumn u os = do
+            x <- gets nextColumn
+            modify $ \bs -> bs { nextColumn = x + 70 }
+            modifyApps $ Map.insert u (Just x, os)
+            return x
 
 -- Modify the application table directly.
 modifyApps :: (Applications -> Applications) -> Bustle ()
@@ -111,29 +121,26 @@ updateApps :: BusName -- name whose owner has changed.
            -> Maybe BusName -- new owner, if any.
            -> Bustle (Maybe Double, Maybe Double) -- the old and new owners' columns
 -- Unique name added, aka. someone connected to the bus
-updateApps (U n) Nothing (Just (U m)) | n == m = (,) Nothing . Just <$> addUnique n
+updateApps (U n) Nothing (Just (U m)) | n == m = do addUnique n
+                                                    return (Nothing, Nothing)
 -- Unique name removed, aka. someone disconnected from the bus
-updateApps (U n) (Just (U m)) Nothing | n == m = flip (,) Nothing . Just <$> remUnique n
+updateApps (U n) (Just (U m)) Nothing | n == m = flip (,) Nothing <$> remUnique n
 updateApps (U n) x y = error $ concat [ "corrupt log: unique name ", show n
                                       , " released by ", show x
                                       , "; claimed by " , show y
                                       ]
-updateApps (O n) old new = (,) `fmap` notfmap (remOther n) old
-                               `ap`   notfmap (addOther n) new
+updateApps (O n) old new = (,) `fmap` maybeM (remOther n) old
+                               `ap`   maybeM (addOther n) new
 
--- This is secretly traverse but State is not Applicative. Angerous rage.
-notfmap :: (a -> Bustle b) -> Maybe a -> Bustle (Maybe b)
-notfmap f = maybe (return Nothing) (liftM Just . f)
+maybeM :: Monad m => (a -> m (Maybe b)) -> Maybe a -> m (Maybe b)
+maybeM = maybe (return Nothing)
 
-addUnique, remUnique :: UniqueName -> Bustle Double
--- Adds a new unique name, yielding its column
-addUnique n = do
-    x <- gets nextColumn
-    modify $ \bs -> bs { nextColumn = x + 70 }
-    modifyApps $ Map.insert n (x, Set.empty)
-    return x
+-- Adds a new unique name
+addUnique :: UniqueName -> Bustle ()
+addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
 
--- Removes a unique name, yielding its column
+-- Removes a unique name, yielding its column if any
+remUnique :: UniqueName -> Bustle (Maybe Double)
 remUnique n = do
     coord <- gets (fmap fst . Map.lookup n . apps)
     case coord of
@@ -143,7 +150,7 @@ remUnique n = do
                                 , " apparently disconnected without connecting"
                                 ]
 
-addOther, remOther :: OtherName -> BusName -> Bustle Double
+addOther, remOther :: OtherName -> BusName -> Bustle (Maybe Double)
 -- Add a new well-known name to a unique name.
 addOther n (O o) = error $ concat [ "corrupt log: "
                                   , show n
