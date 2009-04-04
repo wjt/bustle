@@ -37,14 +37,14 @@ import Control.Monad.State
 import Control.Monad (forM_)
 
 import Data.List (isPrefixOf, stripPrefix)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 
 process :: [Message] -> [Shape]
 process log =
     let finalState = execState (mapM_ munge log') initialState
     in reverse $ shapes finalState
 
-  where initialState = BustleState Map.empty firstColumn Map.empty Map.empty 0 0
+  where initialState = BustleState Map.empty firstColumn Map.empty 0 0
                                    initTime []
         firstColumn = 470
         relevant (MethodReturn {}) = True
@@ -63,16 +63,12 @@ type Bustle a = State BustleState a
 data BustleState =
     BustleState { apps :: Applications
                 , nextColumn :: Double
-                , coordinates :: Map BusName Double
                 , pending :: Map Message (Double, Double)
                 , row :: Double
                 , mostRecentLabels :: Double
                 , startTime :: Milliseconds
                 , shapes :: [Shape] -- in reverse order
                 }
-
-modifyCoordinates :: (Map BusName Double -> Map BusName Double) -> Bustle ()
-modifyCoordinates f = modify (\bs -> bs { coordinates = f (coordinates bs)})
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
@@ -108,6 +104,13 @@ getApp n = do
             x <- gets nextColumn
             modify $ \bs -> bs { nextColumn = x + 70 }
             modifyApps $ Map.insert u (Just x, os)
+
+            -- FIXME: Does this really live here?
+            currentRow <- gets row
+            -- FIXME: Draw its well-known names if possible
+            shape $ Header (abbreviateBusName (U u)) x (currentRow - 20)
+            shape $ ClientLine x (currentRow - 5) (currentRow + 15)
+
             return x
 
 -- Modify the application table directly.
@@ -211,9 +214,11 @@ advanceBy d = do
     current' <- gets row
 
     when (current' - lastLabelling > 400) $ do
-        xs <- gets (Map.toList . coordinates)
-        forM_ xs $ \(name, x) ->
-          shape $ Header (abbreviateBusName name) x (current' + d)
+        xs <- gets (Map.toList . apps)
+        forM_ xs $ \(name, (x_, _)) -> case x_ of
+          Nothing -> return ()
+          -- FIXME: Draw its well-known names if possible
+          Just x  -> shape $ Header (abbreviateBusName (U name)) x (current' + d)
         modify $ \bs -> bs { mostRecentLabels = (current' + d)
                            , row = row bs + d
                            }
@@ -223,38 +228,26 @@ advanceBy d = do
 
     margin <- rightmostApp
 
-    shape $ Rule (margin + 35) (current + 15)
+    shape $ Rule (margin - 35) (current + 15)
 
-    xs <- gets (Map.fold (:) [] . coordinates)
+    xs <- gets (catMaybes . Map.fold ((:) . fst) [] . apps)
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
 
 abbreviateBusName :: BusName -> String
 abbreviateBusName (U (UniqueName n)) = n
 abbreviateBusName (O (OtherName  n)) = reverse . takeWhile (/= '.') . reverse $ n
 
-addApplication :: BusName -> Double -> Bustle Double
-addApplication s c = do
-    currentRow <- gets row
-
-    shape $ Header (abbreviateBusName s) c (currentRow - 20)
-    shape $ ClientLine c (currentRow - 5) (currentRow + 15)
-
-    modifyCoordinates (Map.insert s c)
-    return c
-
-firstAppX :: Double
-firstAppX = 400
-
 appCoordinate :: BusName -> Bustle Double
-appCoordinate s = do
-    cs <- gets coordinates
-    case Map.lookup s cs of
-        Just c  -> return c
-        Nothing -> do c <- rightmostApp
-                      addApplication s (c + 70)
+-- FIXME: this will break when people try to send methods to non-existant names
+appCoordinate s = getApp s >>= \coord -> case coord of
+    Nothing -> error "FIXME"
+    Just x -> return x
 
 rightmostApp :: Bustle Double
-rightmostApp = Map.fold max firstAppX `fmap` gets coordinates
+rightmostApp = do
+    first <- gets nextColumn
+    xs <- gets $ catMaybes . map fst . Map.elems . apps
+    return $ maximum (first:xs)
 
 senderCoordinate :: Message -> Bustle Double
 senderCoordinate m = appCoordinate (sender m)
@@ -346,8 +339,8 @@ signal :: Message -> Bustle ()
 signal m = do
     x <- senderCoordinate m
     t <- gets row
-    cs <- gets coordinates
-    let (left, right) = (Map.fold min 10000 cs, Map.fold max 0 cs)
+    right <- rightmostApp
+    let left = 400
     shape $ SignalArrow (left - 20) x (right + 20) t
 
 -- vim: sw=2 sts=2
