@@ -339,8 +339,8 @@ signal :: Message -> Bustle ()
 signal m = do
     x <- senderCoordinate m
     t <- gets row
-    right <- rightmostApp
-    let left = 400
+    right <- subtract 70 <$> rightmostApp
+    let left = 470
     shape $ SignalArrow (left - 20) x (right + 20) t
 
 -- vim: sw=2 sts=2
