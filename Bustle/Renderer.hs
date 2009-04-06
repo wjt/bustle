@@ -108,7 +108,7 @@ getApp n = do
             -- FIXME: Does this really live here?
             currentRow <- gets row
             -- FIXME: Draw its well-known names if possible
-            shape $ Header (abbreviateBusName (U u)) x (currentRow - 20)
+            shape $ Header (bestNames u os) x (currentRow - 20)
             shape $ ClientLine x (currentRow - 5) (currentRow + 15)
 
             return x
@@ -215,12 +215,17 @@ advanceBy d = do
 
     when (current' - lastLabelling > 400) $ do
         xs <- gets (Map.toList . apps)
-        forM_ xs $ \(name, (x_, _)) -> case x_ of
-          Nothing -> return ()
+        heights <- forM xs $ \(u, (x_, os)) -> case x_ of
+          Nothing -> return 0
           -- FIXME: Draw its well-known names if possible
-          Just x  -> shape $ Header (abbreviateBusName (U name)) x (current' + d)
-        modify $ \bs -> bs { mostRecentLabels = (current' + d)
-                           , row = row bs + d
+          Just x  -> do let names = bestNames u os
+                        shape $ Header names x (current' + 20)
+                        -- FIXME: this magic calculation should just be the
+                        --        bounding box.
+                        return $ fromIntegral (length names) * 10
+        let height = 10 + (maximum (0:heights))
+        modify $ \bs -> bs { mostRecentLabels = (current' + height)
+                           , row = row bs + height
                            }
     current <- gets row
     modify (\bs -> bs { row = row bs + d })
@@ -233,9 +238,11 @@ advanceBy d = do
     xs <- gets (catMaybes . Map.fold ((:) . fst) [] . apps)
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
 
-abbreviateBusName :: BusName -> String
-abbreviateBusName (U (UniqueName n)) = n
-abbreviateBusName (O (OtherName  n)) = reverse . takeWhile (/= '.') . reverse $ n
+bestNames :: UniqueName -> Set OtherName -> [String]
+bestNames (UniqueName u) os
+    | Set.null os = [u]
+    | otherwise   = map readable $ Set.toList os
+  where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 appCoordinate :: BusName -> Bustle Double
 -- FIXME: this will break when people try to send methods to non-existant names

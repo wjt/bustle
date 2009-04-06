@@ -26,9 +26,9 @@ type MemberName = String
 type ErrorName = String
 type Serial = Word32
 
-newtype UniqueName = UniqueName String
+newtype UniqueName = UniqueName { unUniqueName :: String }
   deriving (Ord, Show, Eq)
-newtype OtherName = OtherName String
+newtype OtherName = OtherName { unOtherName :: String }
   deriving (Ord, Show, Eq)
 data BusName = U UniqueName
              | O OtherName

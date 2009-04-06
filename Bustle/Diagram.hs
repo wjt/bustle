@@ -33,6 +33,7 @@ where
 import Data.Maybe (maybe)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad (forM_)
 
 import Graphics.Rendering.Cairo
 
@@ -61,7 +62,8 @@ offset R = (+)
 data Colour = Colour Double Double Double
   deriving (Eq, Show, Read, Ord)
 
-data Shape = Header { str :: String, shapex, shapey :: Double
+data Shape = Header { strs :: [String]
+                    , shapex, shapey :: Double
                     }
            | MemberLabel String String Double
            | Timestamp { str :: String, shapey :: Double }
@@ -138,7 +140,12 @@ bounds s = case s of
     in (min x1 cx, y1, max x2 dx, y2)
   Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
   MemberLabel _ _ y -> fromCentre memberx y memberWidth
-  Header { shapex = x, shapey = y} -> fromCentre x y columnWidth
+  Header { strs = ss, shapex = x, shapey = y} ->
+    let n = fromIntegral $ length ss
+        width = columnWidth
+        height = 10 * n
+    in (x - width / 2, y,
+        x + width / 2, y + height)
 
 
 intersects :: Rect -> Rect -> Bool
@@ -175,7 +182,7 @@ draw s = draw' s
                               shapex2 <*> shapey
           Arrow {} -> drawArrow <$> shapecolour <*> arrowhead <*> shapex1 <*>
                         shapex2 <*> shapey
-          Header {} -> drawHeader <$> str <*> shapex <*> shapey
+          Header {} -> drawHeader <$> strs <*> shapex <*> shapey
           MemberLabel s1 s2 y -> const (drawMember s1 s2 y)
           Timestamp {} -> drawTimestamp <$> str <*> shapey
           ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
@@ -251,12 +258,13 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = do
 
     restore
 
-drawHeader :: String -> Double -> Double -> Render ()
-drawHeader name x y = do
+drawHeader :: [String] -> Double -> Double -> Render ()
+drawHeader names x y = forM_ (zip [1..] names) $ \(i, name) -> do
     extents <- textExtents name
     let diff = textExtentsWidth extents / 2
-    moveTo (x - diff) (y + 10)
+    moveTo (x - diff) (y + i * h)
     showText name
+  where h = 10
 
 drawMember :: String -> String -> Double -> Render ()
 drawMember s1 s2 y = do
