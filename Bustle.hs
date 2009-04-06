@@ -142,7 +142,7 @@ visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
 visibleShapes r = map snd . filter (intersects r . fst)
 
 drawVisible :: Rect -> [(Rect, Shape)] -> Render ()
-drawVisible r = mapM_ draw . visibleShapes r
+drawVisible r = mapM_ (\x -> {- drawBoundingBox x >> -} draw x) . visibleShapes r
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do
