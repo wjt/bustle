@@ -74,7 +74,7 @@ run filename log = do
   menuShellAppend fileMenu saveItem
   onActivateLeaf saveItem $
     withPDFSurface (filename ++ ".pdf") width height $
-      \surface -> renderWith surface $ clearCanvas >> drawDiagram False (map snd shapes)
+      \surface -> renderWith surface $ drawDiagram False (map snd shapes)
 
   menuShellAppend menuBar file
   boxPackStart vbox menuBar PackNatural 0
@@ -120,7 +120,7 @@ run filename log = do
 
           let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-          renderWithDrawable win $ clearCanvas >> drawVisible r shapes
+          renderWithDrawable win $ drawVisible r shapes
           return True
         update _layout _act _ = return False
 

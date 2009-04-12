@@ -26,7 +26,6 @@ module Bustle.Diagram
   , drawDiagram
   , bounds
   , headers
-  , clearCanvas
   , intersects
   )
 where
@@ -176,7 +175,8 @@ headers xss y = (bottomLine - y, botAligned)
 --
 
 drawDiagram :: Bool -> Diagram -> Render ()
-drawDiagram drawBounds shapes =
+drawDiagram drawBounds shapes = do
+    clearCanvas
     forM_ shapes $ \x -> do
         when drawBounds (drawBoundingBox x)
         draw x
