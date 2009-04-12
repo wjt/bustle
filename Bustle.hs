@@ -1,6 +1,6 @@
 {-
 Bustle: a tool to draw charts of D-Bus activity
-Copyright (C) 2008 Collabora Ltd.
+Copyright (C) 2008–2009 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,7 @@ module Main where
 
 import Prelude hiding (log)
 
-import Control.Arrow ((&&&), (***))
+import Control.Arrow ((&&&))
 
 import Paths_bustle
 import Bustle.Parser
@@ -56,11 +56,8 @@ run :: FilePath -> [Message] -> IO ()
 run filename log = do
   initGUI
 
-  let shapes :: [(Rect, Shape)]
-      shapes = map (bounds &&& id) $ process log
-
-      (width, height) = (maximum . (0:) *** maximum . (0:)) $
-                          unzip [ (x2, y2) | ((_, _, x2, y2), _) <- shapes ]
+  let shapes = process log
+      (width, height) = dimensions shapes
 
   window <- mkWindow filename
   vbox <- vBoxNew False 0
@@ -74,7 +71,7 @@ run filename log = do
   menuShellAppend fileMenu saveItem
   onActivateLeaf saveItem $
     withPDFSurface (filename ++ ".pdf") width height $
-      \surface -> renderWith surface $ clearCanvas >> mapM_ (draw . snd) shapes
+      \surface -> renderWith surface $ drawDiagram False shapes
 
   menuShellAppend menuBar file
   boxPackStart vbox menuBar PackNatural 0
@@ -106,7 +103,7 @@ run filename log = do
   widgetShowAll window
   mainGUI
 
-  where update :: Layout -> [(Rect, Shape)] -> Event -> IO Bool
+  where update :: Layout -> Diagram -> Event -> IO Bool
         update layout shapes (Expose {}) = do
           win <- layoutGetDrawWindow layout
 
@@ -120,7 +117,7 @@ run filename log = do
 
           let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-          renderWithDrawable win $ clearCanvas >> drawVisible r shapes
+          renderWithDrawable win $ drawRegion r False shapes
           return True
         update _layout _act _ = return False
 
@@ -138,12 +135,6 @@ incdec (+-) adj = do
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
-
-visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
-visibleShapes r = map snd . filter (intersects r . fst)
-
-drawVisible :: Rect -> [(Rect, Shape)] -> Render ()
-drawVisible r = mapM_ (\x -> {- drawBoundingBox x >> -} draw x) . visibleShapes r
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do

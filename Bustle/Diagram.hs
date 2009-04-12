@@ -1,6 +1,6 @@
 {-
-Bustle.Diagram: turn a list of messages into a set of abstract shapes
-Copyright (C) 2008 Collabora Ltd.
+Bustle.Diagram: shapes for sequence diagrams
+Copyright (C) 2008–2009 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,23 +18,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Bustle.Diagram
   ( Shape(..)
+  , Diagram
   , Arrowhead(..)
   , Side(..)
   , Colour(..)
   , Rect
-  , bounds
+  , dimensions
+  , drawDiagram
+  , drawRegion
   , headers
-  , draw
-  , clearCanvas
-  , drawBoundingBox
-  , intersects
   )
 where
 
 import Data.Maybe (maybe)
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), (***))
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (forM_)
+
+import Control.Monad.Reader
 
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
@@ -83,6 +84,8 @@ data Shape = Header { strs :: [String]
                  , caption :: String
                  }
   deriving (Show, Read, Eq)
+
+type Diagram = [Shape]
 
 arcControlPoints :: Shape -> (Point, Point)
 arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s }) =
@@ -151,7 +154,6 @@ bounds s = case s of
     in (x - width / 2, y,
         x + width / 2, y + height)
 
-
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
   not $ or [x > w', w < x', y > z', z < y']
@@ -170,6 +172,24 @@ headers xss y = (bottomLine - y, botAligned)
 --
 -- Drawing
 --
+
+dimensions :: Diagram -> (Double, Double)
+dimensions shapes = (maximum . (0:) *** maximum . (0:)) xys
+  where xys = unzip [ (x2, y2) | (_, _, x2, y2) <- map bounds shapes ]
+
+drawDiagram :: Bool -> Diagram -> Render ()
+drawDiagram drawBounds shapes = do
+    clearCanvas
+    forM_ shapes $ \x -> do
+        when drawBounds (drawBoundingBox x)
+        draw x
+
+drawRegion :: Rect -> Bool -> Diagram -> Render ()
+drawRegion r db = drawDiagram db . visible r . map (bounds &&& id)
+
+visible :: Rect -> [(Rect, Shape)] -> [Shape]
+visible r = map snd . filter (intersects r . fst)
+
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore
