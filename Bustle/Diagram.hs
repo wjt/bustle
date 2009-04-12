@@ -1,6 +1,6 @@
 {-
-Bustle.Diagram: turn a list of messages into a set of abstract shapes
-Copyright (C) 2008 Collabora Ltd.
+Bustle.Diagram: shapes for sequence diagrams
+Copyright (C) 2008–2009 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,15 +18,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Bustle.Diagram
   ( Shape(..)
+  , Diagram
   , Arrowhead(..)
   , Side(..)
   , Colour(..)
   , Rect
+  , drawDiagram
   , bounds
   , headers
-  , draw
   , clearCanvas
-  , drawBoundingBox
   , intersects
   )
 where
@@ -35,6 +35,8 @@ import Data.Maybe (maybe)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (forM_)
+
+import Control.Monad.Reader
 
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
@@ -83,6 +85,8 @@ data Shape = Header { strs :: [String]
                  , caption :: String
                  }
   deriving (Show, Read, Eq)
+
+type Diagram = [Shape]
 
 arcControlPoints :: Shape -> (Point, Point)
 arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s }) =
@@ -170,6 +174,12 @@ headers xss y = (bottomLine - y, botAligned)
 --
 -- Drawing
 --
+
+drawDiagram :: Bool -> Diagram -> Render ()
+drawDiagram drawBounds shapes =
+    forM_ shapes $ \x -> do
+        when drawBounds (drawBoundingBox x)
+        draw x
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore

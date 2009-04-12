@@ -1,6 +1,6 @@
 {-
 Bustle: a tool to draw charts of D-Bus activity
-Copyright (C) 2008 Collabora Ltd.
+Copyright (C) 2008–2009 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -74,7 +74,7 @@ run filename log = do
   menuShellAppend fileMenu saveItem
   onActivateLeaf saveItem $
     withPDFSurface (filename ++ ".pdf") width height $
-      \surface -> renderWith surface $ clearCanvas >> mapM_ (draw . snd) shapes
+      \surface -> renderWith surface $ clearCanvas >> drawDiagram False (map snd shapes)
 
   menuShellAppend menuBar file
   boxPackStart vbox menuBar PackNatural 0
@@ -143,7 +143,7 @@ visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
 visibleShapes r = map snd . filter (intersects r . fst)
 
 drawVisible :: Rect -> [(Rect, Shape)] -> Render ()
-drawVisible r = mapM_ (\x -> {- drawBoundingBox x >> -} draw x) . visibleShapes r
+drawVisible r = drawDiagram False . visibleShapes r
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do
