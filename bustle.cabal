@@ -13,7 +13,8 @@ Extra-source-files: bustle-dbus-monitor.c, Makefile, README, NEWS, HACKING
 
 Executable:     bustle
 Main-is:        Bustle.hs
-Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer
+Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer,
+                Bustle.Upgrade
 Ghc-options:    -Wall -fno-warn-unused-imports
 
 Executable:     bustle-count

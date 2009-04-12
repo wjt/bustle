@@ -43,8 +43,6 @@
 
 #include <dbus/dbus.h>
 
-#include <glib.h>
-
 #ifdef DBUS_WIN
 
 /* gettimeofday is not defined on windows */
@@ -68,103 +66,38 @@ gettimeofday (struct timeval *__p,
 }
 #endif
 
-typedef struct _ReadableNameMapping ReadableNameMapping;
-struct _ReadableNameMapping {
-    char *unique_name;
-    char *readable_name;
-};
-
-static GList *mappings;
-
-static ReadableNameMapping *
-readable_name_mapping_new (char *unique_name,
-                           char *readable_name)
-{
-  ReadableNameMapping *ret = g_slice_new (ReadableNameMapping);
-
-  ret->unique_name = g_strdup (unique_name);
-  ret->readable_name = g_strdup (readable_name);
-
-  return ret;
-}
+#define PROFILE_TIMED_FORMAT "%s\t%lu\t%lu"
+#define TRAP_NULL_STRING(str) ((str) ? (str) : "<none>")
 
 static void
-readable_name_mapping_free (ReadableNameMapping *m)
+print_name_owner_changed (struct timeval *t,
+    const char *name,
+    const char *old_owner,
+    const char *new_owner)
 {
-  fprintf (stderr, "%s =/> %s\n",
-      m->unique_name, m->readable_name);
-
-  g_free (m->unique_name);
-  g_free (m->readable_name);
-  g_slice_free (ReadableNameMapping, m);
-}
-
-const char *
-lookup_name (const char *un)
-{
-  GList *l = mappings;
-
-  while (l != NULL)
-    {
-      ReadableNameMapping *m = l->data;
-      if (!strcmp (m->unique_name, un))
-        return m->readable_name;
-
-      l = l->next;
-    }
-
-  return NULL;
-}
-
-const char *
-readable (const char *un)
-{
-  const char *r = lookup_name (un);
-
-  if (r != NULL)
-    return r;
-
-  return un;
-}
-
-static void
-add_mapping (char *unique_name,
-             char *readable_name)
-{
-  GList *l = mappings;
-
-  if (*readable_name == ':')
+  if (!strcmp (name, "org.freedesktop.DBus"))
     return;
 
-  fprintf (stderr, "%s => %s\n", unique_name, readable_name);
+  printf (PROFILE_TIMED_FORMAT, "nameownerchanged", t->tv_sec, t->tv_usec);
 
-  while (l != NULL)
-    {
-      ReadableNameMapping *m = l->data;
-
-      if (!strcmp (m->unique_name, unique_name))
-        {
-          if (strlen (readable_name) < strlen (m->readable_name))
-            {
-              g_free (m->readable_name);
-              m->readable_name = g_strdup (readable_name);
-            }
-          return;
-        }
-
-      l = l->next;
-    }
-
-  mappings = g_list_prepend (mappings,
-      readable_name_mapping_new (unique_name, readable_name));
+  /* Use '!' to represent "no name here". */
+  printf ("\t%s\t%s\t%s\n", name,
+    (*old_owner == '\0' ? "!" : old_owner),
+    (*new_owner == '\0' ? "!" : new_owner));
 }
 
 static void
 name_owner_changed_cb (DBusMessage *message)
 {
   char *name, *old_owner, *new_owner;
-  GList *l = mappings;
   DBusError error;
+  struct timeval t;
+
+  if (gettimeofday (&t, NULL) < 0)
+    {
+      printf ("un\n");
+      return;
+    }
 
   dbus_error_init (&error);
   dbus_message_get_args (message, &error,
@@ -180,34 +113,8 @@ name_owner_changed_cb (DBusMessage *message)
       return;
     }
 
-  fprintf (stderr, "name_owner_changed_cb: %s '%s' '%s'\n",
-      name, old_owner, new_owner);
-
-  if (*old_owner != '\0')
-    {
-      while (l != NULL)
-        {
-          ReadableNameMapping *m = l->data;
-
-          if (!strcmp (m->readable_name, name))
-            {
-              readable_name_mapping_free (m);
-              mappings = g_list_delete_link (mappings, l);
-
-              break;
-            }
-
-          l = l->next;
-        }
-    }
-
-  if (*new_owner != '\0')
-    add_mapping (new_owner, name);
+  print_name_owner_changed (&t, name, old_owner, new_owner);
 }
-
-
-#define PROFILE_TIMED_FORMAT "%s\t%lu\t%lu"
-#define TRAP_NULL_STRING(str) ((str) ? (str) : "<none>")
 
 typedef enum
 {
@@ -234,10 +141,10 @@ profile_print_with_attrs (const char *type, DBusMessage *message,
     printf ("\t%u", dbus_message_get_reply_serial (message));
 
   if (attrs & PROFILE_ATTRIBUTE_FLAG_SENDER)
-    printf ("\t%s", TRAP_NULL_STRING (readable (dbus_message_get_sender (message))));
+    printf ("\t%s", TRAP_NULL_STRING (dbus_message_get_sender (message)));
 
   if (attrs & PROFILE_ATTRIBUTE_FLAG_DESTINATION)
-    printf ("\t%s", TRAP_NULL_STRING (readable (dbus_message_get_destination (message))));
+    printf ("\t%s", TRAP_NULL_STRING (dbus_message_get_destination (message)));
 
   if (attrs & PROFILE_ATTRIBUTE_FLAG_PATH)
     printf ("\t%s", TRAP_NULL_STRING (dbus_message_get_path (message)));
@@ -309,10 +216,11 @@ profile_filter_func (DBusConnection	*connection,
 		     DBusMessage	*message,
 		     void		*user_data)
 {
-  print_message_profile (message);
 
   if (dbus_message_is_signal (message, DBUS_INTERFACE_DBUS, "NameOwnerChanged"))
     name_owner_changed_cb (message);
+  else
+    print_message_profile (message);
 
   if (dbus_message_is_signal (message,
                               DBUS_INTERFACE_LOCAL,
@@ -346,6 +254,7 @@ get_well_known_names (DBusConnection *connection)
   DBusMessage *ret;
   char **names;
   int i, n_names;
+  struct timeval t = { 0, 0 };
 
   dbus_error_init (&error);
   ret = dbus_connection_send_with_reply_and_block (connection, message, -1, &error);
@@ -361,6 +270,12 @@ get_well_known_names (DBusConnection *connection)
       DBUS_TYPE_ARRAY, DBUS_TYPE_STRING, &names, &n_names,
       DBUS_TYPE_INVALID);
 
+  /* First, print the unique names */
+  for (i = 0; i < n_names; i++)
+    if (*names[i] == ':')
+        print_name_owner_changed (&t, names[i], "", names[i]);
+
+  /* Now print the well-known names */
   for (i = 0; i < n_names; i++)
     {
       DBusMessage *owner_ret;
@@ -396,7 +311,7 @@ get_well_known_names (DBusConnection *connection)
           return;
         }
 
-      add_mapping (owner, names[i]);
+      print_name_owner_changed (&t, names[i], "", owner);
     }
 
   dbus_free_string_array (names);

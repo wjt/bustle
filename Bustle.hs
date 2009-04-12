@@ -27,6 +27,7 @@ import Bustle.Parser
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Upgrade (upgrade)
 
 import System.Glib.GError (catchGError)
 import Graphics.UI.Gtk
@@ -47,7 +48,7 @@ main = do
                                                 , ": "
                                                 , show err
                                                 ]
-                  Right log -> run f log
+                  Right log -> run f (upgrade log)
       _   -> do putStrLn "Usage: bustle log-file-name"
                 putStrLn "See the README"
 
@@ -142,7 +143,7 @@ visibleShapes :: Rect -> [(Rect, Shape)] -> [Shape]
 visibleShapes r = map snd . filter (intersects r . fst)
 
 drawVisible :: Rect -> [(Rect, Shape)] -> Render ()
-drawVisible r = mapM_ draw . visibleShapes r
+drawVisible r = mapM_ (\x -> {- drawBoundingBox x >> -} draw x) . visibleShapes r
 
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do

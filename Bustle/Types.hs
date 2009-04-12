@@ -25,7 +25,23 @@ type Interface = String
 type MemberName = String
 type ErrorName = String
 type Serial = Word32
-type BusName = String
+
+newtype UniqueName = UniqueName { unUniqueName :: String }
+  deriving (Ord, Show, Eq)
+newtype OtherName = OtherName { unOtherName :: String }
+  deriving (Ord, Show, Eq)
+data BusName = U UniqueName
+             | O OtherName
+  deriving (Ord, Show, Eq)
+
+isUnique, isOther :: BusName -> Bool
+isUnique (U _) = True
+isUnique (O _) = False
+isOther = not . isUnique
+
+unBusName :: BusName -> String
+unBusName (U (UniqueName x)) = x
+unBusName (O (OtherName  x)) = x
 
 type Milliseconds = Integer
 
@@ -55,7 +71,16 @@ data Message = MethodCall { timestamp :: Milliseconds
                      , sender :: BusName
                      , destination :: BusName
                      }
+             | NameOwnerChanged { timestamp :: Milliseconds
+                                , changedName :: BusName
+                                , oldOwner :: Maybe BusName
+                                , newOwner :: Maybe BusName
+                                }
   deriving (Show, Eq, Ord)
+
+isNameOwnerChanged :: Message -> Bool
+isNameOwnerChanged (NameOwnerChanged {}) = True
+isNameOwnerChanged _ = False
 
 type Log = [Message]
 

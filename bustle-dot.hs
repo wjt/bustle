@@ -17,7 +17,7 @@ run filepath = do
             putStrLn "digraph bustle {"
             forM_ (nub . mapMaybe methodCall $ log)
                 (\(s, d) -> putStrLn . concat $
-                    ["  \"", s, "\" -> \"", d, "\";"])
+                    ["  \"", unBusName s, "\" -> \"", unBusName d, "\";"])
             putStrLn "}"
     where methodCall (MethodCall {sender = s, destination = d}) = Just (s, d)
           methodCall _ = Nothing

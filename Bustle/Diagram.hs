@@ -23,6 +23,7 @@ module Bustle.Diagram
   , Colour(..)
   , Rect
   , bounds
+  , headers
   , draw
   , clearCanvas
   , drawBoundingBox
@@ -33,8 +34,12 @@ where
 import Data.Maybe (maybe)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad (forM_)
 
 import Graphics.Rendering.Cairo
+import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
+import Graphics.UI.Gtk.Pango.Layout
+import Graphics.UI.Gtk.Pango.Font
 
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
@@ -61,7 +66,8 @@ offset R = (+)
 data Colour = Colour Double Double Double
   deriving (Eq, Show, Read, Ord)
 
-data Shape = Header { str :: String, shapex, shapey :: Double
+data Shape = Header { strs :: [String]
+                    , shapex, shapey :: Double
                     }
            | MemberLabel String String Double
            | Timestamp { str :: String, shapey :: Double }
@@ -138,12 +144,28 @@ bounds s = case s of
     in (min x1 cx, y1, max x2 dx, y2)
   Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
   MemberLabel _ _ y -> fromCentre memberx y memberWidth
-  Header { shapex = x, shapey = y} -> fromCentre x y columnWidth
+  Header { strs = ss, shapex = x, shapey = y} ->
+    let n = fromIntegral $ length ss
+        width = columnWidth
+        height = 10 * n
+    in (x - width / 2, y,
+        x + width / 2, y + height)
 
 
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
   not $ or [x > w', w < x', y > z', z < y']
+
+headers :: [(Double, [String])] -> Double -> (Double, [Shape])
+headers []  _ = (0, [])
+headers xss y = (bottomLine - y, botAligned)
+  where topAligned = map (\(x, ss) -> Header ss x y) xss
+        bottoms    = map (frth4 . bounds) topAligned
+        bottomLine = maximum bottoms
+        adjs       = map (bottomLine -) bottoms
+        botAligned = map (\(h, adj) -> h { shapey = shapey h + adj })
+                         (zip topAligned adjs)
+        frth4 (_,_,_,y2) = y2
 
 --
 -- Drawing
@@ -175,7 +197,7 @@ draw s = draw' s
                               shapex2 <*> shapey
           Arrow {} -> drawArrow <$> shapecolour <*> arrowhead <*> shapex1 <*>
                         shapex2 <*> shapey
-          Header {} -> drawHeader <$> str <*> shapex <*> shapey
+          Header {} -> drawHeader <$> strs <*> shapex <*> shapey
           MemberLabel s1 s2 y -> const (drawMember s1 s2 y)
           Timestamp {} -> drawTimestamp <$> str <*> shapey
           ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
@@ -251,12 +273,26 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = do
 
     restore
 
-drawHeader :: String -> Double -> Double -> Render ()
-drawHeader name x y = do
-    extents <- textExtents name
-    let diff = textExtentsWidth extents / 2
-    moveTo (x - diff) (y + 10)
-    showText name
+font :: IO FontDescription
+font = do
+    fd <- fontDescriptionNew
+    fontDescriptionSetSize fd 7
+    fontDescriptionSetFamily fd "Sans"
+    return fd
+
+drawHeader :: [String] -> Double -> Double -> Render ()
+drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
+    l <- liftIO $ do
+      ctx <- cairoCreateContext Nothing
+      layout <- layoutText ctx name
+      layoutSetFontDescription layout . Just =<< font
+      layoutSetEllipsize layout EllipsizeEnd
+      layoutSetAlignment layout AlignCenter
+      layoutSetWidth layout (Just columnWidth)
+      return layout
+    moveTo (x - (columnWidth / 2)) (y + i * h)
+    showLayout l
+  where h = 10
 
 drawMember :: String -> String -> Double -> Render ()
 drawMember s1 s2 y = do
