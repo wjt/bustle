@@ -214,16 +214,11 @@ advanceBy d = do
 
     when (current' - lastLabelling > 400) $ do
         xs <- gets (Map.toList . apps)
-        heights <- forM xs $ \(u, (x_, os)) -> case x_ of
-          Nothing -> return 0
-          Just x  -> do let names = bestNames u os
-                        shape $ Header names x (current' + 20)
-                        -- FIXME: this magic calculation should just be the
-                        --        bounding box.
-                        return $ fromIntegral (length names) * 10
-        let height = 10 + (maximum (0:heights))
-        modify $ \bs -> bs { mostRecentLabels = (current' + height)
-                           , row = row bs + height
+        let xs' = [ (x, bestNames u os) | (u, (Just x, os)) <- xs ]
+        let (height, ss) = headers xs' (current' + 20)
+        mapM_ shape ss
+        modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
+                           , row = row bs + height + 10
                            }
     current <- gets row
     modify (\bs -> bs { row = row bs + d })

@@ -23,6 +23,7 @@ module Bustle.Diagram
   , Colour(..)
   , Rect
   , bounds
+  , headers
   , draw
   , clearCanvas
   , drawBoundingBox
@@ -151,6 +152,17 @@ bounds s = case s of
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
   not $ or [x > w', w < x', y > z', z < y']
+
+headers :: [(Double, [String])] -> Double -> (Double, [Shape])
+headers []  _ = (0, [])
+headers xss y = (bottomLine - y, botAligned)
+  where topAligned = map (\(x, ss) -> Header ss x y) xss
+        bottoms    = map (frth4 . bounds) topAligned
+        bottomLine = maximum bottoms
+        adjs       = map (bottomLine -) bottoms
+        botAligned = map (\(h, adj) -> h { shapey = shapey h + adj })
+                         (zip topAligned adjs)
+        frth4 (_,_,_,y2) = y2
 
 --
 -- Drawing
