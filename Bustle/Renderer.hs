@@ -256,20 +256,13 @@ senderCoordinate m = appCoordinate (sender m)
 destinationCoordinate :: Message -> Bustle Double
 destinationCoordinate m = appCoordinate (destination m)
 
-abbreviate :: Interface -> Interface
-abbreviate i = fromMaybe i $ stripPrefix "org.freedesktop." i
-
-prettyPath :: ObjectPath -> ObjectPath
-prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/" p
-
 memberName :: Message -> Bustle ()
 memberName message = do
     current <- gets row
     let Member p i m = member message
-        p' = prettyPath p
-        meth = abbreviate $ i ++ "." ++ m
+        meth = i ++ "." ++ m
 
-    shape $ MemberLabel p' meth current
+    shape $ MemberLabel p meth current
 
 relativeTimestamp :: Message -> Bustle ()
 relativeTimestamp m = do
