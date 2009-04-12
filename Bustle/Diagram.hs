@@ -23,6 +23,7 @@ module Bustle.Diagram
   , Side(..)
   , Colour(..)
   , Rect
+  , dimensions
   , drawDiagram
   , bounds
   , headers
@@ -31,7 +32,7 @@ module Bustle.Diagram
 where
 
 import Data.Maybe (maybe)
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), (***))
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (forM_)
 
@@ -154,7 +155,6 @@ bounds s = case s of
     in (x - width / 2, y,
         x + width / 2, y + height)
 
-
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
   not $ or [x > w', w < x', y > z', z < y']
@@ -173,6 +173,10 @@ headers xss y = (bottomLine - y, botAligned)
 --
 -- Drawing
 --
+
+dimensions :: Diagram -> (Double, Double)
+dimensions shapes = (maximum . (0:) *** maximum . (0:)) xys
+  where xys = unzip [ (x2, y2) | (_, _, x2, y2) <- map bounds shapes ]
 
 drawDiagram :: Bool -> Diagram -> Render ()
 drawDiagram drawBounds shapes = do

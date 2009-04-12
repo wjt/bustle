@@ -20,7 +20,7 @@ module Main where
 
 import Prelude hiding (log)
 
-import Control.Arrow ((&&&), (***))
+import Control.Arrow ((&&&))
 
 import Paths_bustle
 import Bustle.Parser
@@ -59,8 +59,7 @@ run filename log = do
   let shapes :: [(Rect, Shape)]
       shapes = map (bounds &&& id) $ process log
 
-      (width, height) = (maximum . (0:) *** maximum . (0:)) $
-                          unzip [ (x2, y2) | ((_, _, x2, y2), _) <- shapes ]
+      (width, height) = dimensions $ map snd shapes
 
   window <- mkWindow filename
   vbox <- vBoxNew False 0
