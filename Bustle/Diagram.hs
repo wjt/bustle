@@ -315,12 +315,19 @@ drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
   where h = 10
 
 drawMember :: String -> String -> Double -> Render ()
-drawMember s1 s2 y = do
-    -- TODO: Make this fit in the bounds we estimated
-    moveTo timestampWidth y
-    showText s1
-    moveTo timestampWidth (y + 10)
-    showText s2
+drawMember s1 s2 y = dm s1 (y - 10) >> dm s2 y
+  where
+    dm s y' = do
+      l <- liftIO $ do
+        ctx <- cairoCreateContext Nothing
+        layout <- layoutText ctx s
+        layoutSetFontDescription layout . Just =<< font
+        layoutSetEllipsize layout EllipsizeStart
+        layoutSetAlignment layout AlignLeft
+        layoutSetWidth layout (Just memberWidth)
+        return layout
+      moveTo timestampWidth y'
+      showLayout l
 
 drawTimestamp :: String -> Double -> Render ()
 drawTimestamp ts y = do
