@@ -36,8 +36,9 @@ import Control.Applicative ((<$>))
 import Control.Monad.State
 import Control.Monad (forM_)
 
-import Data.List (isPrefixOf, stripPrefix)
+import Data.List (isPrefixOf, stripPrefix, sortBy)
 import Data.Maybe (fromMaybe, catMaybes)
+import Data.Ord (comparing)
 
 process :: [Message] -> [Shape]
 process log =
@@ -234,7 +235,7 @@ advanceBy d = do
 bestNames :: UniqueName -> Set OtherName -> [String]
 bestNames (UniqueName u) os
     | Set.null os = [u]
-    | otherwise   = map readable $ Set.toList os
+    | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 appCoordinate :: BusName -> Bustle Double
