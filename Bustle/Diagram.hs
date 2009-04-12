@@ -37,6 +37,9 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (forM_)
 
 import Graphics.Rendering.Cairo
+import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
+import Graphics.UI.Gtk.Pango.Layout
+import Graphics.UI.Gtk.Pango.Font
 
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
@@ -270,12 +273,25 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = do
 
     restore
 
+font :: IO FontDescription
+font = do
+    fd <- fontDescriptionNew
+    fontDescriptionSetSize fd 7
+    fontDescriptionSetFamily fd "Sans"
+    return fd
+
 drawHeader :: [String] -> Double -> Double -> Render ()
-drawHeader names x y = forM_ (zip [1..] names) $ \(i, name) -> do
-    extents <- textExtents name
-    let diff = textExtentsWidth extents / 2
-    moveTo (x - diff) (y + i * h)
-    showText name
+drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
+    l <- liftIO $ do
+      ctx <- cairoCreateContext Nothing
+      layout <- layoutText ctx name
+      layoutSetFontDescription layout . Just =<< font
+      layoutSetEllipsize layout EllipsizeEnd
+      layoutSetAlignment layout AlignCenter
+      layoutSetWidth layout (Just columnWidth)
+      return layout
+    moveTo (x - (columnWidth / 2)) (y + i * h)
+    showLayout l
   where h = 10
 
 drawMember :: String -> String -> Double -> Render ()
