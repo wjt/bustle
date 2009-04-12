@@ -25,9 +25,8 @@ module Bustle.Diagram
   , Rect
   , dimensions
   , drawDiagram
-  , bounds
+  , drawRegion
   , headers
-  , intersects
   )
 where
 
@@ -184,6 +183,13 @@ drawDiagram drawBounds shapes = do
     forM_ shapes $ \x -> do
         when drawBounds (drawBoundingBox x)
         draw x
+
+drawRegion :: Rect -> Bool -> Diagram -> Render ()
+drawRegion r db = drawDiagram db . visible r . map (bounds &&& id)
+
+visible :: Rect -> [(Rect, Shape)] -> [Shape]
+visible r = map snd . filter (intersects r . fst)
+
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore
