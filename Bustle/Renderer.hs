@@ -107,7 +107,6 @@ getApp n = do
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
-            -- FIXME: Draw its well-known names if possible
             shape $ Header (bestNames u os) x (currentRow - 20)
             shape $ ClientLine x (currentRow - 5) (currentRow + 15)
 
@@ -217,7 +216,6 @@ advanceBy d = do
         xs <- gets (Map.toList . apps)
         heights <- forM xs $ \(u, (x_, os)) -> case x_ of
           Nothing -> return 0
-          -- FIXME: Draw its well-known names if possible
           Just x  -> do let names = bestNames u os
                         shape $ Header names x (current' + 20)
                         -- FIXME: this magic calculation should just be the
