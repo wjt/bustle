@@ -300,16 +300,21 @@ font = do
     fontDescriptionSetFamily fd "Sans"
     return fd
 
+mkLayout :: (MonadIO m)
+         => String -> EllipsizeMode -> LayoutAlignment -> Double
+         -> m PangoLayout
+mkLayout s e a w = liftIO $ do
+    ctx <- cairoCreateContext Nothing
+    layout <- layoutText ctx s
+    layoutSetFontDescription layout . Just =<< font
+    layoutSetEllipsize layout e
+    layoutSetAlignment layout a
+    layoutSetWidth layout (Just w)
+    return layout
+
 drawHeader :: [String] -> Double -> Double -> Render ()
 drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
-    l <- liftIO $ do
-      ctx <- cairoCreateContext Nothing
-      layout <- layoutText ctx name
-      layoutSetFontDescription layout . Just =<< font
-      layoutSetEllipsize layout EllipsizeEnd
-      layoutSetAlignment layout AlignCenter
-      layoutSetWidth layout (Just columnWidth)
-      return layout
+    l <- mkLayout name EllipsizeEnd AlignCenter columnWidth
     moveTo (x - (columnWidth / 2)) (y + i * h)
     showLayout l
   where h = 10
@@ -318,21 +323,14 @@ drawMember :: String -> String -> Double -> Render ()
 drawMember s1 s2 y = dm s1 (y - 10) >> dm s2 y
   where
     dm s y' = do
-      l <- liftIO $ do
-        ctx <- cairoCreateContext Nothing
-        layout <- layoutText ctx s
-        layoutSetFontDescription layout . Just =<< font
-        layoutSetEllipsize layout EllipsizeStart
-        layoutSetAlignment layout AlignLeft
-        layoutSetWidth layout (Just memberWidth)
-        return layout
+      l <- mkLayout s EllipsizeStart AlignLeft memberWidth
       moveTo timestampWidth y'
       showLayout l
 
 drawTimestamp :: String -> Double -> Render ()
 drawTimestamp ts y = do
-    moveTo 0 y
-    showText ts
+    moveTo 0 (y - 10)
+    showLayout =<< mkLayout ts EllipsizeNone AlignLeft timestampWidth
 
 drawClientLine :: Double -> Double -> Double -> Render ()
 drawClientLine x y1 y2 = saved $ do
