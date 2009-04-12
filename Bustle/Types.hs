@@ -34,6 +34,11 @@ data BusName = U UniqueName
              | O OtherName
   deriving (Ord, Show, Eq)
 
+isUnique, isOther :: BusName -> Bool
+isUnique (U _) = True
+isUnique (O _) = False
+isOther = not . isUnique
+
 unBusName :: BusName -> String
 unBusName (U (UniqueName x)) = x
 unBusName (O (OtherName  x)) = x
@@ -72,6 +77,10 @@ data Message = MethodCall { timestamp :: Milliseconds
                                 , newOwner :: Maybe BusName
                                 }
   deriving (Show, Eq, Ord)
+
+isNameOwnerChanged :: Message -> Bool
+isNameOwnerChanged (NameOwnerChanged {}) = True
+isNameOwnerChanged _ = False
 
 type Log = [Message]
 
