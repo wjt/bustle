@@ -129,7 +129,7 @@ incdec (+-) adj = do
 mkWindow :: FilePath -> IO Window
 mkWindow filename = do
     window <- windowNew
-    windowSetTitle window $ filename ++ " - D-Bus Activity Visualizer"
+    windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
     window `onDestroy` mainQuit
 
     iconName <- getDataFileName "bustle.png"
