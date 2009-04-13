@@ -305,7 +305,8 @@ mkLayout :: (MonadIO m)
          -> m PangoLayout
 mkLayout s e a w = liftIO $ do
     ctx <- cairoCreateContext Nothing
-    layout <- layoutText ctx s
+    layout <- layoutEmpty ctx
+    layoutSetMarkup layout s
     layoutSetFontDescription layout . Just =<< font
     layoutSetEllipsize layout e
     layoutSetAlignment layout a
