@@ -260,7 +260,7 @@ memberName :: Message -> Bustle ()
 memberName message = do
     current <- gets row
     let Member p i m = member message
-        meth = i ++ "." ++ m
+        meth = i ++ ".<b>" ++ m ++ "</b>"
 
     shape $ MemberLabel p meth current
 
