@@ -63,17 +63,7 @@ run filename log = do
   vbox <- vBoxNew False 0
   containerAdd window vbox
 
-  menuBar <- menuBarNew
-  file <- menuItemNewWithMnemonic "_File"
-  fileMenu <- menuNew
-  menuItemSetSubmenu file fileMenu
-  saveItem <- imageMenuItemNewFromStock stockSave
-  menuShellAppend fileMenu saveItem
-  onActivateLeaf saveItem $
-    withPDFSurface (filename ++ ".pdf") width height $
-      \surface -> renderWith surface $ drawDiagram False shapes
-
-  menuShellAppend menuBar file
+  menuBar <- mkMenuBar filename shapes width height
   boxPackStart vbox menuBar PackNatural 0
 
   layout <- layoutNew Nothing Nothing
@@ -151,5 +141,23 @@ mkWindow filename = do
       ]
 
     return window
+
+mkMenuBar :: FilePath -> Diagram -> Double -> Double -> IO MenuBar
+mkMenuBar filename shapes width height = do
+  menuBar <- menuBarNew
+
+  file <- menuItemNewWithMnemonic "_File"
+  fileMenu <- menuNew
+  menuItemSetSubmenu file fileMenu
+
+  saveItem <- imageMenuItemNewFromStock stockSave
+  menuShellAppend fileMenu saveItem
+  onActivateLeaf saveItem $
+    withPDFSurface (filename ++ ".pdf") width height $
+      \surface -> renderWith surface $ drawDiagram False shapes
+
+  menuShellAppend menuBar file
+
+  return menuBar
 
 -- vim: sw=2 sts=2
