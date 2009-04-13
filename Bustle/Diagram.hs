@@ -266,9 +266,7 @@ drawArc :: Double -> Double -> Double -> Double
         -> Double -> Double -> Double -> Double
         -> String
         -> Render ()
-drawArc cx cy dx dy x1 y1 x2 y2 cap = do
-    save
-
+drawArc cx cy dx dy x1 y1 x2 y2 cap = saved $ do
     setSourceRGB 0.4 0.7 0.4
     setDash [3, 3] 0
 
@@ -282,16 +280,6 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = do
     let tx = min x2 dx + abs (x2 - dx) / 2
     moveTo (if x1 > cx then tx - textWidth else tx) (y2 - 5)
     showLayout l
-
-{-
-    -- bounding box of arc; useful as a guide to the coordinates we have to
-    -- play with.
-    setSourceRGB 0 0 1
-    rectangle x1 y1 (cx - x1) (y2 - y1)
-    stroke
--}
-
-    restore
 
 font :: IO FontDescription
 font = do
