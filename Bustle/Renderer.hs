@@ -256,20 +256,17 @@ senderCoordinate m = appCoordinate (sender m)
 destinationCoordinate :: Message -> Bustle Double
 destinationCoordinate m = appCoordinate (destination m)
 
-abbreviate :: Interface -> Interface
-abbreviate i = fromMaybe i $ stripPrefix "org.freedesktop." i
-
-prettyPath :: ObjectPath -> ObjectPath
-prettyPath p = fromMaybe p $ stripPrefix "/org/freedesktop/Telepathy/Connection/" p
-
-memberName :: Message -> Bustle ()
-memberName message = do
+memberName :: Message -> Bool -> Bustle ()
+memberName message isReturn = do
     current <- gets row
     let Member p i m = member message
-        p' = prettyPath p
-        meth = abbreviate $ i ++ "." ++ m
+        meth = i ++ "." ++ (b m)
 
-    shape $ MemberLabel p' meth current
+    shape $ MemberLabel (it p) (it meth) current
+  where it x | isReturn  = "<i>" ++ x ++ "</i>"
+             | otherwise = x
+        b x  | isReturn  = x
+             | otherwise = "<b>" ++ x ++ "</b>"
 
 relativeTimestamp :: Message -> Bustle ()
 relativeTimestamp m = do
@@ -295,13 +292,13 @@ munge m = case m of
         Signal {}       -> do
             advance
             relativeTimestamp m
-            memberName m
+            memberName m False
             signal m
 
         MethodCall {}   -> do
             advance
             relativeTimestamp m
-            memberName m
+            memberName m False
             methodCall m
             addPending m
 
@@ -319,6 +316,7 @@ munge m = case m of
                 Just (m', (x,y)) -> do
                     advance
                     relativeTimestamp m
+                    memberName m' True
                     f m
                     let duration = timestamp m - timestamp m'
                     returnArc m x y duration
