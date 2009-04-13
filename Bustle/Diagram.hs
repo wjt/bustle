@@ -277,11 +277,11 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = do
     stroke
 
     setSourceRGB 0 0 0
-    extents <- textExtents cap
-    let textWidth = textExtentsWidth extents
-        tx = min x2 dx + abs (x2 - dx) / 2
-    moveTo (if x1 > cx then tx - textWidth else tx) y2
-    showText cap
+    l <- mkLayout cap EllipsizeNone AlignLeft
+    (PangoRectangle _ _ textWidth _, _) <- liftIO $ layoutGetExtents l
+    let tx = min x2 dx + abs (x2 - dx) / 2
+    moveTo (if x1 > cx then tx - textWidth else tx) (y2 - 5)
+    showLayout l
 
 {-
     -- bounding box of arc; useful as a guide to the coordinates we have to
@@ -301,21 +301,26 @@ font = do
     return fd
 
 mkLayout :: (MonadIO m)
-         => String -> EllipsizeMode -> LayoutAlignment -> Double
+         => String -> EllipsizeMode -> LayoutAlignment
          -> m PangoLayout
-mkLayout s e a w = liftIO $ do
+mkLayout s e a = liftIO $ do
     ctx <- cairoCreateContext Nothing
     layout <- layoutEmpty ctx
     layoutSetMarkup layout s
     layoutSetFontDescription layout . Just =<< font
     layoutSetEllipsize layout e
     layoutSetAlignment layout a
-    layoutSetWidth layout (Just w)
     return layout
+
+withWidth :: MonadIO m => m PangoLayout -> Double -> m PangoLayout
+withWidth m w = do
+    l <- m
+    liftIO $ layoutSetWidth l (Just w)
+    return l
 
 drawHeader :: [String] -> Double -> Double -> Render ()
 drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
-    l <- mkLayout name EllipsizeEnd AlignCenter columnWidth
+    l <- mkLayout name EllipsizeEnd AlignCenter `withWidth` columnWidth
     moveTo (x - (columnWidth / 2)) (y + i * h)
     showLayout l
   where h = 10
@@ -324,14 +329,14 @@ drawMember :: String -> String -> Double -> Render ()
 drawMember s1 s2 y = dm s1 (y - 10) >> dm s2 y
   where
     dm s y' = do
-      l <- mkLayout s EllipsizeStart AlignLeft memberWidth
+      l <- mkLayout s EllipsizeStart AlignLeft `withWidth` memberWidth
       moveTo timestampWidth y'
       showLayout l
 
 drawTimestamp :: String -> Double -> Render ()
 drawTimestamp ts y = do
     moveTo 0 (y - 10)
-    showLayout =<< mkLayout ts EllipsizeNone AlignLeft timestampWidth
+    showLayout =<< mkLayout ts EllipsizeNone AlignLeft `withWidth` timestampWidth
 
 drawClientLine :: Double -> Double -> Double -> Render ()
 drawClientLine x y1 y2 = saved $ do
