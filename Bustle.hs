@@ -21,6 +21,7 @@ module Main where
 import Prelude hiding (log)
 
 import Control.Arrow ((&&&))
+import Control.Monad (when)
 
 import Paths_bustle
 import Bustle.Parser
@@ -36,6 +37,7 @@ import Graphics.UI.Gtk.Gdk.Events
 import Graphics.Rendering.Cairo
 
 import System.Environment (getArgs)
+import System.FilePath (splitFileName, dropExtension)
 
 main :: IO ()
 main = do
@@ -63,7 +65,7 @@ run filename log = do
   vbox <- vBoxNew False 0
   containerAdd window vbox
 
-  menuBar <- mkMenuBar filename shapes width height
+  menuBar <- mkMenuBar window filename shapes width height
   boxPackStart vbox menuBar PackNatural 0
 
   layout <- layoutNew Nothing Nothing
@@ -142,19 +144,38 @@ mkWindow filename = do
 
     return window
 
-mkMenuBar :: FilePath -> Diagram -> Double -> Double -> IO MenuBar
-mkMenuBar filename shapes width height = do
+mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double -> IO MenuBar
+mkMenuBar window filename shapes width height = do
   menuBar <- menuBarNew
 
   file <- menuItemNewWithMnemonic "_File"
   fileMenu <- menuNew
   menuItemSetSubmenu file fileMenu
 
-  saveItem <- imageMenuItemNewFromStock stockSave
+  saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
-  onActivateLeaf saveItem $
-    withPDFSurface (filename ++ ".pdf") width height $
-      \surface -> renderWith surface $ drawDiagram False shapes
+  onActivateLeaf saveItem $ do
+    chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
+               [ ("gtk-cancel", ResponseCancel)
+               , ("gtk-save", ResponseAccept)
+               ]
+    chooser `set` [ windowModal := True
+                  , fileChooserLocalOnly := True
+                  , fileChooserDoOverwriteConfirmation := True
+                  ]
+
+    let (dir, base) = splitFileName filename
+    fileChooserSetCurrentFolder chooser dir
+    fileChooserSetCurrentName chooser $ dropExtension base ++ ".pdf"
+
+    chooser `afterResponse` \response -> do
+        when (response == ResponseAccept) $ do
+            Just fn <- fileChooserGetFilename chooser
+            withPDFSurface fn width height $
+              \surface -> renderWith surface $ drawDiagram False shapes
+        widgetDestroy chooser
+
+    widgetShowAll chooser
 
   menuShellAppend menuBar file
 
