@@ -177,6 +177,12 @@ mkMenuBar window filename shapes width height = do
 
     widgetShowAll chooser
 
+  menuShellAppend fileMenu =<< separatorMenuItemNew
+
+  quitItem <- imageMenuItemNewFromStock stockQuit
+  menuShellAppend fileMenu quitItem
+  quitItem `onActivateLeaf` mainQuit
+
   menuShellAppend menuBar file
 
   return menuBar
