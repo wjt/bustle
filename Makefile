@@ -1,5 +1,6 @@
 bustle-dbus-monitor: bustle-dbus-monitor.c
-	gcc -g `pkg-config --cflags --libs dbus-1` \
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) \
+	-g -O2 `pkg-config --cflags --libs dbus-1` \
 	-Wall -Wunused \
 	-o bustle-dbus-monitor bustle-dbus-monitor.c
 
