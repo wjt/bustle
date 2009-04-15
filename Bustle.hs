@@ -21,7 +21,7 @@ module Main where
 import Prelude hiding (log)
 
 import Control.Arrow ((&&&))
-import Control.Monad (when)
+import Control.Monad (when, forM)
 
 import Paths_bustle
 import Bustle.Parser
@@ -43,21 +43,29 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-      [f] -> do input <- readFile f
-                case readLog input of
-                  Left err -> putStrLn $ concat [ "Couldn't parse "
-                                                , f
-                                                , ": "
-                                                , show err
-                                                ]
-                  Right log -> run f (upgrade log)
-      _   -> do putStrLn "Usage: bustle log-file-name"
+      []  -> do putStrLn "Usage: bustle log-file [another-log-file ...]"
                 putStrLn "See the README"
+      fs  -> run fs
 
-run :: FilePath -> [Message] -> IO ()
-run filename log = do
+run :: [FilePath] -> IO ()
+run fs = do
   initGUI
 
+  hoorays <- forM fs $ \f -> do
+      input <- readFile f
+      case readLog input of
+        Left err -> do putStrLn $ concat [ "Couldn't parse "
+                                         , f
+                                         , ": "
+                                         , show err
+                                         ]
+                       return False
+        Right log -> aWindow f (upgrade log) >> return True
+
+  when (or hoorays) mainGUI
+
+aWindow :: FilePath -> [Message] -> IO ()
+aWindow filename log = do
   let shapes = process log
       (width, height) = dimensions shapes
 
@@ -93,7 +101,6 @@ run filename log = do
 
 
   widgetShowAll window
-  mainGUI
 
   where update :: Layout -> Diagram -> Event -> IO Bool
         update layout shapes (Expose {}) = do
