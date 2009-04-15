@@ -23,6 +23,8 @@ import Prelude hiding (log)
 import Control.Arrow ((&&&))
 import Control.Monad (when, forM)
 
+import Data.IORef
+
 import Paths_bustle
 import Bustle.Parser
 import Bustle.Renderer
@@ -51,6 +53,8 @@ run :: [FilePath] -> IO ()
 run fs = do
   initGUI
 
+  nwindows <- newIORef 0
+
   hoorays <- forM fs $ \f -> do
       input <- readFile f
       case readLog input of
@@ -60,16 +64,22 @@ run fs = do
                                          , show err
                                          ]
                        return False
-        Right log -> aWindow f (upgrade log) >> return True
+        Right log -> aWindow f (upgrade log) nwindows >> return True
 
   when (or hoorays) mainGUI
 
-aWindow :: FilePath -> [Message] -> IO ()
-aWindow filename log = do
+maybeQuit :: IORef Int -> IO ()
+maybeQuit nwindows = do
+    modifyIORef nwindows (subtract 1)
+    n <- readIORef nwindows
+    when (n == 0) mainQuit
+
+aWindow :: FilePath -> [Message] -> IORef Int -> IO ()
+aWindow filename log nwindows = do
   let shapes = process log
       (width, height) = dimensions shapes
 
-  window <- mkWindow filename
+  window <- mkWindow filename nwindows
   vbox <- vBoxNew False 0
   containerAdd window vbox
 
@@ -99,8 +109,8 @@ aWindow filename log = do
         _ -> return False
       _ -> return False
 
-
   widgetShowAll window
+  modifyIORef nwindows (+1)
 
   where update :: Layout -> Diagram -> Event -> IO Bool
         update layout shapes (Expose {}) = do
@@ -135,11 +145,11 @@ incdec (+-) adj = do
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
 
-mkWindow :: FilePath -> IO Window
-mkWindow filename = do
+mkWindow :: FilePath -> IORef Int -> IO Window
+mkWindow filename nwindows = do
     window <- windowNew
     windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
-    window `onDestroy` mainQuit
+    window `onDestroy` maybeQuit nwindows
 
     iconName <- getDataFileName "bustle.png"
     let load x = pixbufNewFromFile x >>= windowSetIcon window
@@ -151,7 +161,8 @@ mkWindow filename = do
 
     return window
 
-mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double -> IO MenuBar
+mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double
+          -> IO MenuBar
 mkMenuBar window filename shapes width height = do
   menuBar <- menuBarNew
 
@@ -186,9 +197,9 @@ mkMenuBar window filename shapes width height = do
 
   menuShellAppend fileMenu =<< separatorMenuItemNew
 
-  quitItem <- imageMenuItemNewFromStock stockQuit
-  menuShellAppend fileMenu quitItem
-  quitItem `onActivateLeaf` mainQuit
+  closeItem <- imageMenuItemNewFromStock stockClose
+  menuShellAppend fileMenu closeItem
+  closeItem `onActivateLeaf` widgetDestroy window
 
   menuShellAppend menuBar file
 
