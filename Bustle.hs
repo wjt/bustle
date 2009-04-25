@@ -161,6 +161,31 @@ mkWindow filename nwindows = do
 
     return window
 
+saveToPDFDialogue :: Window -> FilePath -> Diagram -> Double -> Double -> IO ()
+saveToPDFDialogue window filename shapes width height = do
+  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
+             [ ("gtk-cancel", ResponseCancel)
+             , ("gtk-save", ResponseAccept)
+             ]
+  chooser `set` [ windowModal := True
+                , fileChooserLocalOnly := True
+                , fileChooserDoOverwriteConfirmation := True
+                ]
+
+  let (dir, base) = splitFileName filename
+  fileChooserSetCurrentFolder chooser dir
+  fileChooserSetCurrentName chooser $ dropExtension base ++ ".pdf"
+
+  chooser `afterResponse` \response -> do
+      when (response == ResponseAccept) $ do
+          Just fn <- fileChooserGetFilename chooser
+          withPDFSurface fn width height $
+            \surface -> renderWith surface $ drawDiagram False shapes
+      widgetDestroy chooser
+
+  widgetShowAll chooser
+
+
 mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double
           -> IO MenuBar
 mkMenuBar window filename shapes width height = do
@@ -172,28 +197,7 @@ mkMenuBar window filename shapes width height = do
 
   saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
-  onActivateLeaf saveItem $ do
-    chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
-               [ ("gtk-cancel", ResponseCancel)
-               , ("gtk-save", ResponseAccept)
-               ]
-    chooser `set` [ windowModal := True
-                  , fileChooserLocalOnly := True
-                  , fileChooserDoOverwriteConfirmation := True
-                  ]
-
-    let (dir, base) = splitFileName filename
-    fileChooserSetCurrentFolder chooser dir
-    fileChooserSetCurrentName chooser $ dropExtension base ++ ".pdf"
-
-    chooser `afterResponse` \response -> do
-        when (response == ResponseAccept) $ do
-            Just fn <- fileChooserGetFilename chooser
-            withPDFSurface fn width height $
-              \surface -> renderWith surface $ drawDiagram False shapes
-        widgetDestroy chooser
-
-    widgetShowAll chooser
+  onActivateLeaf saveItem $ saveToPDFDialogue window filename shapes width height
 
   menuShellAppend fileMenu =<< separatorMenuItemNew
 
