@@ -86,7 +86,7 @@ aWindow filename log nwindows = do
   vbox <- vBoxNew False 0
   containerAdd window vbox
 
-  menuBar <- mkMenuBar window filename shapes width height
+  menuBar <- mkMenuBar window filename shapes width height nwindows
   boxPackStart vbox menuBar PackNatural 0
 
   layout <- layoutNew Nothing Nothing
@@ -164,6 +164,25 @@ mkWindow filename nwindows = do
 
     return window
 
+openDialogue :: Window -> IORef Int -> IO ()
+openDialogue window nwindows = do
+  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
+             [ ("gtk-cancel", ResponseCancel)
+             , ("gtk-open", ResponseAccept)
+             ]
+  chooser `set` [ windowModal := True
+                , fileChooserLocalOnly := True
+                ]
+
+  chooser `afterResponse` \response -> do
+      when (response == ResponseAccept) $ do
+          Just fn <- fileChooserGetFilename chooser
+          loadLog nwindows fn
+          return ()
+      widgetDestroy chooser
+
+  widgetShowAll chooser
+
 saveToPDFDialogue :: Window -> FilePath -> Diagram -> Double -> Double -> IO ()
 saveToPDFDialogue window filename shapes width height = do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
@@ -190,13 +209,18 @@ saveToPDFDialogue window filename shapes width height = do
 
 
 mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double
+          -> IORef Int
           -> IO MenuBar
-mkMenuBar window filename shapes width height = do
+mkMenuBar window filename shapes width height nwindows = do
   menuBar <- menuBarNew
 
   file <- menuItemNewWithMnemonic "_File"
   fileMenu <- menuNew
   menuItemSetSubmenu file fileMenu
+
+  openItem <- imageMenuItemNewFromStock stockOpen
+  menuShellAppend fileMenu openItem
+  onActivateLeaf openItem $ openDialogue window nwindows
 
   saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
