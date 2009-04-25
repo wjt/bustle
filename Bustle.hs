@@ -55,18 +55,21 @@ run fs = do
 
   nwindows <- newIORef 0
 
-  hoorays <- forM fs $ \f -> do
-      input <- readFile f
-      case readLog input of
-        Left err -> do putStrLn $ concat [ "Couldn't parse "
-                                         , f
-                                         , ": "
-                                         , show err
-                                         ]
-                       return False
-        Right log -> aWindow f (upgrade log) nwindows >> return True
+  hoorays <- mapM (loadLog nwindows) fs
 
   when (or hoorays) mainGUI
+
+loadLog :: IORef Int -> FilePath -> IO Bool
+loadLog nwindows f = do
+  input <- readFile f
+  case readLog input of
+    Left err -> do putStrLn $ concat [ "Couldn't parse "
+                                     , f
+                                     , ": "
+                                     , show err
+                                     ]
+                   return False
+    Right log -> aWindow f (upgrade log) nwindows >> return True
 
 maybeQuit :: IORef Int -> IO ()
 maybeQuit nwindows = do
