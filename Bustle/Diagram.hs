@@ -158,7 +158,11 @@ intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
   not $ or [x > w', w < x', y > z', z < y']
 
-headers :: [(Double, [String])] -> Double -> (Double, [Shape])
+-- Constructs a series of headers of various-sized lists of names,
+-- bottom-justified.
+headers :: [(Double, [String])]  -- list of (x-coordinate, names)
+        -> Double                -- y-coordinate of top of headers
+        -> (Double, [Shape])     -- the headers' combined height, and shapes
 headers []  _ = (0, [])
 headers xss y = (bottomLine - y, botAligned)
   where topAligned = map (\(x, ss) -> Header ss x y) xss
