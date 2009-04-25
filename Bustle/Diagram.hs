@@ -129,6 +129,9 @@ fromCentre x y width =
      x + width / 2, y + height / 2)
   where height = eventHeight
 
+headerHeight :: [String] -> Double
+headerHeight = fromIntegral . (10 *) . length
+
 bounds :: Shape -> Rect
 bounds s = case s of
   ClientLine {} -> (shapex s, shapey1 s, shapex s, shapey2 s)
@@ -148,9 +151,8 @@ bounds s = case s of
   Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
   MemberLabel _ _ y -> fromCentre memberx y memberWidth
   Header { strs = ss, shapex = x, shapey = y} ->
-    let n = fromIntegral $ length ss
-        width = columnWidth
-        height = 10 * n
+    let width = columnWidth
+        height = headerHeight ss
     in (x - width / 2, y,
         x + width / 2, y + height)
 
@@ -164,14 +166,11 @@ headers :: [(Double, [String])]  -- list of (x-coordinate, names)
         -> Double                -- y-coordinate of top of headers
         -> (Double, [Shape])     -- the headers' combined height, and shapes
 headers []  _ = (0, [])
-headers xss y = (bottomLine - y, botAligned)
-  where topAligned = map (\(x, ss) -> Header ss x y) xss
-        bottoms    = map (frth4 . bounds) topAligned
-        bottomLine = maximum bottoms
-        adjs       = map (bottomLine -) bottoms
-        botAligned = map (\(h, adj) -> h { shapey = shapey h + adj })
-                         (zip topAligned adjs)
-        frth4 (_,_,_,y2) = y2
+headers xss y = (height, shapes)
+  where heights = map (headerHeight . snd) xss
+        height  = maximum heights
+        adjs    = map (height -) heights
+        shapes  = zipWith (\(x, ss) adj -> Header ss x (y + adj)) xss adjs
 
 --
 -- Drawing
