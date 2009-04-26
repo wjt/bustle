@@ -114,19 +114,15 @@ main = runB mainB
 
 mainB :: B ()
 mainB = do
-  args <- io getArgs
-  case args of
-    []  -> io $ do putStrLn "Usage: bustle log-file [another-log-file ...]"
-                   putStrLn "See the README"
-    fs  -> run fs
-
-run :: [FilePath] -> B ()
-run fs = do
   io initGUI
 
-  mapM loadLog fs
-  n <- gets windows
+  fs <- io getArgs
 
+  if null fs
+    then emptyWindow >> return ()
+    else mapM_ loadLog fs
+
+  n <- gets windows
   when (n > 0) (io mainGUI)
 
 loadLog :: FilePath -> B ()
