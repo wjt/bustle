@@ -126,7 +126,10 @@ mainB = do
   when (n > 0) (io mainGUI)
 
 loadLog :: FilePath -> B ()
-loadLog f = do
+loadLog = loadLogWith emptyWindow
+
+loadLogWith :: B (Window, ImageMenuItem, Layout) -> FilePath -> B ()
+loadLogWith act f = do
   input <- io $ readFile f
   case readLog input of
     Left err -> io . putStrLn $ concat [ "Couldn't parse "
@@ -134,7 +137,8 @@ loadLog f = do
                                        , ": "
                                        , show err
                                        ]
-    Right log -> logWindow f (upgrade log)
+    Right log -> act >>= \misc -> displayLog misc f (upgrade log)
+
 
 maybeQuit :: B ()
 maybeQuit = do
@@ -177,11 +181,6 @@ emptyWindow = do
 
   incWindows
   return (window, saveItem, layout)
-
-logWindow :: FilePath -> [Message] -> B ()
-logWindow filename log = do
-  misc <- emptyWindow
-  displayLog misc filename log
 
 displayLog :: (Window, ImageMenuItem, Layout) -> FilePath -> [Message] -> B ()
 displayLog (window, saveItem, layout) filename log = do
