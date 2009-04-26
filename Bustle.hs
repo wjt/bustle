@@ -152,7 +152,8 @@ aWindow filename log = do
 
   incWindows
 
-  window <- mkWindow filename
+  window <- mkWindow
+  io . windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
   let details = (filename, shapes)
 
   menuBar <- mkMenuBar window details
@@ -221,12 +222,12 @@ incdec (+-) adj = do
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
 
-mkWindow :: FilePath -> B Window
-mkWindow filename = do
+mkWindow :: B Window
+mkWindow = do
     window <- io windowNew
 
     io $ do
-      windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
+      windowSetTitle window "D-Bus Sequence Diagram"
       iconName <- getDataFileName "bustle.png"
       let load x = pixbufNewFromFile x >>= windowSetIcon window
       foldl1 (\m n -> m `catchGError` const n)
