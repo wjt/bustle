@@ -178,11 +178,13 @@ emptyWindow = do
   incWindows
   return (window, saveItem, layout)
 
-
 logWindow :: FilePath -> [Message] -> B ()
 logWindow filename log = do
-  (window, saveItem, layout) <- emptyWindow
+  misc <- emptyWindow
+  displayLog misc filename log
 
+displayLog :: (Window, ImageMenuItem, Layout) -> FilePath -> [Message] -> B ()
+displayLog (window, saveItem, layout) filename log = do
   let shapes = process log
       (width, height) = dimensions shapes
       details = (filename, shapes)
@@ -196,23 +198,23 @@ logWindow filename log = do
     layout `onExpose` update layout shapes
     layoutSetSize layout (floor width) (floor height)
 
-  where update :: Layout -> Diagram -> Event -> IO Bool
-        update layout shapes (Expose {}) = do
-          win <- layoutGetDrawWindow layout
+update :: Layout -> Diagram -> Event -> IO Bool
+update layout shapes (Expose {}) = do
+  win <- layoutGetDrawWindow layout
 
-          hadj <- layoutGetHAdjustment layout
-          hpos <- adjustmentGetValue hadj
-          hpage <- adjustmentGetPageSize hadj
+  hadj <- layoutGetHAdjustment layout
+  hpos <- adjustmentGetValue hadj
+  hpage <- adjustmentGetPageSize hadj
 
-          vadj <- layoutGetVAdjustment layout
-          vpos <- adjustmentGetValue vadj
-          vpage <- adjustmentGetPageSize vadj
+  vadj <- layoutGetVAdjustment layout
+  vpos <- adjustmentGetValue vadj
+  vpage <- adjustmentGetPageSize vadj
 
-          let r = (hpos, vpos, hpos + hpage, vpos + vpage)
+  let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-          renderWithDrawable win $ drawRegion r False shapes
-          return True
-        update _layout _act _ = return False
+  renderWithDrawable win $ drawRegion r False shapes
+  return True
+update _layout _act _ = return False
 
 -- Add or remove one step increment from an Adjustment, limited to the top of
 -- the last page.
