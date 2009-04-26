@@ -30,6 +30,7 @@ import Control.Monad.State
 import Data.IORef
 import qualified Data.Set as Set
 import Data.Set (Set)
+import Data.Version (showVersion)
 
 import Paths_bustle
 import Bustle.Parser
@@ -42,8 +43,9 @@ import System.Glib.GError (catchGError)
 import Graphics.UI.Gtk
 -- FIXME: Events is deprecated in favour of EventM
 import Graphics.UI.Gtk.Gdk.Events
-import Graphics.Rendering.Cairo
+import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
+import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
 
@@ -320,6 +322,7 @@ mkMenuBar :: Window -> B (MenuBar, ImageMenuItem)
 mkMenuBar window = embedIO $ \r -> do
   menuBar <- menuBarNew
 
+  -- File menu
   file <- menuItemNewWithMnemonic "_File"
   fileMenu <- menuNew
   menuItemSetSubmenu file fileMenu
@@ -340,6 +343,54 @@ mkMenuBar window = embedIO $ \r -> do
 
   menuShellAppend menuBar file
 
+  -- Help menu
+  help <- menuItemNewWithMnemonic "_Help"
+  helpMenu <- menuNew
+  menuItemSetSubmenu help helpMenu
+
+  about <- imageMenuItemNewFromStock stockAbout
+  menuShellAppend helpMenu about
+  onActivateLeaf about $ do
+      dialog <- aboutDialogNew
+
+      license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
+                 `catch` (\_ -> return Nothing)
+
+      dialog `set` [ aboutDialogName := "Bustle"
+                   , aboutDialogVersion := showVersion version
+                   , aboutDialogComments := "D-Bus activity visualiser"
+                   , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
+                   , aboutDialogAuthors := authors
+                   , aboutDialogCopyright := "© 2008–2009 Collabora Ltd."
+                   , aboutDialogLicense := license
+                   ]
+      dialog `afterResponse` \response ->
+          when (response == ResponseCancel) (widgetDestroy dialog)
+      windowSetTransientFor dialog window
+      windowSetModal dialog True
+
+      widgetShowAll dialog
+
+  -- As long as I set *a* URL hook, the URL button works.
+  aboutDialogSetUrlHook (const (return ()))
+  -- but I have to actually do something in the email hook apparently.
+  aboutDialogSetEmailHook mailto
+
+  menuShellAppend menuBar help
+
   return (menuBar, saveItem)
+
+authors :: [String]
+authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
+          , "Dafydd Harries"
+          , "Chris Lamb"
+          , "Marc Kleine-Budde"
+          ]
+
+mailto :: String -> IO ()
+mailto address = do
+  let n = Nothing
+  runProcess "xdg-open" ["mailto:" ++ address] n n n n n
+  return ()
 
 -- vim: sw=2 sts=2
