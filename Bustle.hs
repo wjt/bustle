@@ -16,14 +16,19 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 module Main where
 
 import Prelude hiding (log)
 
 import Control.Arrow ((&&&))
 import Control.Monad (when, forM)
+import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.IORef
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Paths_bustle
 import Bustle.Parser
@@ -41,79 +46,147 @@ import Graphics.Rendering.Cairo
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
 
+{-
+Cunning threadable monad. Inspired by Monadic Tunnelling
+<http://www.haskell.org/pipermail/haskell-cafe/2007-July/028501.html>
+
+This is a state monad, secretly implemented with an IORef. The idea is to make
+it possible to reconstitute the monad within a Gtk callback. Given:
+
+  x :: Badger
+  onDance :: Badger -> IO a -> IO ()
+  dancedCB :: B a
+
+  onMeme :: Badger -> (Mushroom -> IO a) -> IO ()
+  memedCB :: Mushroom -> B a
+
+One can write:
+
+  embedIO $ onDance x . makeCallback dancedCB
+  embedIO $ \r -> onMeme x (reconstruct r . dancedCB)
+
+I'm not sure which of makeCallback and reconstruct are more useful.
+-}
+
+newtype B a = B (ReaderT (IORef BState) IO a)
+  deriving (Functor, Monad, MonadIO)
+
+type Details = (FilePath, Diagram)
+
+data BState = BState { windows :: Int }
+
+instance MonadState BState B where
+  get = B $ ask >>= liftIO . readIORef
+  put x = B $ ask >>= \r -> liftIO $ writeIORef r x
+
+embedIO :: (IORef BState -> IO a) -> B a
+embedIO act = B $ do
+  r <- ask
+  liftIO $ act r
+
+makeCallback :: B a -> IORef BState -> IO a
+makeCallback (B act) x = runReaderT act x
+
+reconstruct :: IORef BState -> B a -> IO a
+reconstruct = flip makeCallback
+
+runB :: B a -> IO a
+runB (B act) = runReaderT act =<< newIORef (BState 0)
+
+{- And now, some convenience functions -}
+
+io :: MonadIO m => IO a -> m a
+io = liftIO
+
+modifyWindows :: (Int -> Int) -> B ()
+modifyWindows f = modify $ \(BState n) -> BState (f n)
+
+incWindows :: B ()
+incWindows = modifyWindows (+1)
+
+decWindows :: B Int
+decWindows = modifyWindows (subtract 1) >> gets windows
+
+{- End of boilerplate. -}
+
 main :: IO ()
-main = do
-    args <- getArgs
-    case args of
-      []  -> do putStrLn "Usage: bustle log-file [another-log-file ...]"
-                putStrLn "See the README"
-      fs  -> run fs
+main = runB mainB
 
-run :: [FilePath] -> IO ()
+mainB :: B ()
+mainB = do
+  args <- io getArgs
+  case args of
+    []  -> io $ do putStrLn "Usage: bustle log-file [another-log-file ...]"
+                   putStrLn "See the README"
+    fs  -> run fs
+
+run :: [FilePath] -> B ()
 run fs = do
-  initGUI
+  io initGUI
 
-  nwindows <- newIORef 0
+  mapM loadLog fs
+  n <- gets windows
 
-  hoorays <- mapM (loadLog nwindows) fs
+  when (n > 0) (io mainGUI)
 
-  when (or hoorays) mainGUI
-
-loadLog :: IORef Int -> FilePath -> IO Bool
-loadLog nwindows f = do
-  input <- readFile f
+loadLog :: FilePath -> B ()
+loadLog f = do
+  input <- io $ readFile f
   case readLog input of
-    Left err -> do putStrLn $ concat [ "Couldn't parse "
-                                     , f
-                                     , ": "
-                                     , show err
-                                     ]
-                   return False
-    Right log -> aWindow f (upgrade log) nwindows >> return True
+    Left err -> io . putStrLn $ concat [ "Couldn't parse "
+                                       , f
+                                       , ": "
+                                       , show err
+                                       ]
+    Right log -> aWindow f (upgrade log)
 
-maybeQuit :: IORef Int -> IO ()
-maybeQuit nwindows = do
-    modifyIORef nwindows (subtract 1)
-    n <- readIORef nwindows
-    when (n == 0) mainQuit
+maybeQuit :: B ()
+maybeQuit = do
+  n <- decWindows
+  when (n == 0) (io mainQuit)
 
-aWindow :: FilePath -> [Message] -> IORef Int -> IO ()
-aWindow filename log nwindows = do
+aWindow :: FilePath -> [Message] -> B ()
+aWindow filename log = do
   let shapes = process log
       (width, height) = dimensions shapes
 
-  window <- mkWindow filename nwindows
-  vbox <- vBoxNew False 0
-  containerAdd window vbox
+  incWindows
 
-  menuBar <- mkMenuBar window filename shapes width height nwindows
-  boxPackStart vbox menuBar PackNatural 0
+  window <- mkWindow filename
+  let details = (filename, shapes)
 
-  layout <- layoutNew Nothing Nothing
-  layoutSetSize layout (floor width) (floor height)
-  layout `onExpose` update layout shapes
-  scrolledWindow <- scrolledWindowNew Nothing Nothing
-  scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
-  containerAdd scrolledWindow layout
-  boxPackStart vbox scrolledWindow PackGrow 0
-  windowSetDefaultSize window 900 700
+  menuBar <- mkMenuBar window details
 
-  hadj <- layoutGetHAdjustment layout
-  adjustmentSetStepIncrement hadj 50
-  vadj <- layoutGetVAdjustment layout
-  adjustmentSetStepIncrement vadj 50
+  io $ do
+    vbox <- vBoxNew False 0
+    containerAdd window vbox
 
-  window `onKeyPress` \event -> case event of
-      Key { eventKeyName=kn } -> case kn of
-        "Up"    -> dec vadj
-        "Down"  -> inc vadj
-        "Left"  -> dec hadj
-        "Right" -> inc hadj
+    boxPackStart vbox menuBar PackNatural 0
+
+    layout <- layoutNew Nothing Nothing
+    layoutSetSize layout (floor width) (floor height)
+    layout `onExpose` update layout shapes
+    scrolledWindow <- scrolledWindowNew Nothing Nothing
+    scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
+    containerAdd scrolledWindow layout
+    boxPackStart vbox scrolledWindow PackGrow 0
+    windowSetDefaultSize window 900 700
+
+    hadj <- layoutGetHAdjustment layout
+    adjustmentSetStepIncrement hadj 50
+    vadj <- layoutGetVAdjustment layout
+    adjustmentSetStepIncrement vadj 50
+
+    window `onKeyPress` \event -> case event of
+        Key { eventKeyName=kn } -> case kn of
+          "Up"    -> dec vadj
+          "Down"  -> inc vadj
+          "Left"  -> dec hadj
+          "Right" -> inc hadj
+          _ -> return False
         _ -> return False
-      _ -> return False
 
-  widgetShowAll window
-  modifyIORef nwindows (+1)
+    widgetShowAll window
 
   where update :: Layout -> Diagram -> Event -> IO Bool
         update layout shapes (Expose {}) = do
@@ -148,24 +221,26 @@ incdec (+-) adj = do
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
 
-mkWindow :: FilePath -> IORef Int -> IO Window
-mkWindow filename nwindows = do
-    window <- windowNew
-    windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
-    window `onDestroy` maybeQuit nwindows
+mkWindow :: FilePath -> B Window
+mkWindow filename = do
+    window <- io windowNew
 
-    iconName <- getDataFileName "bustle.png"
-    let load x = pixbufNewFromFile x >>= windowSetIcon window
-    foldl1 (\m n -> m `catchGError` const n)
-      [ load iconName
-      , load "bustle.png"
-      , putStrLn "Couldn't find window icon. Oh well."
-      ]
+    io $ do
+      windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
+      iconName <- getDataFileName "bustle.png"
+      let load x = pixbufNewFromFile x >>= windowSetIcon window
+      foldl1 (\m n -> m `catchGError` const n)
+        [ load iconName
+        , load "bustle.png"
+        , putStrLn "Couldn't find window icon. Oh well."
+        ]
+
+    embedIO $ onDestroy window . makeCallback maybeQuit
 
     return window
 
-openDialogue :: Window -> IORef Int -> IO ()
-openDialogue window nwindows = do
+openDialogue :: Window -> B ()
+openDialogue window = embedIO $ \r -> do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-open", ResponseAccept)
@@ -177,14 +252,13 @@ openDialogue window nwindows = do
   chooser `afterResponse` \response -> do
       when (response == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
-          loadLog nwindows fn
-          return ()
+          makeCallback (loadLog fn) r
       widgetDestroy chooser
 
   widgetShowAll chooser
 
-saveToPDFDialogue :: Window -> FilePath -> Diagram -> Double -> Double -> IO ()
-saveToPDFDialogue window filename shapes width height = do
+saveToPDFDialogue :: Window -> Details -> IO ()
+saveToPDFDialogue window (filename, shapes) = do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-save", ResponseAccept)
@@ -200,7 +274,8 @@ saveToPDFDialogue window filename shapes width height = do
 
   chooser `afterResponse` \response -> do
       when (response == ResponseAccept) $ do
-          Just fn <- fileChooserGetFilename chooser
+          Just fn <- io $ fileChooserGetFilename chooser
+          let (width, height) = dimensions shapes
           withPDFSurface fn width height $
             \surface -> renderWith surface $ drawDiagram False shapes
       widgetDestroy chooser
@@ -208,10 +283,8 @@ saveToPDFDialogue window filename shapes width height = do
   widgetShowAll chooser
 
 
-mkMenuBar :: Window -> FilePath -> Diagram -> Double -> Double
-          -> IORef Int
-          -> IO MenuBar
-mkMenuBar window filename shapes width height nwindows = do
+mkMenuBar :: Window -> Details -> B MenuBar
+mkMenuBar window details = embedIO $ \r -> do
   menuBar <- menuBarNew
 
   file <- menuItemNewWithMnemonic "_File"
@@ -220,11 +293,11 @@ mkMenuBar window filename shapes width height nwindows = do
 
   openItem <- imageMenuItemNewFromStock stockOpen
   menuShellAppend fileMenu openItem
-  onActivateLeaf openItem $ openDialogue window nwindows
+  onActivateLeaf openItem $ reconstruct r (openDialogue window)
 
   saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
-  onActivateLeaf saveItem $ saveToPDFDialogue window filename shapes width height
+  onActivateLeaf saveItem $ saveToPDFDialogue window details
 
   menuShellAppend fileMenu =<< separatorMenuItemNew
 
