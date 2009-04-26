@@ -214,7 +214,7 @@ displayLog (window, saveItem, layout) filename log = do
       details = (filename, shapes)
 
   io $ do
-    windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
+    windowSetTitle window $ filename ++ " — D-Bus Sequence Diagram"
 
     widgetSetSensitive saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
@@ -271,7 +271,7 @@ mkWindow = do
     window <- io windowNew
 
     io $ do
-      windowSetTitle window "D-Bus Sequence Diagram"
+      windowSetTitle window "No document — D-Bus Sequence Diagram"
       withIcon (windowSetIcon window)
 
     embedIO $ onDestroy window . makeCallback maybeQuit
