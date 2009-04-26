@@ -39,7 +39,7 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 
-import System.Glib.GError (catchGError)
+import System.Glib.GError (GError(..), catchGError)
 import Graphics.UI.Gtk
 -- FIXME: Events is deprecated in favour of EventM
 import Graphics.UI.Gtk.Gdk.Events
@@ -48,6 +48,7 @@ import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
+import System.IO (hPutStrLn, stderr)
 
 {-
 Cunning threadable monad. Inspired by Monadic Tunnelling
@@ -263,12 +264,8 @@ mkWindow = do
     io $ do
       windowSetTitle window "D-Bus Sequence Diagram"
       iconName <- getDataFileName "bustle.png"
-      let load x = pixbufNewFromFile x >>= windowSetIcon window
-      foldl1 (\m n -> m `catchGError` const n)
-        [ load iconName
-        , load "bustle.png"
-        , putStrLn "Couldn't find window icon. Oh well."
-        ]
+      (pixbufNewFromFile iconName >>= windowSetIcon window) `catchGError`
+        \(GError _ _ msg) -> hPutStrLn stderr msg
 
     embedIO $ onDestroy window . makeCallback maybeQuit
 
