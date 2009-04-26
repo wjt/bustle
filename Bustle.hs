@@ -116,6 +116,9 @@ decWindows = modifyWindows (subtract 1) >> gets windows
 
 {- End of boilerplate. -}
 
+warn :: String -> IO ()
+warn = hPutStrLn stderr . ("Warning: " ++)
+
 main :: IO ()
 main = runB mainB
 
@@ -265,7 +268,7 @@ mkWindow = do
       windowSetTitle window "D-Bus Sequence Diagram"
       iconName <- getDataFileName "bustle.png"
       (pixbufNewFromFile iconName >>= windowSetIcon window) `catchGError`
-        \(GError _ _ msg) -> hPutStrLn stderr msg
+        \(GError _ _ msg) -> warn msg
 
     embedIO $ onDestroy window . makeCallback maybeQuit
 
@@ -351,7 +354,7 @@ mkMenuBar window = embedIO $ \r -> do
       dialog <- aboutDialogNew
 
       license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
-                 `catch` (\_ -> return Nothing)
+                 `catch` (\e -> warn (show e) >> return Nothing)
 
       dialog `set` [ aboutDialogName := "Bustle"
                    , aboutDialogVersion := showVersion version
