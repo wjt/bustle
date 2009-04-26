@@ -17,7 +17,8 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
-module Main where
+module Main (main)
+where
 
 import Prelude hiding (log)
 
@@ -72,8 +73,11 @@ newtype B a = B (ReaderT (IORef BState) IO a)
   deriving (Functor, Monad, MonadIO)
 
 type Details = (FilePath, Diagram)
+type WindowInfo = (Window, ImageMenuItem, Layout)
 
-data BState = BState { windows :: Int }
+data BState = BState { windows :: Int
+                     , initialWindow :: Maybe WindowInfo
+                     }
 
 instance MonadState BState B where
   get = B $ ask >>= liftIO . readIORef
@@ -91,7 +95,7 @@ reconstruct :: IORef BState -> B a -> IO a
 reconstruct = flip makeCallback
 
 runB :: B a -> IO a
-runB (B act) = runReaderT act =<< newIORef (BState 0)
+runB (B act) = runReaderT act =<< newIORef (BState 0 Nothing)
 
 {- And now, some convenience functions -}
 
@@ -99,7 +103,7 @@ io :: MonadIO m => IO a -> m a
 io = liftIO
 
 modifyWindows :: (Int -> Int) -> B ()
-modifyWindows f = modify $ \(BState n) -> BState (f n)
+modifyWindows f = modify $ \s -> s { windows = f (windows s) }
 
 incWindows :: B ()
 incWindows = modifyWindows (+1)
@@ -119,16 +123,31 @@ mainB = do
   fs <- io getArgs
 
   if null fs
-    then emptyWindow >> return ()
+    then createInitialWindow
     else mapM_ loadLog fs
 
   n <- gets windows
   when (n > 0) (io mainGUI)
 
+createInitialWindow :: B ()
+createInitialWindow = do
+  misc <- emptyWindow
+  modify $ \s -> s { initialWindow = Just misc }
+
+loadInInitialWindow :: FilePath -> B ()
+loadInInitialWindow = loadLogWith consumeInitialWindow
+  where consumeInitialWindow = do
+          x <- gets initialWindow
+          case x of
+            Nothing   -> emptyWindow
+            Just misc -> do
+              modify $ \s -> s { initialWindow = Nothing }
+              return misc
+
 loadLog :: FilePath -> B ()
 loadLog = loadLogWith emptyWindow
 
-loadLogWith :: B (Window, ImageMenuItem, Layout) -> FilePath -> B ()
+loadLogWith :: B WindowInfo -> FilePath -> B ()
 loadLogWith act f = do
   input <- io $ readFile f
   case readLog input of
@@ -145,7 +164,7 @@ maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
 
-emptyWindow :: B (Window, ImageMenuItem, Layout)
+emptyWindow :: B WindowInfo
 emptyWindow = do
   window <- mkWindow
   (menuBar, saveItem) <- mkMenuBar window
@@ -182,7 +201,7 @@ emptyWindow = do
   incWindows
   return (window, saveItem, layout)
 
-displayLog :: (Window, ImageMenuItem, Layout) -> FilePath -> [Message] -> B ()
+displayLog :: WindowInfo -> FilePath -> [Message] -> B ()
 displayLog (window, saveItem, layout) filename log = do
   let shapes = process log
       (width, height) = dimensions shapes
@@ -194,8 +213,13 @@ displayLog (window, saveItem, layout) filename log = do
     widgetSetSensitive saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
-    layout `onExpose` update layout shapes
     layoutSetSize layout (floor width) (floor height)
+    layout `onExpose` update layout shapes
+    -- Slightly cheesy hack to force a redraw when this is added to an existing
+    -- window.
+    update layout shapes (Expose undefined undefined undefined undefined)
+
+    return ()
 
 update :: Layout -> Diagram -> Event -> IO Bool
 update layout shapes (Expose {}) = do
@@ -261,7 +285,7 @@ openDialogue window = embedIO $ \r -> do
   chooser `afterResponse` \response -> do
       when (response == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
-          makeCallback (loadLog fn) r
+          makeCallback (loadInInitialWindow fn) r
       widgetDestroy chooser
 
   widgetShowAll chooser
