@@ -45,8 +45,7 @@ process log =
     let finalState = execState (mapM_ munge log') initialState
     in reverse $ shapes finalState
 
-  where initialState = BustleState Map.empty firstColumn Map.empty 0 0
-                                   initTime []
+  where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime []
         firstColumn = 470
         relevant (MethodReturn {}) = True
         relevant (Error        {}) = True
@@ -59,17 +58,17 @@ process log =
             t:_ -> t
             _   -> 0
 
-type Bustle a = State BustleState a
+type Renderer a = State RendererState a
 
-data BustleState =
-    BustleState { apps :: Applications
-                , nextColumn :: Double
-                , pending :: Map Message (Double, Double)
-                , row :: Double
-                , mostRecentLabels :: Double
-                , startTime :: Milliseconds
-                , shapes :: [Shape] -- in reverse order
-                }
+data RendererState =
+    RendererState { apps :: Applications
+                  , nextColumn :: Double
+                  , pending :: Map Message (Double, Double)
+                  , row :: Double
+                  , mostRecentLabels :: Double
+                  , startTime :: Milliseconds
+                  , shapes :: [Shape] -- in reverse order
+                  }
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
@@ -92,7 +91,7 @@ lookupApp name as = case name of
 
 -- Finds a BusName in the current state, yielding its column if it exists.  If
 -- it exists, but previously lacked a column, a column is allocated.
-getApp :: BusName -> Bustle (Maybe Double)
+getApp :: BusName -> Renderer (Maybe Double)
 getApp n = do
     app <- gets (lookupApp n . apps)
     case app of
@@ -100,7 +99,7 @@ getApp n = do
         Just (u, details) -> Just <$> case details of
             (Just col, _) -> return col
             (Nothing, os) -> assignColumn u os
-  where assignColumn :: UniqueName -> Set OtherName -> Bustle Double
+  where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
             x <- gets nextColumn
             modify $ \bs -> bs { nextColumn = x + 70 }
@@ -114,7 +113,7 @@ getApp n = do
             return x
 
 -- Modify the application table directly.
-modifyApps :: (Applications -> Applications) -> Bustle ()
+modifyApps :: (Applications -> Applications) -> Renderer ()
 modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
 
 -- Updates the current set of applications in response to a NameOwnerChanged
@@ -122,7 +121,7 @@ modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
 updateApps :: BusName -- name whose owner has changed.
            -> Maybe BusName -- previous owner, if any.
            -> Maybe BusName -- new owner, if any.
-           -> Bustle (Maybe Double, Maybe Double) -- the old and new owners' columns
+           -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
 -- Unique name added, aka. someone connected to the bus
 updateApps (U n) Nothing (Just (U m)) | n == m = do addUnique n
                                                     return (Nothing, Nothing)
@@ -139,11 +138,11 @@ maybeM :: Monad m => (a -> m (Maybe b)) -> Maybe a -> m (Maybe b)
 maybeM = maybe (return Nothing)
 
 -- Adds a new unique name
-addUnique :: UniqueName -> Bustle ()
+addUnique :: UniqueName -> Renderer ()
 addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
 
 -- Removes a unique name, yielding its column if any
-remUnique :: UniqueName -> Bustle (Maybe Double)
+remUnique :: UniqueName -> Renderer (Maybe Double)
 remUnique n = do
     coord <- gets (fmap fst . Map.lookup n . apps)
     case coord of
@@ -153,7 +152,7 @@ remUnique n = do
                                 , " apparently disconnected without connecting"
                                 ]
 
-addOther, remOther :: OtherName -> BusName -> Bustle (Maybe Double)
+addOther, remOther :: OtherName -> BusName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
 addOther n (O o) = error $ concat [ "corrupt log: "
                                   , show n
@@ -188,26 +187,26 @@ remOther n (U u) = do
         Just (x, ns) -> do modifyApps (Map.insert u (x, Set.delete n ns))
                            return x
 
-shape :: Shape -> Bustle ()
+shape :: Shape -> Renderer ()
 shape s = modify $ \bs -> bs { shapes = s:shapes bs }
 
 modifyPending :: (Map Message (Double, Double) -> Map Message (Double, Double))
-              -> Bustle ()
+              -> Renderer ()
 modifyPending f = modify $ \bs -> bs { pending = f (pending bs) }
 
-addPending :: Message -> Bustle ()
+addPending :: Message -> Renderer ()
 addPending m = do
     x <- destinationCoordinate m
     y <- gets row
     modifyPending $ Map.insert m (x, y)
 
-findCallCoordinates :: Maybe Message -> Bustle (Maybe (Message, (Double, Double)))
+findCallCoordinates :: Maybe Message -> Renderer (Maybe (Message, (Double, Double)))
 findCallCoordinates = maybe (return Nothing) $ \m -> do
     ret <- gets (Map.lookup m . pending)
     modifyPending $ Map.delete m
     return $ fmap ((,) m) ret
 
-advanceBy :: Double -> Bustle ()
+advanceBy :: Double -> Renderer ()
 advanceBy d = do
     lastLabelling <- gets mostRecentLabels
 
@@ -238,25 +237,25 @@ bestNames (UniqueName u) os
     | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
-appCoordinate :: BusName -> Bustle Double
+appCoordinate :: BusName -> Renderer Double
 -- FIXME: this will break when people try to send methods to non-existant names
 appCoordinate s = getApp s >>= \coord -> case coord of
     Nothing -> error "FIXME"
     Just x -> return x
 
-rightmostApp :: Bustle Double
+rightmostApp :: Renderer Double
 rightmostApp = do
     first <- gets nextColumn
     xs <- gets $ catMaybes . map fst . Map.elems . apps
     return $ maximum (first:xs)
 
-senderCoordinate :: Message -> Bustle Double
+senderCoordinate :: Message -> Renderer Double
 senderCoordinate m = appCoordinate (sender m)
 
-destinationCoordinate :: Message -> Bustle Double
+destinationCoordinate :: Message -> Renderer Double
 destinationCoordinate m = appCoordinate (destination m)
 
-memberName :: Message -> Bool -> Bustle ()
+memberName :: Message -> Bool -> Renderer ()
 memberName message isReturn = do
     current <- gets row
     let Member p i m = member message
@@ -268,14 +267,14 @@ memberName message isReturn = do
         b x  | isReturn  = x
              | otherwise = "<b>" ++ x ++ "</b>"
 
-relativeTimestamp :: Message -> Bustle ()
+relativeTimestamp :: Message -> Renderer ()
 relativeTimestamp m = do
     base <- gets startTime
     let relative = (timestamp m - base) `div` 1000
     current <- gets row
     shape $ Timestamp (show relative ++ "ms") current
 
-returnArc :: Message -> Double -> Double -> Milliseconds -> Bustle ()
+returnArc :: Message -> Double -> Double -> Milliseconds -> Renderer ()
 returnArc mr callx cally duration = do
     destinationx <- destinationCoordinate mr
     currentx     <- senderCoordinate mr
@@ -287,7 +286,7 @@ returnArc mr callx cally duration = do
                 , caption = show (duration `div` 1000) ++ "ms"
                 }
 
-munge :: Message -> Bustle ()
+munge :: Message -> Renderer ()
 munge m = case m of
         Signal {}       -> do
             advance
@@ -322,19 +321,19 @@ munge m = case m of
                     returnArc m x y duration
 
 
-methodCall, methodReturn, errorReturn :: Message -> Bustle ()
+methodCall, methodReturn, errorReturn :: Message -> Renderer ()
 methodCall = methodLike Nothing Above
 methodReturn = methodLike Nothing Below
 errorReturn = methodLike (Just $ Colour 1 0 0) Below
 
-methodLike :: Maybe Colour -> Arrowhead -> Message -> Bustle ()
+methodLike :: Maybe Colour -> Arrowhead -> Message -> Renderer ()
 methodLike colour a m = do
     sc <- senderCoordinate m
     dc <- destinationCoordinate m
     t <- gets row
     shape $ Arrow colour a sc dc t
 
-signal :: Message -> Bustle ()
+signal :: Message -> Renderer ()
 signal m = do
     x <- senderCoordinate m
     t <- gets row
