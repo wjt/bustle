@@ -138,25 +138,18 @@ loadLog f = do
                                        , ": "
                                        , show err
                                        ]
-    Right log -> aWindow f (upgrade log)
+    Right log -> logWindow f (upgrade log)
 
 maybeQuit :: B ()
 maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
 
-aWindow :: FilePath -> [Message] -> B ()
-aWindow filename log = do
-  let shapes = process log
-      (width, height) = dimensions shapes
-
-  incWindows
-
+emptyWindow :: B (Window, ImageMenuItem, Layout)
+emptyWindow = do
   window <- mkWindow
-  io . windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
-  let details = (filename, shapes)
-
-  menuBar <- mkMenuBar window details
+  (menuBar, saveItem) <- mkMenuBar window
+  layout <- io $ layoutNew Nothing Nothing
 
   io $ do
     vbox <- vBoxNew False 0
@@ -164,9 +157,6 @@ aWindow filename log = do
 
     boxPackStart vbox menuBar PackNatural 0
 
-    layout <- layoutNew Nothing Nothing
-    layoutSetSize layout (floor width) (floor height)
-    layout `onExpose` update layout shapes
     scrolledWindow <- scrolledWindowNew Nothing Nothing
     scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
     containerAdd scrolledWindow layout
@@ -188,6 +178,27 @@ aWindow filename log = do
         _ -> return False
 
     widgetShowAll window
+
+  incWindows
+  return (window, saveItem, layout)
+
+
+logWindow :: FilePath -> [Message] -> B ()
+logWindow filename log = do
+  (window, saveItem, layout) <- emptyWindow
+
+  let shapes = process log
+      (width, height) = dimensions shapes
+      details = (filename, shapes)
+
+  io $ do
+    windowSetTitle window $ filename ++ " - D-Bus Sequence Diagram"
+
+    widgetSetSensitive saveItem True
+    onActivateLeaf saveItem $ saveToPDFDialogue window details
+
+    layout `onExpose` update layout shapes
+    layoutSetSize layout (floor width) (floor height)
 
   where update :: Layout -> Diagram -> Event -> IO Bool
         update layout shapes (Expose {}) = do
@@ -284,8 +295,8 @@ saveToPDFDialogue window (filename, shapes) = do
   widgetShowAll chooser
 
 
-mkMenuBar :: Window -> Details -> B MenuBar
-mkMenuBar window details = embedIO $ \r -> do
+mkMenuBar :: Window -> B (MenuBar, ImageMenuItem)
+mkMenuBar window = embedIO $ \r -> do
   menuBar <- menuBarNew
 
   file <- menuItemNewWithMnemonic "_File"
@@ -298,7 +309,7 @@ mkMenuBar window details = embedIO $ \r -> do
 
   saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
-  onActivateLeaf saveItem $ saveToPDFDialogue window details
+  widgetSetSensitive saveItem False
 
   menuShellAppend fileMenu =<< separatorMenuItemNew
 
@@ -308,6 +319,6 @@ mkMenuBar window details = embedIO $ \r -> do
 
   menuShellAppend menuBar file
 
-  return menuBar
+  return (menuBar, saveItem)
 
 -- vim: sw=2 sts=2
