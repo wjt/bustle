@@ -260,15 +260,19 @@ incdec (+-) adj = do
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
     return True
 
+withIcon :: (Pixbuf -> IO ()) -> IO ()
+withIcon act = do
+  iconName <- getDataFileName "bustle.png"
+  (pixbufNewFromFile iconName >>= act) `catchGError`
+    \(GError _ _ msg) -> warn msg
+
 mkWindow :: B Window
 mkWindow = do
     window <- io windowNew
 
     io $ do
       windowSetTitle window "D-Bus Sequence Diagram"
-      iconName <- getDataFileName "bustle.png"
-      (pixbufNewFromFile iconName >>= windowSetIcon window) `catchGError`
-        \(GError _ _ msg) -> warn msg
+      withIcon (windowSetIcon window)
 
     embedIO $ onDestroy window . makeCallback maybeQuit
 
@@ -368,6 +372,7 @@ mkMenuBar window = embedIO $ \r -> do
           when (response == ResponseCancel) (widgetDestroy dialog)
       windowSetTransientFor dialog window
       windowSetModal dialog True
+      withIcon (aboutDialogSetLogo dialog . Just)
 
       widgetShowAll dialog
 
