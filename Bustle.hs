@@ -126,14 +126,15 @@ mainB :: B ()
 mainB = do
   io initGUI
 
-  fs <- io getArgs
+  -- Try to load arguments, if any.
+  mapM_ loadLog =<< io getArgs
 
-  if null fs
-    then createInitialWindow
-    else mapM_ loadLog fs
-
+  -- If no windows are open (because none of the arguments, if any, were loaded
+  -- successfully) create an empty window
   n <- gets windows
-  when (n > 0) (io mainGUI)
+  when (n == 0) createInitialWindow
+
+  io mainGUI
 
 createInitialWindow :: B ()
 createInitialWindow = do
