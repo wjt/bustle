@@ -153,15 +153,21 @@ loadInInitialWindow = loadLogWith consumeInitialWindow
 loadLog :: FilePath -> B ()
 loadLog = loadLogWith emptyWindow
 
+-- Displays a modal error dialog, with the given strings as title and body
+-- respectively.
+displayError :: String -> String -> IO ()
+displayError title body = do
+  dialog <- messageDialogNew Nothing [DialogModal] MessageError ButtonsClose title
+  messageDialogSetSecondaryText dialog body
+  dialog `afterResponse` \_ -> widgetDestroy dialog
+  widgetShowAll dialog
+
 loadLogWith :: B WindowInfo -> FilePath -> B ()
 loadLogWith act f = do
   input <- io $ readFile f
   case readLog input of
-    Left err -> io . putStrLn $ concat [ "Couldn't parse "
-                                       , f
-                                       , ": "
-                                       , show err
-                                       ]
+    Left err -> io $ displayError ("Could not read '" ++ f ++ "'")
+                                  ("Parse error " ++ show err)
     Right log -> act >>= \misc -> displayLog misc f (upgrade log)
 
 
