@@ -34,6 +34,8 @@ import Data.Map (Map)
 import Data.Ratio
 
 import Control.Applicative ((<$>))
+import Control.Monad.Error
+import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad (forM_)
@@ -43,7 +45,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
 process :: [Message] -> Either String [Shape]
-process log = Right $ execRenderer (mapM_ munge log') (initialState initTime)
+process log = execRenderer (mapM_ munge log') (initialState initTime)
 
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
@@ -59,11 +61,15 @@ process log = Right $ execRenderer (mapM_ munge log') (initialState initTime)
             t:_ -> t
             _   -> 0
 
-newtype Renderer a = Renderer (WriterT [Shape] (State RendererState) a)
-  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape])
+newtype Renderer a = Renderer (WriterT [Shape]
+                                (StateT RendererState
+                                 (ErrorT String Identity)
+                                ) a)
+  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape],
+      MonadError String)
 
-execRenderer :: Renderer () -> RendererState -> [Shape]
-execRenderer (Renderer act) = snd . evalState (runWriterT act)
+execRenderer :: Renderer () -> RendererState -> Either String [Shape]
+execRenderer (Renderer act) = runIdentity . runErrorT . evalStateT (execWriterT act)
 
 data RendererState =
     RendererState { apps :: Applications
