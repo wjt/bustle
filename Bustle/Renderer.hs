@@ -35,6 +35,7 @@ import Data.Ratio
 
 import Control.Applicative ((<$>))
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Monad (forM_)
 
 import Data.List (isPrefixOf, stripPrefix, sortBy)
@@ -42,11 +43,9 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
 process :: [Message] -> [Shape]
-process log =
-    let finalState = execRenderer (mapM_ munge log') initialState
-    in reverse $ shapes finalState
+process log = execRenderer (mapM_ munge log') initialState
 
-  where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime []
+  where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime
         firstColumn = 470
 
         -- FIXME: really? Maybe we should allow people to be interested in,
@@ -63,11 +62,11 @@ process log =
             t:_ -> t
             _   -> 0
 
-newtype Renderer a = Renderer (State RendererState a)
-  deriving (Functor, Monad, MonadState RendererState)
+newtype Renderer a = Renderer (WriterT [Shape] (State RendererState) a)
+  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape])
 
-execRenderer :: Renderer () -> RendererState -> RendererState
-execRenderer (Renderer act) = execState act
+execRenderer :: Renderer () -> RendererState -> [Shape]
+execRenderer (Renderer act) = snd . evalState (runWriterT act)
 
 data RendererState =
     RendererState { apps :: Applications
@@ -76,7 +75,6 @@ data RendererState =
                   , row :: Double
                   , mostRecentLabels :: Double
                   , startTime :: Milliseconds
-                  , shapes :: [Shape] -- in reverse order
                   }
 
 -- Maps unique connection name to the column representing that name, if
@@ -186,7 +184,7 @@ remOther n u = do
                            return x
 
 shape :: Shape -> Renderer ()
-shape s = modify $ \bs -> bs { shapes = s:shapes bs }
+shape = tell . (:[])
 
 modifyPending :: (Map Message (Double, Double) -> Map Message (Double, Double))
               -> Renderer ()
