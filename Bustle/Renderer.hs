@@ -166,21 +166,21 @@ remUnique n = do
     coord <- gets (fmap fst . Map.lookup n . apps)
     case coord of
       Just x  -> modifyApps (Map.delete n) >> return x
-      Nothing -> error $ concat [ "corrupt log: "
-                                , show n
-                                , " apparently disconnected without connecting"
-                                ]
+      Nothing -> throwError $ concat [ "corrupt log: "
+                                     , show n
+                                     , " apparently disconnected without connecting"
+                                     ]
 
 addOther, remOther :: OtherName -> UniqueName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
 addOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
-        Nothing -> error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " claimed by unknown unique name "
-                                  , show u
-                                  ]
+        Nothing -> throwError $ concat [ "corrupt log: "
+                                       , show n
+                                       , " claimed by unknown unique name "
+                                       , show u
+                                       ]
         Just (x, ns) -> do modifyApps (Map.insert u (x, Set.insert n ns))
                            return x
 
@@ -188,11 +188,11 @@ addOther n u = do
 remOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
-        Nothing -> error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " released by unknown unique name "
-                                  , show u
-                                  ]
+        Nothing -> throwError $ concat [ "corrupt log: "
+                                       , show n
+                                       , " released by unknown unique name "
+                                       , show u
+                                       ]
         Just (x, ns) -> do modifyApps (Map.insert u (x, Set.delete n ns))
                            return x
 
@@ -248,7 +248,8 @@ bestNames (UniqueName u) os
 
 appCoordinate :: BusName -> Renderer Double
 appCoordinate s = getApp s >>= \coord -> case coord of
-    Nothing -> error "corrupt log: contains nonexistant names"
+    Nothing -> throwError $ "corrupt log: contains nonexistant name "
+                            ++ unBusName s
     Just x -> return x
 
 rightmostApp :: Renderer Double
