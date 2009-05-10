@@ -231,9 +231,8 @@ bestNames (UniqueName u) os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 appCoordinate :: BusName -> Renderer Double
--- FIXME: this will break when people try to send methods to non-existant names
 appCoordinate s = getApp s >>= \coord -> case coord of
-    Nothing -> error "FIXME"
+    Nothing -> error "corrupt log: contains nonexistant names"
     Just x -> return x
 
 rightmostApp :: Renderer Double
