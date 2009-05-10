@@ -43,12 +43,9 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
 process :: [Message] -> [Shape]
-process log = execRenderer (mapM_ munge log') initialState
+process log = execRenderer (mapM_ munge log') (initialState initTime)
 
-  where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime
-        firstColumn = 470
-
-        -- FIXME: really? Maybe we should allow people to be interested in,
+  where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
         notDaemon m = (path . member) m /= "/org/freedesktop/DBus"
 
@@ -76,6 +73,16 @@ data RendererState =
                   , mostRecentLabels :: Double
                   , startTime :: Milliseconds
                   }
+
+initialState :: Milliseconds -> RendererState
+initialState t = RendererState
+    { apps = Map.empty
+    , nextColumn = 470 -- FIXME: magic number :'(
+    , pending = Map.empty
+    , row = 0
+    , mostRecentLabels = 0
+    , startTime = t
+    }
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
