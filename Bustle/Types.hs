@@ -71,15 +71,32 @@ data Message = MethodCall { timestamp :: Milliseconds
                      , sender :: BusName
                      , destination :: BusName
                      }
-             | NameOwnerChanged { timestamp :: Milliseconds
-                                , changedName :: BusName
-                                , oldOwner :: Maybe BusName
-                                , newOwner :: Maybe BusName
-                                }
+             | Connected { timestamp :: Milliseconds
+                         , actor :: UniqueName
+                         }
+             | Disconnected { timestamp :: Milliseconds
+                            , actor :: UniqueName
+                            }
+             | NameClaimed { timestamp :: Milliseconds
+                           , name :: OtherName
+                           , actor :: UniqueName
+                           }
+             | NameStolen { timestamp :: Milliseconds
+                          , name :: OtherName
+                          , oldOwner, newOwner :: UniqueName
+                          }
+             | NameReleased { timestamp :: Milliseconds
+                            , name :: OtherName
+                            , actor :: UniqueName
+                            }
   deriving (Show, Eq, Ord)
 
 isNameOwnerChanged :: Message -> Bool
-isNameOwnerChanged (NameOwnerChanged {}) = True
+isNameOwnerChanged (Connected {}) = True
+isNameOwnerChanged (Disconnected {}) = True
+isNameOwnerChanged (NameClaimed {}) = True
+isNameOwnerChanged (NameStolen {}) = True
+isNameOwnerChanged (NameReleased {}) = True
 isNameOwnerChanged _ = False
 
 type Log = [Message]

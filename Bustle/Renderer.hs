@@ -47,10 +47,14 @@ process log =
 
   where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime []
         firstColumn = 470
-        relevant (MethodReturn {}) = True
-        relevant (Error        {}) = True
-        relevant (NameOwnerChanged {}) = True
-        relevant m                 = (path . member) m /= "/org/freedesktop/DBus"
+
+        -- FIXME: really? Maybe we should allow people to be interested in,
+        --        say, binding to signals?
+        notDaemon m = (path . member) m /= "/org/freedesktop/DBus"
+
+        relevant m@(Signal {}) = notDaemon m
+        relevant m@(MethodCall {}) = notDaemon m
+        relevant _ = True
 
         log' = filter relevant log
 
@@ -78,7 +82,7 @@ type Applications = Map UniqueName (Maybe Double, Set OtherName)
 lookupApp :: BusName
           -> Applications
           -> Maybe (UniqueName, (Maybe Double, Set OtherName))
-lookupApp name as = case name of
+lookupApp n as = case n of
     U u -> (,) u <$> Map.lookup u as
     O o -> case filter (Set.member o . snd . snd) (Map.assocs as) of
               []         -> Nothing
@@ -116,23 +120,21 @@ getApp n = do
 modifyApps :: (Applications -> Applications) -> Renderer ()
 modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
 
--- Updates the current set of applications in response to a NameOwnerChanged
--- message.
-updateApps :: BusName -- name whose owner has changed.
-           -> Maybe BusName -- previous owner, if any.
-           -> Maybe BusName -- new owner, if any.
+-- Updates the current set of applications in response to a well-known name's
+-- owner changing.
+updateApps :: OtherName -- name whose owner has changed.
+           -> Maybe UniqueName -- previous owner, if any.
+           -> Maybe UniqueName -- new owner, if any.
            -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
--- Unique name added, aka. someone connected to the bus
-updateApps (U n) Nothing (Just (U m)) | n == m = do addUnique n
-                                                    return (Nothing, Nothing)
--- Unique name removed, aka. someone disconnected from the bus
-updateApps (U n) (Just (U m)) Nothing | n == m = flip (,) Nothing <$> remUnique n
-updateApps (U n) x y = error $ concat [ "corrupt log: unique name ", show n
-                                      , " released by ", show x
-                                      , "; claimed by " , show y
-                                      ]
-updateApps (O n) old new = (,) `fmap` maybeM (remOther n) old
-                               `ap`   maybeM (addOther n) new
+updateApps n old new = (,) `fmap` maybeM (remOther n) old
+                           `ap`   maybeM (addOther n) new
+
+-- updateApps but ignore the reply.
+updateApps_ :: OtherName -- name whose owner has changed.
+            -> Maybe UniqueName -- previous owner, if any.
+            -> Maybe UniqueName -- new owner, if any.
+            -> Renderer ()
+updateApps_ n old new = updateApps n old new >> return ()
 
 maybeM :: Monad m => (a -> m (Maybe b)) -> Maybe a -> m (Maybe b)
 maybeM = maybe (return Nothing)
@@ -141,7 +143,7 @@ maybeM = maybe (return Nothing)
 addUnique :: UniqueName -> Renderer ()
 addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
 
--- Removes a unique name, yielding its column if any
+-- Removes a unique name, yielding its column (if any)
 remUnique :: UniqueName -> Renderer (Maybe Double)
 remUnique n = do
     coord <- gets (fmap fst . Map.lookup n . apps)
@@ -152,14 +154,9 @@ remUnique n = do
                                 , " apparently disconnected without connecting"
                                 ]
 
-addOther, remOther :: OtherName -> BusName -> Renderer (Maybe Double)
+addOther, remOther :: OtherName -> UniqueName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
-addOther n (O o) = error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " claimed by non-unique name "
-                                  , show o
-                                  ]
-addOther n (U u) = do
+addOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
         Nothing -> error $ concat [ "corrupt log: "
@@ -171,12 +168,7 @@ addOther n (U u) = do
                            return x
 
 -- Remove a well-known name from a unique name
-remOther n (O o) = error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " released by non-unique name "
-                                  , show o
-                                  ]
-remOther n (U u) = do
+remOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
         Nothing -> error $ concat [ "corrupt log: "
@@ -303,10 +295,20 @@ munge m = case m of
 
         MethodReturn {} -> returnOrError methodReturn
         Error {}        -> returnOrError errorReturn
-        NameOwnerChanged { changedName = c
-                         , oldOwner = o
-                         , newOwner = n
-                         } -> updateApps c o n >> return ()
+
+        Connected { actor = u } -> addUnique u
+        Disconnected { actor = u } -> remUnique u >> return ()
+        NameClaimed  { name = n
+                     , actor = u
+                     } -> updateApps_ n Nothing (Just u)
+        NameStolen   { name = n
+                     , oldOwner = o
+                     , newOwner = u
+                     } -> updateApps_ n (Just o) (Just u)
+        NameReleased { name = n
+                     , actor = u
+                     } -> updateApps_ n (Just u) Nothing
+
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
             call <- findCallCoordinates (inReplyTo m)

@@ -21,11 +21,10 @@ where
 
 import Bustle.Types
 import Text.ParserCombinators.Parsec hiding (Parser)
-import Data.Char (isSpace)
 import Data.Map (Map)
 import Data.Maybe (isJust)
 import qualified Data.Map as Map
-import Control.Monad (ap, when)
+import Control.Monad (ap, when, guard)
 import Control.Applicative ((<$>))
 
 infixl 4 <*
@@ -135,17 +134,52 @@ method :: Parser Message
 method = char 'm' >> (methodCall <|> methodReturn)
   <?> "method call or return"
 
-maybeBusName :: Parser (Maybe BusName)
-maybeBusName = (char '!' >> return Nothing)
-           <|> fmap Just parseBusName
-           <?> "a bus name, or !"
+noName :: Parser ()
+noName = char '!' >> return ()
+  <?> "the empty name '!'"
+
+perhaps :: Parser a -> Parser (Maybe a)
+perhaps act = (noName >> return Nothing) <|> fmap Just act
+
+sameUnique :: UniqueName -> UniqueName -> Parser ()
+sameUnique u u' = guard (u == u')
+  <?> "owner to be " ++ unUniqueName u ++ ", not " ++ unUniqueName u'
+
+atLeastOne :: OtherName -> Parser a
+atLeastOne n = fail ""
+  <?> unOtherName n ++ " to gain or lose an owner"
 
 nameOwnerChanged :: Parser Message
 nameOwnerChanged = do
     string "nameownerchanged"
     t
-    NameOwnerChanged <$> parseTimestamp <* t <*> parseBusName <* t
-                     <*> maybeBusName <* t <*> maybeBusName
+    ts <- parseTimestamp
+    t
+    n <- parseBusName
+    t
+    case n of
+        U u -> do
+            old <- perhaps parseUniqueName
+            case old of
+                Nothing -> do
+                    t
+                    u' <- parseUniqueName
+                    sameUnique u u'
+                    return $ Connected ts u
+                Just u' -> do
+                    sameUnique u u'
+                    t
+                    noName
+                    return $ Disconnected ts u
+        O o -> do
+            old <- perhaps parseUniqueName
+            t
+            new <- perhaps parseUniqueName
+            case (old, new) of
+                (Nothing, Nothing) -> atLeastOne o
+                (Just  a, Nothing) -> return $ NameReleased ts o a
+                (Nothing, Just  b) -> return $ NameClaimed ts o b
+                (Just  a, Just  b) -> return $ NameStolen ts o a b
 
 event :: Parser Message
 event = method <|> signal <|> nameOwnerChanged <|> parseError
