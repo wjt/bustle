@@ -186,7 +186,9 @@ loadLogWith act f = do
   where llw' = do
           input <- etio show $ readFile f
           log <- toET (("Parse error " ++) . show) $ readLog input
-          lift (act >>= \misc -> displayLog misc f (upgrade log))
+          misc <- lift act
+          shapes <- toET id $ process (upgrade log)
+          lift (displayLog misc f shapes)
 
 
 maybeQuit :: B ()
@@ -231,10 +233,9 @@ emptyWindow = do
   incWindows
   return (window, saveItem, layout)
 
-displayLog :: WindowInfo -> FilePath -> [Message] -> B ()
-displayLog (window, saveItem, layout) filename log = do
-  let shapes = process log
-      (width, height) = dimensions shapes
+displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
+displayLog (window, saveItem, layout) filename shapes = do
+  let (width, height) = dimensions shapes
       details = (filename, shapes)
 
   io $ do

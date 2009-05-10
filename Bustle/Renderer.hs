@@ -42,8 +42,8 @@ import Data.List (isPrefixOf, stripPrefix, sortBy)
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
-process :: [Message] -> [Shape]
-process log = execRenderer (mapM_ munge log') (initialState initTime)
+process :: [Message] -> Either String [Shape]
+process log = Right $ execRenderer (mapM_ munge log') (initialState initTime)
 
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
