@@ -186,8 +186,8 @@ loadLogWith act f = do
   where llw' = do
           input <- etio show $ readFile f
           log <- toET (("Parse error " ++) . show) $ readLog input
-          misc <- lift act
           shapes <- toET id $ process (upgrade log)
+          misc <- lift act
           lift (displayLog misc f shapes)
 
 
