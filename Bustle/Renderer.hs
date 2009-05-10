@@ -142,6 +142,7 @@ maybeM = maybe (return Nothing)
 -- Adds a new unique name
 addUnique :: UniqueName -> Renderer ()
 addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
+  -- FIXME: this could trample on names that erroneously already exist...
 
 -- Removes a unique name, yielding its column (if any)
 remUnique :: UniqueName -> Renderer (Maybe Double)
