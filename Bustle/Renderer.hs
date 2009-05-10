@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bustle.Renderer
     ( process
     )
@@ -42,7 +43,7 @@ import Data.Ord (comparing)
 
 process :: [Message] -> [Shape]
 process log =
-    let finalState = execState (mapM_ munge log') initialState
+    let finalState = execRenderer (mapM_ munge log') initialState
     in reverse $ shapes finalState
 
   where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime []
@@ -62,7 +63,11 @@ process log =
             t:_ -> t
             _   -> 0
 
-type Renderer a = State RendererState a
+newtype Renderer a = Renderer (State RendererState a)
+  deriving (Functor, Monad, MonadState RendererState)
+
+execRenderer :: Renderer () -> RendererState -> RendererState
+execRenderer (Renderer act) = execState act
 
 data RendererState =
     RendererState { apps :: Applications
