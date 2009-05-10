@@ -31,7 +31,7 @@ upgrade ms | any isNameOwnerChanged ms = ms
            | otherwise = concat $ evalState (mapM synthesiseNOC ms) Set.empty
 
 synthesiseNOC :: Message -> State (Set BusName) [Message]
-synthesiseNOC (NameOwnerChanged {}) = error "guarded above"
+synthesiseNOC m | isNameOwnerChanged m = error "guarded above"
 synthesiseNOC m@(Signal {sender = n}) = (++ [m]) `fmap` synth n (timestamp m)
 synthesiseNOC m = do
     f1 <- synth (sender m) (timestamp m)
@@ -46,12 +46,12 @@ synth n ts = do
       else do
         modify (Set.insert n)
         return $ case n of
-          U _ -> [ NameOwnerChanged ts n Nothing (Just n)]
-          O _ -> [ NameOwnerChanged ts (fake n) Nothing (Just $ fake n)
-                 , NameOwnerChanged ts n Nothing (Just $ fake n)
+          U u -> [ Connected ts u ]
+          O o -> [ Connected ts (fake o)
+                 , NameClaimed ts o (fake o)
                  ]
 
-fake :: BusName -> BusName
-fake = U . UniqueName . (":fake." ++) . unBusName
+fake :: OtherName -> UniqueName
+fake = UniqueName . (":fake." ++) . unOtherName
 
 -- vim: sw=2 sts=2

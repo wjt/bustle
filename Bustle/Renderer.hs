@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bustle.Renderer
     ( process
     )
@@ -33,24 +34,26 @@ import Data.Map (Map)
 import Data.Ratio
 
 import Control.Applicative ((<$>))
+import Control.Monad.Error
+import Control.Monad.Identity
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Monad (forM_)
 
 import Data.List (isPrefixOf, stripPrefix, sortBy)
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
-process :: [Message] -> [Shape]
-process log =
-    let finalState = execState (mapM_ munge log') initialState
-    in reverse $ shapes finalState
+process :: [Message] -> Either String [Shape]
+process log = execRenderer (mapM_ munge log') (initialState initTime)
 
-  where initialState = RendererState Map.empty firstColumn Map.empty 0 0 initTime []
-        firstColumn = 470
-        relevant (MethodReturn {}) = True
-        relevant (Error        {}) = True
-        relevant (NameOwnerChanged {}) = True
-        relevant m                 = (path . member) m /= "/org/freedesktop/DBus"
+  where -- FIXME: really? Maybe we should allow people to be interested in,
+        --        say, binding to signals?
+        notDaemon m = (path . member) m /= "/org/freedesktop/DBus"
+
+        relevant m@(Signal {}) = notDaemon m
+        relevant m@(MethodCall {}) = notDaemon m
+        relevant _ = True
 
         log' = filter relevant log
 
@@ -58,7 +61,15 @@ process log =
             t:_ -> t
             _   -> 0
 
-type Renderer a = State RendererState a
+newtype Renderer a = Renderer (WriterT [Shape]
+                                (StateT RendererState
+                                 (ErrorT String Identity)
+                                ) a)
+  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape],
+      MonadError String)
+
+execRenderer :: Renderer () -> RendererState -> Either String [Shape]
+execRenderer (Renderer act) = runIdentity . runErrorT . evalStateT (execWriterT act)
 
 data RendererState =
     RendererState { apps :: Applications
@@ -67,8 +78,17 @@ data RendererState =
                   , row :: Double
                   , mostRecentLabels :: Double
                   , startTime :: Milliseconds
-                  , shapes :: [Shape] -- in reverse order
                   }
+
+initialState :: Milliseconds -> RendererState
+initialState t = RendererState
+    { apps = Map.empty
+    , nextColumn = 470 -- FIXME: magic number :'(
+    , pending = Map.empty
+    , row = 0
+    , mostRecentLabels = 0
+    , startTime = t
+    }
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
@@ -78,7 +98,7 @@ type Applications = Map UniqueName (Maybe Double, Set OtherName)
 lookupApp :: BusName
           -> Applications
           -> Maybe (UniqueName, (Maybe Double, Set OtherName))
-lookupApp name as = case name of
+lookupApp n as = case n of
     U u -> (,) u <$> Map.lookup u as
     O o -> case filter (Set.member o . snd . snd) (Map.assocs as) of
               []         -> Nothing
@@ -116,23 +136,21 @@ getApp n = do
 modifyApps :: (Applications -> Applications) -> Renderer ()
 modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
 
--- Updates the current set of applications in response to a NameOwnerChanged
--- message.
-updateApps :: BusName -- name whose owner has changed.
-           -> Maybe BusName -- previous owner, if any.
-           -> Maybe BusName -- new owner, if any.
+-- Updates the current set of applications in response to a well-known name's
+-- owner changing.
+updateApps :: OtherName -- name whose owner has changed.
+           -> Maybe UniqueName -- previous owner, if any.
+           -> Maybe UniqueName -- new owner, if any.
            -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
--- Unique name added, aka. someone connected to the bus
-updateApps (U n) Nothing (Just (U m)) | n == m = do addUnique n
-                                                    return (Nothing, Nothing)
--- Unique name removed, aka. someone disconnected from the bus
-updateApps (U n) (Just (U m)) Nothing | n == m = flip (,) Nothing <$> remUnique n
-updateApps (U n) x y = error $ concat [ "corrupt log: unique name ", show n
-                                      , " released by ", show x
-                                      , "; claimed by " , show y
-                                      ]
-updateApps (O n) old new = (,) `fmap` maybeM (remOther n) old
-                               `ap`   maybeM (addOther n) new
+updateApps n old new = (,) `fmap` maybeM (remOther n) old
+                           `ap`   maybeM (addOther n) new
+
+-- updateApps but ignore the reply.
+updateApps_ :: OtherName -- name whose owner has changed.
+            -> Maybe UniqueName -- previous owner, if any.
+            -> Maybe UniqueName -- new owner, if any.
+            -> Renderer ()
+updateApps_ n old new = updateApps n old new >> return ()
 
 maybeM :: Monad m => (a -> m (Maybe b)) -> Maybe a -> m (Maybe b)
 maybeM = maybe (return Nothing)
@@ -140,55 +158,46 @@ maybeM = maybe (return Nothing)
 -- Adds a new unique name
 addUnique :: UniqueName -> Renderer ()
 addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
+  -- FIXME: this could trample on names that erroneously already exist...
 
--- Removes a unique name, yielding its column if any
+-- Removes a unique name, yielding its column (if any)
 remUnique :: UniqueName -> Renderer (Maybe Double)
 remUnique n = do
     coord <- gets (fmap fst . Map.lookup n . apps)
     case coord of
       Just x  -> modifyApps (Map.delete n) >> return x
-      Nothing -> error $ concat [ "corrupt log: "
-                                , show n
-                                , " apparently disconnected without connecting"
-                                ]
+      Nothing -> throwError $ concat [ "corrupt log: "
+                                     , show n
+                                     , " apparently disconnected without connecting"
+                                     ]
 
-addOther, remOther :: OtherName -> BusName -> Renderer (Maybe Double)
+addOther, remOther :: OtherName -> UniqueName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
-addOther n (O o) = error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " claimed by non-unique name "
-                                  , show o
-                                  ]
-addOther n (U u) = do
+addOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
-        Nothing -> error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " claimed by unknown unique name "
-                                  , show u
-                                  ]
+        Nothing -> throwError $ concat [ "corrupt log: "
+                                       , show n
+                                       , " claimed by unknown unique name "
+                                       , show u
+                                       ]
         Just (x, ns) -> do modifyApps (Map.insert u (x, Set.insert n ns))
                            return x
 
 -- Remove a well-known name from a unique name
-remOther n (O o) = error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " released by non-unique name "
-                                  , show o
-                                  ]
-remOther n (U u) = do
+remOther n u = do
     a <- gets (Map.lookup u . apps)
     case a of
-        Nothing -> error $ concat [ "corrupt log: "
-                                  , show n
-                                  , " released by unknown unique name "
-                                  , show u
-                                  ]
+        Nothing -> throwError $ concat [ "corrupt log: "
+                                       , show n
+                                       , " released by unknown unique name "
+                                       , show u
+                                       ]
         Just (x, ns) -> do modifyApps (Map.insert u (x, Set.delete n ns))
                            return x
 
 shape :: Shape -> Renderer ()
-shape s = modify $ \bs -> bs { shapes = s:shapes bs }
+shape = tell . (:[])
 
 modifyPending :: (Map Message (Double, Double) -> Map Message (Double, Double))
               -> Renderer ()
@@ -238,9 +247,9 @@ bestNames (UniqueName u) os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 appCoordinate :: BusName -> Renderer Double
--- FIXME: this will break when people try to send methods to non-existant names
 appCoordinate s = getApp s >>= \coord -> case coord of
-    Nothing -> error "FIXME"
+    Nothing -> throwError $ "corrupt log: contains nonexistant name "
+                            ++ unBusName s
     Just x -> return x
 
 rightmostApp :: Renderer Double
@@ -303,10 +312,20 @@ munge m = case m of
 
         MethodReturn {} -> returnOrError methodReturn
         Error {}        -> returnOrError errorReturn
-        NameOwnerChanged { changedName = c
-                         , oldOwner = o
-                         , newOwner = n
-                         } -> updateApps c o n >> return ()
+
+        Connected { actor = u } -> addUnique u
+        Disconnected { actor = u } -> remUnique u >> return ()
+        NameClaimed  { name = n
+                     , actor = u
+                     } -> updateApps_ n Nothing (Just u)
+        NameStolen   { name = n
+                     , oldOwner = o
+                     , newOwner = u
+                     } -> updateApps_ n (Just o) (Just u)
+        NameReleased { name = n
+                     , actor = u
+                     } -> updateApps_ n (Just u) Nothing
+
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
             call <- findCallCoordinates (inReplyTo m)

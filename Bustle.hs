@@ -20,12 +20,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Main (main)
 where
 
-import Prelude hiding (log)
+import Prelude hiding (log, catch)
 
 import Control.Arrow ((&&&))
+import Control.Exception
 import Control.Monad (when, forM)
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Error
 
 import Data.IORef
 import qualified Data.Set as Set
@@ -116,6 +118,8 @@ decWindows = modifyWindows (subtract 1) >> gets windows
 
 {- End of boilerplate. -}
 
+-- Used to log warnings which aren't important to the user, but which should
+-- probably be noted.
 warn :: String -> IO ()
 warn = hPutStrLn stderr . ("Warning: " ++)
 
@@ -126,14 +130,15 @@ mainB :: B ()
 mainB = do
   io initGUI
 
-  fs <- io getArgs
+  -- Try to load arguments, if any.
+  mapM_ loadLog =<< io getArgs
 
-  if null fs
-    then createInitialWindow
-    else mapM_ loadLog fs
-
+  -- If no windows are open (because none of the arguments, if any, were loaded
+  -- successfully) create an empty window
   n <- gets windows
-  when (n > 0) (io mainGUI)
+  when (n == 0) createInitialWindow
+
+  io mainGUI
 
 createInitialWindow :: B ()
 createInitialWindow = do
@@ -153,16 +158,37 @@ loadInInitialWindow = loadLogWith consumeInitialWindow
 loadLog :: FilePath -> B ()
 loadLog = loadLogWith emptyWindow
 
+-- Displays a modal error dialog, with the given strings as title and body
+-- respectively.
+displayError :: String -> String -> IO ()
+displayError title body = do
+  dialog <- messageDialogNew Nothing [DialogModal] MessageError ButtonsClose title
+  messageDialogSetSecondaryText dialog body
+  dialog `afterResponse` \_ -> widgetDestroy dialog
+  widgetShowAll dialog
+
+-- Converts an Either to an action in an ErrorT.
+toET :: (Monad m, Error e') => (e -> e') -> Either e a -> ErrorT e' m a
+toET f = either (throwError . f) return
+
+-- Catches exceptions from an IO action, and maps them into ErrorT
+etio :: (Error e', MonadIO io)
+     => (Exception -> e') -> IO a -> ErrorT e' io a
+etio f act = toET f =<< io (try act)
+
 loadLogWith :: B WindowInfo -> FilePath -> B ()
 loadLogWith act f = do
-  input <- io $ readFile f
-  case readLog input of
-    Left err -> io . putStrLn $ concat [ "Couldn't parse "
-                                       , f
-                                       , ": "
-                                       , show err
-                                       ]
-    Right log -> act >>= \misc -> displayLog misc f (upgrade log)
+  ret <- runErrorT llw'
+  case ret of
+    Left e -> io $ displayError ("Could not read '" ++ f ++ "'") e
+    Right () -> return ()
+
+  where llw' = do
+          input <- etio show $ readFile f
+          log <- toET (("Parse error " ++) . show) $ readLog input
+          misc <- lift act
+          shapes <- toET id $ process (upgrade log)
+          lift (displayLog misc f shapes)
 
 
 maybeQuit :: B ()
@@ -207,10 +233,9 @@ emptyWindow = do
   incWindows
   return (window, saveItem, layout)
 
-displayLog :: WindowInfo -> FilePath -> [Message] -> B ()
-displayLog (window, saveItem, layout) filename log = do
-  let shapes = process log
-      (width, height) = dimensions shapes
+displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
+displayLog (window, saveItem, layout) filename shapes = do
+  let (width, height) = dimensions shapes
       details = (filename, shapes)
 
   io $ do
