@@ -234,11 +234,15 @@ emptyWindow = do
     adjustmentSetStepIncrement vadj 50
 
     window `onKeyPress` \event -> case event of
-        Key { eventKeyName=kn } -> case kn of
-          "Up"    -> dec vadj
-          "Down"  -> inc vadj
-          "Left"  -> dec hadj
-          "Right" -> inc hadj
+        Key { eventKeyName=kn } -> print kn >> case kn of
+          "Up"        -> decStep vadj
+          "Down"      -> incStep vadj
+          "Left"      -> decStep hadj
+          "Right"     -> incStep hadj
+
+          "Page_Down" -> incPage vadj
+          "space"     -> incPage vadj
+          "Page_Up"   -> decPage vadj
           _ -> return False
         _ -> return False
 
@@ -283,16 +287,21 @@ update layout shapes (Expose {}) = do
   return True
 update _layout _act _ = return False
 
--- Add or remove one step increment from an Adjustment, limited to the top of
+-- Add/remove one step/page increment from an Adjustment, limited to the top of
 -- the last page.
-inc, dec :: Adjustment -> IO Bool
-inc = incdec (+)
-dec = incdec (-)
+incStep, decStep, incPage, decPage :: Adjustment -> IO Bool
+incStep = incdec (+) adjustmentGetStepIncrement
+decStep = incdec (-) adjustmentGetStepIncrement
+incPage = incdec (+) adjustmentGetPageIncrement
+decPage = incdec (-) adjustmentGetPageIncrement
 
-incdec :: (Double -> Double -> Double) -> Adjustment -> IO Bool
-incdec (+-) adj = do
+incdec :: (Double -> Double -> Double) -- How to combine the increment
+       -> (Adjustment -> IO Double)    -- Action to discover the increment
+       -> Adjustment
+       -> IO Bool
+incdec (+-) f adj = do
     pos <- adjustmentGetValue adj
-    step <- adjustmentGetStepIncrement adj
+    step <- f adj
     page <- adjustmentGetPageSize adj
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
