@@ -78,7 +78,7 @@ newtype B a = B (ReaderT (IORef BState) IO a)
   deriving (Functor, Monad, MonadIO)
 
 type Details = (FilePath, Diagram)
-type WindowInfo = (Window, ImageMenuItem, Layout)
+type WindowInfo = (Window, ImageMenuItem, Notebook, Layout)
 
 data BState = BState { windows :: Int
                      , initialWindow :: Maybe WindowInfo
@@ -201,6 +201,7 @@ emptyWindow = do
   window <- mkWindow
   (menuBar, saveItem) <- mkMenuBar window
   layout <- io $ layoutNew Nothing Nothing
+  nb <- io $ notebookNew
 
   io $ do
     vbox <- vBoxNew False 0
@@ -208,11 +209,24 @@ emptyWindow = do
 
     boxPackStart vbox menuBar PackNatural 0
 
+    nb `set` [ notebookShowTabs := False
+             , notebookShowBorder := False
+             ]
+    boxPackStart vbox nb PackGrow 0
+
+    instructions <- labelNew Nothing
+    labelSetMarkup instructions
+        "<b>No diagram loaded</b>\n\n\
+        \Having saved the output of <tt>bustle-dbus-monitor</tt> to a file,\n\
+        \open that file to see a sequence diagram of D-Bus activity."
+    notebookAppendPage nb instructions "Instructions"
+
     scrolledWindow <- scrolledWindowNew Nothing Nothing
     scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
     containerAdd scrolledWindow layout
-    boxPackStart vbox scrolledWindow PackGrow 0
     windowSetDefaultSize window 900 700
+
+    notebookAppendPage nb scrolledWindow "Diagram"
 
     hadj <- layoutGetHAdjustment layout
     adjustmentSetStepIncrement hadj 50
@@ -231,10 +245,10 @@ emptyWindow = do
     widgetShowAll window
 
   incWindows
-  return (window, saveItem, layout)
+  return (window, saveItem, nb, layout)
 
 displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
-displayLog (window, saveItem, layout) filename shapes = do
+displayLog (window, saveItem, nb, layout) filename shapes = do
   let (width, height) = dimensions shapes
       details = (filename, shapes)
 
@@ -246,9 +260,8 @@ displayLog (window, saveItem, layout) filename shapes = do
 
     layoutSetSize layout (floor width) (floor height)
     layout `onExpose` update layout shapes
-    -- Slightly cheesy hack to force a redraw when this is added to an existing
-    -- window.
-    update layout shapes (Expose undefined undefined undefined undefined)
+
+    notebookSetCurrentPage nb 1
 
     return ()
 
