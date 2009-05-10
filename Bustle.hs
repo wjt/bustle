@@ -27,6 +27,7 @@ import Control.Exception
 import Control.Monad (when, forM)
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Error
 
 import Data.IORef
 import qualified Data.Set as Set
@@ -166,13 +167,26 @@ displayError title body = do
   dialog `afterResponse` \_ -> widgetDestroy dialog
   widgetShowAll dialog
 
+-- Converts an Either to an action in an ErrorT.
+toET :: (Monad m, Error e') => (e -> e') -> Either e a -> ErrorT e' m a
+toET f = either (throwError . f) return
+
+-- Catches exceptions from an IO action, and maps them into ErrorT
+etio :: (Error e', MonadIO io)
+     => (Exception -> e') -> IO a -> ErrorT e' io a
+etio f act = toET f =<< io (try act)
+
 loadLogWith :: B WindowInfo -> FilePath -> B ()
 loadLogWith act f = do
-  input <- io $ readFile f
-  case readLog input of
-    Left err -> io $ displayError ("Could not read '" ++ f ++ "'")
-                                  ("Parse error " ++ show err)
-    Right log -> act >>= \misc -> displayLog misc f (upgrade log)
+  ret <- runErrorT llw'
+  case ret of
+    Left e -> io $ displayError ("Could not read '" ++ f ++ "'") e
+    Right () -> return ()
+
+  where llw' = do
+          input <- etio show $ readFile f
+          log <- toET (("Parse error " ++) . show) $ readLog input
+          lift (act >>= \misc -> displayLog misc f (upgrade log))
 
 
 maybeQuit :: B ()
