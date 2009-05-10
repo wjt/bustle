@@ -41,11 +41,20 @@ type Parser a = GenParser Char (Map (BusName, Serial) Message) a
 t :: Parser Char
 t = char '\t'
 
+nameChars :: Parser String
+nameChars = many1 (oneOf "._-" <|> alphaNum)
+
+parseUniqueName :: Parser UniqueName
+parseUniqueName = do
+    char ':'
+    fmap (UniqueName . (':':)) nameChars
+  <?> "unique name"
+
+parseOtherName :: Parser OtherName
+parseOtherName = fmap (OtherName) nameChars <?> "non-unique name"
+
 parseBusName :: Parser BusName
-parseBusName = unique <|> other <?> "bus name"
-  where nameChars = many1 (oneOf "._-" <|> alphaNum)
-        unique = char ':' >> fmap (U . UniqueName . (':':)) nameChars
-        other = fmap (O . OtherName) nameChars
+parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
 
 parseSerial :: Parser Serial
 parseSerial = read <$> many1 digit <?> "serial"
