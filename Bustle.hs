@@ -116,6 +116,8 @@ decWindows = modifyWindows (subtract 1) >> gets windows
 
 {- End of boilerplate. -}
 
+-- Used to log warnings which aren't important to the user, but which should
+-- probably be noted.
 warn :: String -> IO ()
 warn = hPutStrLn stderr . ("Warning: " ++)
 
