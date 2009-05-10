@@ -20,9 +20,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Main (main)
 where
 
-import Prelude hiding (log)
+import Prelude hiding (log, catch)
 
 import Control.Arrow ((&&&))
+import Control.Exception
 import Control.Monad (when, forM)
 import Control.Monad.Reader
 import Control.Monad.State
