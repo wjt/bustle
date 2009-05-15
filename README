@@ -4,6 +4,10 @@ Compile the monitor:
 
 Compile the charting application and utilities:
 
+    On a debian based distribution you need to install the following
+    packages: libghc6-gtk-dev libghc6-parsec-dev
+    They pull in a lot of dependencies, but this is wanted :)
+
     % ./Setup.lhs configure --user
     % ./Setup.lhs build
     % ./Setup.lhs install
