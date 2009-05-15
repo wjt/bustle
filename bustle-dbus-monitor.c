@@ -410,7 +410,7 @@ main (int argc, char *argv[])
 
   /* we handle SIGINT so exit() is reached and flushes stdout */
   signal (SIGINT, sigint_handler);
-  while (dbus_connection_read_write_dispatch(connection, -1)
+  while (dbus_connection_read_write_dispatch(connection, 1000)
           && !sigint_received)
     ;
   exit (0);
