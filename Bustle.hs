@@ -234,7 +234,7 @@ emptyWindow = do
     adjustmentSetStepIncrement vadj 50
 
     window `onKeyPress` \event -> case event of
-        Key { eventKeyName=kn } -> print kn >> case kn of
+        Key { eventKeyName=kn } -> case kn of
           "Up"        -> decStep vadj
           "Down"      -> incStep vadj
           "Left"      -> decStep hadj
