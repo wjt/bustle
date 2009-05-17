@@ -175,11 +175,12 @@ nameOwnerChanged = do
             old <- perhaps parseUniqueName
             t
             new <- perhaps parseUniqueName
-            case (old, new) of
+            c <- case (old, new) of
                 (Nothing, Nothing) -> atLeastOne o
-                (Just  a, Nothing) -> return $ NameReleased ts o a
-                (Nothing, Just  b) -> return $ NameClaimed ts o b
-                (Just  a, Just  b) -> return $ NameStolen ts o a b
+                (Just  a, Nothing) -> return $ Released a
+                (Nothing, Just  b) -> return $ Claimed b
+                (Just  a, Just  b) -> return $ Stolen a b
+            return $ NameChanged ts o c
 
 event :: Parser Message
 event = method <|> signal <|> nameOwnerChanged <|> parseError

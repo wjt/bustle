@@ -48,7 +48,7 @@ synth n ts = do
         return $ case n of
           U u -> [ Connected ts u ]
           O o -> [ Connected ts (fake o)
-                 , NameClaimed ts o (fake o)
+                 , NameChanged ts o (Claimed (fake o))
                  ]
 
 fake :: OtherName -> UniqueName

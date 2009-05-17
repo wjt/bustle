@@ -77,26 +77,21 @@ data Message = MethodCall { timestamp :: Milliseconds
              | Disconnected { timestamp :: Milliseconds
                             , actor :: UniqueName
                             }
-             | NameClaimed { timestamp :: Milliseconds
+             | NameChanged { timestamp :: Milliseconds
                            , name :: OtherName
-                           , actor :: UniqueName
+                           , change :: Change
                            }
-             | NameStolen { timestamp :: Milliseconds
-                          , name :: OtherName
-                          , oldOwner, newOwner :: UniqueName
-                          }
-             | NameReleased { timestamp :: Milliseconds
-                            , name :: OtherName
-                            , actor :: UniqueName
-                            }
+  deriving (Show, Eq, Ord)
+
+data Change = Claimed UniqueName
+            | Stolen UniqueName UniqueName
+            | Released UniqueName
   deriving (Show, Eq, Ord)
 
 isNameOwnerChanged :: Message -> Bool
 isNameOwnerChanged (Connected {}) = True
 isNameOwnerChanged (Disconnected {}) = True
-isNameOwnerChanged (NameClaimed {}) = True
-isNameOwnerChanged (NameStolen {}) = True
-isNameOwnerChanged (NameReleased {}) = True
+isNameOwnerChanged (NameChanged {}) = True
 isNameOwnerChanged _ = False
 
 type Log = [Message]

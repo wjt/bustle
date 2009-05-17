@@ -139,21 +139,18 @@ modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
 -- Updates the current set of applications in response to a well-known name's
 -- owner changing.
 updateApps :: OtherName -- name whose owner has changed.
-           -> Maybe UniqueName -- previous owner, if any.
-           -> Maybe UniqueName -- new owner, if any.
+           -> Change -- details of the change
            -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
-updateApps n old new = (,) `fmap` maybeM (remOther n) old
-                           `ap`   maybeM (addOther n) new
+updateApps n c = case c of
+    Claimed new -> (,) Nothing `fmap` addOther n new
+    Stolen old new -> (,) `fmap` remOther n old `ap` addOther n new
+    Released old -> flip (,) Nothing `fmap` remOther n old
 
 -- updateApps but ignore the reply.
 updateApps_ :: OtherName -- name whose owner has changed.
-            -> Maybe UniqueName -- previous owner, if any.
-            -> Maybe UniqueName -- new owner, if any.
+            -> Change -- details of the change
             -> Renderer ()
-updateApps_ n old new = updateApps n old new >> return ()
-
-maybeM :: Monad m => (a -> m (Maybe b)) -> Maybe a -> m (Maybe b)
-maybeM = maybe (return Nothing)
+updateApps_ n c = updateApps n c >> return ()
 
 -- Adds a new unique name
 addUnique :: UniqueName -> Renderer ()
@@ -315,16 +312,9 @@ munge m = case m of
 
         Connected { actor = u } -> addUnique u
         Disconnected { actor = u } -> remUnique u >> return ()
-        NameClaimed  { name = n
-                     , actor = u
-                     } -> updateApps_ n Nothing (Just u)
-        NameStolen   { name = n
-                     , oldOwner = o
-                     , newOwner = u
-                     } -> updateApps_ n (Just o) (Just u)
-        NameReleased { name = n
-                     , actor = u
-                     } -> updateApps_ n (Just u) Nothing
+        NameChanged { name = n
+                    , change = c
+                    } -> updateApps_ n c
 
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
@@ -338,7 +328,6 @@ munge m = case m of
                     f m
                     let duration = timestamp m - timestamp m'
                     returnArc m x y duration
-
 
 methodCall, methodReturn, errorReturn :: Message -> Renderer ()
 methodCall = methodLike Nothing Above
