@@ -6,7 +6,7 @@ License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will.thompson@collabora.co.uk>
 Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
-Build-Depends:  haskell98, mtl, cairo, gtk, base == 3.*,
+Build-Depends:  haskell98, mtl, cairo, gtk, base < 4,
                 containers, parsec, glib, filepath, process
 Data-files:     bustle.png, LICENSE
 Build-type:     Simple
