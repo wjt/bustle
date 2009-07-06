@@ -50,6 +50,7 @@ process log = execRenderer (mapM_ munge log') (initialState initTime)
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
         notDaemon m = (path . member) m /= "/org/freedesktop/DBus"
+                   && sender m /= O (OtherName "<none>")
 
         relevant m@(Signal {}) = notDaemon m
         relevant m@(MethodCall {}) = notDaemon m

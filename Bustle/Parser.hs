@@ -50,7 +50,7 @@ parseUniqueName = do
   <?> "unique name"
 
 parseOtherName :: Parser OtherName
-parseOtherName = fmap (OtherName) nameChars <?> "non-unique name"
+parseOtherName = fmap OtherName (nameChars <|> none) <?> "non-unique name"
 
 parseBusName :: Parser BusName
 parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
