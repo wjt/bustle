@@ -259,7 +259,7 @@ displayLog (window, saveItem, nb, layout) filename shapes = do
   io $ do
     windowSetTitle window $ filename ++ " — D-Bus Sequence Diagram"
 
-    widgetSetSensitive saveItem True
+    widgetSetSensitivity saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
@@ -384,7 +384,7 @@ mkMenuBar window = embedIO $ \r -> do
 
   saveItem <- imageMenuItemNewFromStock stockSaveAs
   menuShellAppend fileMenu saveItem
-  widgetSetSensitive saveItem False
+  widgetSetSensitivity saveItem False
 
   menuShellAppend fileMenu =<< separatorMenuItemNew
 
