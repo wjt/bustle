@@ -41,7 +41,11 @@ t :: Parser Char
 t = char '\t'
 
 nameChars :: Parser String
-nameChars = many1 (oneOf "._-" <|> alphaNum)
+nameChars = many1 (noneOf "\t\n")
+-- this should be
+--   nameChars = many1 (oneOf "._-" <|> alphaNum)
+-- but making it more tolerant lets us shoehorn misc into this field until the
+-- log format is less shit.
 
 parseUniqueName :: Parser UniqueName
 parseUniqueName = do
@@ -50,7 +54,7 @@ parseUniqueName = do
   <?> "unique name"
 
 parseOtherName :: Parser OtherName
-parseOtherName = fmap OtherName (nameChars <|> none) <?> "non-unique name"
+parseOtherName = fmap OtherName (none <|> nameChars) <?> "non-unique name"
 
 parseBusName :: Parser BusName
 parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
