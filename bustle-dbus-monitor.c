@@ -39,8 +39,6 @@
 
 #include <time.h>
 
-#include <signal.h>
-
 #include <dbus/dbus.h>
 
 #ifdef DBUS_WIN
@@ -237,14 +235,6 @@ usage (char *name, int ecode)
   exit (ecode);
 }
 
-dbus_bool_t sigint_received = FALSE;
-
-static void
-sigint_handler (int signum)
-{
-  sigint_received = TRUE;
-}
-
 static void
 get_well_known_names (DBusConnection *connection)
 {
@@ -328,6 +318,9 @@ main (int argc, char *argv[])
 
   int i = 0, j = 0, numFilters = 0;
   char **filters = NULL;
+
+  setvbuf(stdout, NULL, _IOLBF, 0);
+
   for (i = 1; i < argc; i++)
     {
       char *arg = argv[i];
@@ -408,10 +401,7 @@ main (int argc, char *argv[])
     exit (1);
   }
 
-  /* we handle SIGINT so exit() is reached and flushes stdout */
-  signal (SIGINT, sigint_handler);
-  while (dbus_connection_read_write_dispatch(connection, 1000)
-          && !sigint_received)
+  while (dbus_connection_read_write_dispatch(connection, 1000))
     ;
   exit (0);
  lose:
