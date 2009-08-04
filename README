@@ -35,3 +35,12 @@ Make a .dot graph of method caller -> callee:
 Count the total time spent in each method:
 
     % ~/bin/bustle-time log
+
+--
+
+FAQ
+
+ - How do I log the system bus?
+   * You need to edit /etc/dbus/system.conf to enable eavesdropping, and then
+     remove the include of /etc/dbus-1/system.conf.d which seems to re-enable
+     strictness. Please remember to undo your changes when you're done logging!
