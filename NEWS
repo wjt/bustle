@@ -1,7 +1,42 @@
-Bustle 0.2.1 (UNRELEASED)
+Bustle 0.2.1 (2009-12-02)
 =========================
 
-...
+The “Going down where the Firefly goes” release.
+
+Enhancements:
+
+ • The handling of services with multiple well-known names has improved.
+   Whereas previously one name was (essentially) randomly-chosen, now
+   all names owned by a service are shown in the diagram.
+
+ • When a service falls off the bus, its column goes away to indicate
+   that.
+
+ • Strings are now ellipsized if necessary.
+
+ • Method returns now include the object path and method name so you
+   don't have to look it up yourself.
+
+ • The UI is less spartan: you can open files, and launch it without
+   passing at least one filename as a command-line argument.
+
+Fixes:
+
+ • The UI handles parse errors gracefully rather than, uhm, throwing an
+   exception and dying.
+
+ • bustle-dbus-monitor now has rudimentary cross-compilation support, by
+   respecting $CC and friends. (Marc Kleine-Budde)
+
+ • You can now kill the monitor immediately with ^C, rather than waiting
+   for another message to arrive. (Lennart Poettering, from a patch for
+   dbus-monitor)
+
+Notes:
+
+ • While your old logs should continue to work with the new viewer, the
+   reverse is not true: the changes to name handling required modifying
+   the log format.
 
 Bustle 0.2.0 (2009-04-03)
 =========================
