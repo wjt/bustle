@@ -27,6 +27,7 @@ module Bustle.Diagram
   , drawDiagram
   , drawRegion
   , headers
+  , headerHeight
   )
 where
 

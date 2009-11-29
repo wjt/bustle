@@ -128,7 +128,9 @@ getApp n = do
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
-            shape $ Header (bestNames u os) x (currentRow - 20)
+            let ns = bestNames u os
+                h  = headerHeight ns
+            shape $ Header ns x (currentRow - (10 + h))
             shape $ ClientLine x (currentRow - 5) (currentRow + 15)
 
             return x
