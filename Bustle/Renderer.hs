@@ -82,10 +82,13 @@ data RendererState =
                   , startTime :: Milliseconds
                   }
 
+firstColumn :: Double
+firstColumn = 470 -- FIXME: magic number :'(
+
 initialState :: Milliseconds -> RendererState
 initialState t = RendererState
     { apps = Map.empty
-    , nextColumn = 470 -- FIXME: magic number :'(
+    , nextColumn = firstColumn
     , pending = Map.empty
     , row = 0
     , mostRecentLabels = 0
@@ -124,7 +127,7 @@ getApp n = do
   where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
             x <- gets nextColumn
-            modify $ \bs -> bs { nextColumn = x + 70 }
+            modify $ \bs -> bs { nextColumn = x + columnWidth }
             modifyApps $ Map.insert u (Just x, os)
 
             -- FIXME: Does this really live here?
@@ -349,8 +352,7 @@ signal :: Message -> Renderer ()
 signal m = do
     x <- senderCoordinate m
     t <- gets row
-    right <- subtract 70 <$> rightmostApp
-    let left = 470
-    shape $ SignalArrow (left - 20) x (right + 20) t
+    right <- subtract columnWidth <$> rightmostApp
+    shape $ SignalArrow (firstColumn - 20) x (right + 20) t
 
 -- vim: sw=2 sts=2
