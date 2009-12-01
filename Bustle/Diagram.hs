@@ -161,7 +161,8 @@ bounds s = case s of
     in (x1, y1, x2, y2)
   Arc { topx=x1, bottomx=x2, topy=y1, bottomy=y2 } ->
     let ((cx, _), (dx, _)) = arcControlPoints s
-    in (min x1 cx, y1, max x2 dx, y2)
+       -- FIXME: magic 5 makes the bounding box include the text
+    in (min x1 cx, y1, max x2 dx, y2 + 5)
   Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
   MemberLabel _ _ y -> fromCentre memberx y memberWidth
   Header { strs = ss, shapex = x, shapey = y} ->
