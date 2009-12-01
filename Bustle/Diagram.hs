@@ -24,6 +24,7 @@ module Bustle.Diagram
   , Colour(..)
   , Rect
   , dimensions
+  , topJustify
   , drawDiagram
   , drawRegion
   , headers
@@ -32,7 +33,8 @@ module Bustle.Diagram
 where
 
 import Data.Maybe (maybe)
-import Control.Arrow ((&&&), (***))
+import Data.List (unzip4)
+import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (forM_)
 
@@ -71,7 +73,9 @@ data Colour = Colour Double Double Double
 data Shape = Header { strs :: [String]
                     , shapex, shapey :: Double
                     }
-           | MemberLabel String String Double
+           | MemberLabel { labelPath, labelMember :: String
+                         , shapey :: Double
+                         }
            | Timestamp { str :: String, shapey :: Double }
            | ClientLine { shapex, shapey1, shapey2 :: Double }
            | Rule { shapex, shapey :: Double }
@@ -96,6 +100,15 @@ arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s }) =
     in (cp1, cp2)
 arcControlPoints _ = error "i see you've played arcy-shapey before"
 
+mapY :: (Double -> Double) -> (Shape -> Shape)
+mapY f s = case s of
+    Arc {}        -> s { topy = f (topy s)
+                       , bottomy = f (bottomy s)
+                       }
+    ClientLine {} -> s { shapey1 = f (shapey1 s)
+                       , shapey2 = f (shapey2 s)
+                       }
+    _             -> s { shapey = f (shapey s) }
 
 --
 -- Constants
@@ -178,8 +191,19 @@ headers xss y = (height, shapes)
 --
 
 dimensions :: Diagram -> (Double, Double)
-dimensions shapes = (maximum . (0:) *** maximum . (0:)) xys
-  where xys = unzip [ (x2, y2) | (_, _, x2, y2) <- map bounds shapes ]
+dimensions shapes = (x2, y2)
+    where (_, _, x2, y2) = corners shapes
+
+corners :: Diagram -> (Double, Double, Double, Double)
+corners [] = (0, 0, 0, 0)
+corners shapes = (minimum x1s, minimum y1s,
+                  maximum x2s, maximum y2s)
+    where (x1s, y1s, x2s, y2s) = unzip4 $ map bounds shapes
+
+topJustify :: Diagram -> Diagram
+topJustify shapes = f shapes
+    where (_, y1, _, _) = corners shapes
+          f             = if y1 < 0 then map (mapY (subtract y1)) else id
 
 drawDiagram :: Bool -> Diagram -> Render ()
 drawDiagram drawBounds shapes = do
