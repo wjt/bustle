@@ -126,7 +126,7 @@ memberx = 230
 memberWidth = 340
 
 columnWidth :: Double
-columnWidth = 70
+columnWidth = 90
 
 
 --
