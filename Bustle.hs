@@ -257,7 +257,8 @@ displayLog (window, saveItem, nb, layout) filename shapes = do
       details = (filename, shapes)
 
   io $ do
-    windowSetTitle window $ filename ++ " — D-Bus Sequence Diagram"
+    windowSetTitle window $
+        snd (splitFileName filename) ++ " — D-Bus Sequence Diagram"
 
     widgetSetSensitivity saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
@@ -409,7 +410,7 @@ mkMenuBar window = embedIO $ \r -> do
 
       dialog `set` [ aboutDialogName := "Bustle"
                    , aboutDialogVersion := showVersion version
-                   , aboutDialogComments := "D-Bus activity visualiser"
+                   , aboutDialogComments := "Someone's favourite D-Bus profiler"
                    , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
                    , aboutDialogAuthors := authors
                    , aboutDialogCopyright := "© 2008–2009 Collabora Ltd."
