@@ -4,3 +4,4 @@ Setup
 *.hi
 *.o
 bustle-dbus-monitor
+tags
