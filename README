@@ -4,13 +4,26 @@ Compile the monitor:
 
 Compile the charting application and utilities:
 
-    On a debian based distribution you need to install the following
-    packages: libghc6-gtk-dev libghc6-parsec-dev
-    They pull in a lot of dependencies, but this is wanted :)
-
     % ./Setup.lhs configure --user
     % ./Setup.lhs build
     % ./Setup.lhs install
+
+    If you've got the 'cabal' tool (on Debian systems, this is in the
+    'cabal-install' package), you can simply run:
+
+    % cabal install
+
+    This will also pull in the non-Gtk dependencies from Hackage if
+    necessary.
+
+    If you're reading this, you probably don't have the Glasgow
+    Haskell Compiler and Gtk bindings installed. On Debian-based
+    distributions you need to install the following packages:
+
+    # aptitude install libghc6-gtk-dev libghc6-parsec-dev libghc6-mtl-dev
+
+    This will pull in lots of packages, comprising GHC and the Haskell
+    standard libraries.
 
 --
 
