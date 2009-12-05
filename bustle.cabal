@@ -1,6 +1,6 @@
 Name:           bustle
 Category:       Network, Desktop
-Version:        0.2.1
+Version:        0.2.1.1
 Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
 License:        OtherLicense
