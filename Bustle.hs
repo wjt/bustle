@@ -369,6 +369,28 @@ saveToPDFDialogue window (filename, shapes) = do
 
   widgetShowAll chooser
 
+showAbout :: Window -> IO ()
+showAbout window = do
+    dialog <- aboutDialogNew
+
+    license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
+               `catch` (\e -> warn (show e) >> return Nothing)
+
+    dialog `set` [ aboutDialogName := "Bustle"
+                 , aboutDialogVersion := showVersion version
+                 , aboutDialogComments := "Someone's favourite D-Bus profiler"
+                 , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
+                 , aboutDialogAuthors := authors
+                 , aboutDialogCopyright := "© 2008–2009 Collabora Ltd."
+                 , aboutDialogLicense := license
+                 ]
+    dialog `afterResponse` \response ->
+        when (response == ResponseCancel) (widgetDestroy dialog)
+    windowSetTransientFor dialog window
+    windowSetModal dialog True
+    withIcon (aboutDialogSetLogo dialog . Just)
+
+    widgetShowAll dialog
 
 mkMenuBar :: Window -> B (MenuBar, ImageMenuItem)
 mkMenuBar window = embedIO $ \r -> do
@@ -402,27 +424,7 @@ mkMenuBar window = embedIO $ \r -> do
 
   about <- imageMenuItemNewFromStock stockAbout
   menuShellAppend helpMenu about
-  onActivateLeaf about $ do
-      dialog <- aboutDialogNew
-
-      license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
-                 `catch` (\e -> warn (show e) >> return Nothing)
-
-      dialog `set` [ aboutDialogName := "Bustle"
-                   , aboutDialogVersion := showVersion version
-                   , aboutDialogComments := "Someone's favourite D-Bus profiler"
-                   , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
-                   , aboutDialogAuthors := authors
-                   , aboutDialogCopyright := "© 2008–2009 Collabora Ltd."
-                   , aboutDialogLicense := license
-                   ]
-      dialog `afterResponse` \response ->
-          when (response == ResponseCancel) (widgetDestroy dialog)
-      windowSetTransientFor dialog window
-      windowSetModal dialog True
-      withIcon (aboutDialogSetLogo dialog . Just)
-
-      widgetShowAll dialog
+  onActivateLeaf about $ showAbout window
 
   -- As long as I set *a* URL hook, the URL button works.
   aboutDialogSetUrlHook (const (return ()))
