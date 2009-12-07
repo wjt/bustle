@@ -27,7 +27,7 @@ Ghc-options:    -Wall -fno-warn-unused-imports
 
 Executable:     bustle-time
 Main-is:        bustle-time.hs
-Other-modules:  Bustle.Parser, Bustle.Types
+Other-modules:  Bustle.Parser, Bustle.Stats, Bustle.Types
 Ghc-options:    -Wall -fno-warn-unused-imports
 
 Executable:     bustle-dot
