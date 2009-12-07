@@ -22,7 +22,7 @@ Ghc-options:    -Wall -fno-warn-unused-imports
 
 Executable:     bustle-count
 Main-is:        bustle-count.hs
-Other-modules:  Bustle.Parser, Bustle.Types
+Other-modules:  Bustle.Parser, Bustle.Stats, Bustle.Types
 Ghc-options:    -Wall -fno-warn-unused-imports
 
 Executable:     bustle-time
