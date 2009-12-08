@@ -43,6 +43,7 @@ import Bustle.Upgrade (upgrade)
 
 import System.Glib.GError (GError(..), catchGError)
 import Graphics.UI.Gtk
+import Graphics.UI.Gtk.Glade
 -- FIXME: Events is deprecated in favour of EventM
 import Graphics.UI.Gtk.Gdk.Events
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
@@ -128,7 +129,14 @@ main = runB mainB
 
 mainB :: B ()
 mainB = do
-  io initGUI
+  io $ do
+      initGUI
+
+      -- In pre-2.18 versions of Gtk explicitly installing hooks was
+      -- neccessary. As long as I set *a* URL hook, the URL button works...
+      aboutDialogSetUrlHook (const (return ()))
+      -- ...but I have to actually do something in the email hook apparently.
+      aboutDialogSetEmailHook mailto
 
   -- Try to load arguments, if any.
   mapM_ loadLog =<< io getArgs
@@ -198,40 +206,31 @@ maybeQuit = do
 
 emptyWindow :: B WindowInfo
 emptyWindow = do
-  window <- mkWindow
-  (menuBar, saveItem) <- mkMenuBar window
-  layout <- io $ layoutNew Nothing Nothing
-  nb <- io $ notebookNew
+  Just xml <- io $ xmlNew =<< getDataFileName "bustle.glade"
+
+  let getW cast name = io $ xmlGetWidget xml cast name
+
+  window <- getW castToWindow "diagramWindow"
+  io $ withIcon (windowSetIcon window)
+  embedIO $ onDestroy window . makeCallback maybeQuit
+
+  openItem <- getW castToImageMenuItem "open"
+  embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
+
+  saveItem <- getW castToImageMenuItem "saveAs"
+
+  closeItem <- getW castToImageMenuItem "close"
+  io $ closeItem `onActivateLeaf` widgetDestroy window
+
+  aboutItem <- getW castToImageMenuItem "about"
+  io $ onActivateLeaf aboutItem (showAbout window)
+
+  layout <- getW castToLayout "diagramLayout"
+  nb <- getW castToNotebook "notebook"
 
   io $ do
-    vbox <- vBoxNew False 0
-    containerAdd window vbox
-
-    boxPackStart vbox menuBar PackNatural 0
-
-    nb `set` [ notebookShowTabs := False
-             , notebookShowBorder := False
-             ]
-    boxPackStart vbox nb PackGrow 0
-
-    instructions <- labelNew Nothing
-    labelSetMarkup instructions
-        "<b>No diagram loaded</b>\n\n\
-        \Having saved the output of <tt>bustle-dbus-monitor</tt> to a file,\n\
-        \open that file to see a sequence diagram of D-Bus activity."
-    notebookAppendPage nb instructions "Instructions"
-
-    scrolledWindow <- scrolledWindowNew Nothing Nothing
-    scrolledWindowSetPolicy scrolledWindow PolicyAutomatic PolicyAlways
-    containerAdd scrolledWindow layout
-    windowSetDefaultSize window 900 700
-
-    notebookAppendPage nb scrolledWindow "Diagram"
-
     hadj <- layoutGetHAdjustment layout
-    adjustmentSetStepIncrement hadj 50
     vadj <- layoutGetVAdjustment layout
-    adjustmentSetStepIncrement vadj 50
 
     window `onKeyPress` \event -> case event of
         Key { eventKeyName=kn } -> case kn of
@@ -314,18 +313,6 @@ withIcon act = do
   (pixbufNewFromFile iconName >>= act) `catchGError`
     \(GError _ _ msg) -> warn msg
 
-mkWindow :: B Window
-mkWindow = do
-    window <- io windowNew
-
-    io $ do
-      windowSetTitle window "No document — D-Bus Sequence Diagram"
-      withIcon (windowSetIcon window)
-
-    embedIO $ onDestroy window . makeCallback maybeQuit
-
-    return window
-
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
@@ -391,49 +378,6 @@ showAbout window = do
     withIcon (aboutDialogSetLogo dialog . Just)
 
     widgetShowAll dialog
-
-mkMenuBar :: Window -> B (MenuBar, ImageMenuItem)
-mkMenuBar window = embedIO $ \r -> do
-  menuBar <- menuBarNew
-
-  -- File menu
-  file <- menuItemNewWithMnemonic "_File"
-  fileMenu <- menuNew
-  menuItemSetSubmenu file fileMenu
-
-  openItem <- imageMenuItemNewFromStock stockOpen
-  menuShellAppend fileMenu openItem
-  onActivateLeaf openItem $ reconstruct r (openDialogue window)
-
-  saveItem <- imageMenuItemNewFromStock stockSaveAs
-  menuShellAppend fileMenu saveItem
-  widgetSetSensitivity saveItem False
-
-  menuShellAppend fileMenu =<< separatorMenuItemNew
-
-  closeItem <- imageMenuItemNewFromStock stockClose
-  menuShellAppend fileMenu closeItem
-  closeItem `onActivateLeaf` widgetDestroy window
-
-  menuShellAppend menuBar file
-
-  -- Help menu
-  help <- menuItemNewWithMnemonic "_Help"
-  helpMenu <- menuNew
-  menuItemSetSubmenu help helpMenu
-
-  about <- imageMenuItemNewFromStock stockAbout
-  menuShellAppend helpMenu about
-  onActivateLeaf about $ showAbout window
-
-  -- As long as I set *a* URL hook, the URL button works.
-  aboutDialogSetUrlHook (const (return ()))
-  -- but I have to actually do something in the email hook apparently.
-  aboutDialogSetEmailHook mailto
-
-  menuShellAppend menuBar help
-
-  return (menuBar, saveItem)
 
 authors :: [String]
 authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
