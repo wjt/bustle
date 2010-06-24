@@ -50,11 +50,20 @@ process log = fmap topJustify $ execRenderer (mapM_ munge log')
 
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
-        notDaemon m = (path . member) m /= "/org/freedesktop/DBus"
-                   && sender m /= O (OtherName "<none>")
+        senderIsBus m = sender m == O (OtherName "org.freedesktop.DBus")
+        destIsBus m = destination m == O (OtherName "org.freedesktop.DBus")
 
-        relevant m@(Signal {}) = notDaemon m
-        relevant m@(MethodCall {}) = notDaemon m
+        -- When the monitor is forcibly disconnected from the bus, the
+        -- Disconnected message has no sender, so the logger spits out <none>.
+        isDisconnected m = sender m == O (OtherName "<none>")
+
+        relevant m@(Signal {}) = not . any ($ m) $ [ senderIsBus
+                                                   , isDisconnected
+                                                   ]
+        relevant m@(MethodCall {}) = not . any ($ m) $ [ senderIsBus
+                                                       , destIsBus
+                                                       , isDisconnected
+                                                       ]
         relevant _ = True
 
         log' = filter relevant log
