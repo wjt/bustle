@@ -315,8 +315,8 @@ openDialogue window = embedIO $ \r -> do
                 , fileChooserLocalOnly := True
                 ]
 
-  chooser `afterResponse` \response -> do
-      when (response == ResponseAccept) $ do
+  chooser `afterResponse` \resp -> do
+      when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
           makeCallback (loadInInitialWindow fn) r
       widgetDestroy chooser
@@ -338,8 +338,8 @@ saveToPDFDialogue window (filename, shapes) = do
   fileChooserSetCurrentFolder chooser dir
   fileChooserSetCurrentName chooser $ dropExtension base ++ ".pdf"
 
-  chooser `afterResponse` \response -> do
-      when (response == ResponseAccept) $ do
+  chooser `afterResponse` \resp -> do
+      when (resp == ResponseAccept) $ do
           Just fn <- io $ fileChooserGetFilename chooser
           let (width, height) = dimensions shapes
           withPDFSurface fn width height $
@@ -363,8 +363,8 @@ showAbout window = do
                  , aboutDialogCopyright := "© 2008–2009 Collabora Ltd."
                  , aboutDialogLicense := license
                  ]
-    dialog `afterResponse` \response ->
-        when (response == ResponseCancel) (widgetDestroy dialog)
+    dialog `afterResponse` \resp ->
+        when (resp == ResponseCancel) (widgetDestroy dialog)
     windowSetTransientFor dialog window
     windowSetModal dialog True
     withIcon (aboutDialogSetLogo dialog)

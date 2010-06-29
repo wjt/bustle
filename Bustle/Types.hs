@@ -78,7 +78,7 @@ data Message = MethodCall { timestamp :: Milliseconds
                             , actor :: UniqueName
                             }
              | NameChanged { timestamp :: Milliseconds
-                           , name :: OtherName
+                           , changedName :: OtherName
                            , change :: Change
                            }
   deriving (Show, Eq, Ord)

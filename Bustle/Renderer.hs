@@ -328,7 +328,7 @@ munge m = case m of
 
         Connected { actor = u } -> addUnique u
         Disconnected { actor = u } -> remUnique u >> return ()
-        NameChanged { name = n
+        NameChanged { changedName = n
                     , change = c
                     } -> updateApps_ n c
 
