@@ -179,9 +179,9 @@ displayError title body = do
 toET :: (Monad m, Error e') => (e -> e') -> Either e a -> ErrorT e' m a
 toET f = either (throwError . f) return
 
--- Catches exceptions from an IO action, and maps them into ErrorT
+-- Catches IOExceptions , and maps them into ErrorT
 etio :: (Error e', MonadIO io)
-     => (Exception -> e') -> IO a -> ErrorT e' io a
+     => (IOException -> e') -> IO a -> ErrorT e' io a
 etio f act = toET f =<< io (try act)
 
 loadLogWith :: B WindowInfo -> FilePath -> B ()
@@ -358,7 +358,7 @@ showAbout window = do
     dialog <- aboutDialogNew
 
     license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
-               `catch` (\e -> warn (show e) >> return Nothing)
+               `catch` (\e -> warn (show (e :: IOException)) >> return Nothing)
 
     dialog `set` [ aboutDialogName := "Bustle"
                  , aboutDialogVersion := showVersion version

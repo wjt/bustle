@@ -20,30 +20,30 @@ Flag PostCabalizedGtk2HS
 
 Executable bustle
   Main-is:        Bustle.hs
-  Ghc-options:    -Wall -fno-warn-unused-imports
+  Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)
     -- Since gtk2hs 0.11, pango is a separate package, and its module names
     -- have changed.
-    Build-Depends:  haskell98, mtl, base < 4, containers, parsec, filepath,
-                    process,
+    Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
+                    filepath, process,
                     gtk > 0.11, glade, pango, glib, cairo
   else
-    Build-Depends:  haskell98, mtl, base < 4, containers, parsec, filepath,
-                    process,
+    Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
+                    filepath, process,
                     gtk > 0.10 && < 0.11, glade, pango, glib, cairo
 
 Executable bustle-count
   Main-is:        bustle-count.hs
-  Build-Depends:  haskell98, base < 4, containers, parsec
-  Ghc-options:    -Wall -fno-warn-unused-imports
+  Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
 Executable bustle-time
   Main-is:        bustle-time.hs
-  Build-Depends:  haskell98, base < 4, containers, parsec
-  Ghc-options:    -Wall -fno-warn-unused-imports
+  Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
 Executable bustle-dot
   Main-is:        bustle-dot.hs
-  Build-Depends:  haskell98, base < 4, containers, parsec
-  Ghc-options:    -Wall -fno-warn-unused-imports
+  Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
