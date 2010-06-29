@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# LANGUAGE CPP #-}
 module Bustle.Diagram
   ( Shape(..)
   , Diagram
@@ -43,8 +44,13 @@ import Control.Monad.Reader
 
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
+#if MIN_VERSION_gtk(0,11,0)
+import Graphics.Rendering.Pango.Layout
+import Graphics.Rendering.Pango.Font
+#else
 import Graphics.UI.Gtk.Pango.Layout
 import Graphics.UI.Gtk.Pango.Font
+#endif
 
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)

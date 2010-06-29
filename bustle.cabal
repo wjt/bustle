@@ -1,28 +1,49 @@
 Name:           bustle
 Category:       Network, Desktop
 Version:        0.2.1.1
+Cabal-Version:  >= 0.12
 Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
 License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will.thompson@collabora.co.uk>
 Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
-Build-Depends:  haskell98, mtl, cairo, gtk > 0.10, glade, base < 4,
-                containers, parsec, glib, filepath, process
 Data-files:     bustle.png, bustle.glade, LICENSE
 Build-type:     Simple
 Extra-source-files: bustle-dbus-monitor.c, Makefile, README, NEWS, HACKING,
                     run-uninstalled.sh
-Ghc-options:    -Wall -fno-warn-unused-imports
 
-Executable:     bustle
-Main-is:        Bustle.hs
+Flag PostCabalizedGtk2HS
+  Description:    Build against recent gtk2hs, with reorganized packaging and
+                  module names
+  Default:        True
 
-Executable:     bustle-count
-Main-is:        bustle-count.hs
+Executable bustle
+  Main-is:        Bustle.hs
+  Ghc-options:    -Wall -fno-warn-unused-imports
 
-Executable:     bustle-time
-Main-is:        bustle-time.hs
+  if flag(PostCabalizedGtk2HS)
+    -- Since gtk2hs 0.11, pango is a separate package, and its module names
+    -- have changed.
+    Build-Depends:  haskell98, mtl, base < 4, containers, parsec, filepath,
+                    process,
+                    gtk > 0.11, glade, pango, glib, cairo
+  else
+    Build-Depends:  haskell98, mtl, base < 4, containers, parsec, filepath,
+                    process,
+                    gtk > 0.10 && < 0.11, glade, pango, glib, cairo
 
-Executable:     bustle-dot
-Main-is:        bustle-dot.hs
+Executable bustle-count
+  Main-is:        bustle-count.hs
+  Build-Depends:  haskell98, base < 4, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports
+
+Executable bustle-time
+  Main-is:        bustle-time.hs
+  Build-Depends:  haskell98, base < 4, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports
+
+Executable bustle-dot
+  Main-is:        bustle-dot.hs
+  Build-Depends:  haskell98, base < 4, containers, parsec
+  Ghc-options:    -Wall -fno-warn-unused-imports

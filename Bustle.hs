@@ -42,10 +42,10 @@ import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 
 import System.Glib.GError (GError(..), catchGError)
+
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Glade
--- FIXME: Events is deprecated in favour of EventM
-import Graphics.UI.Gtk.Gdk.Events
+
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
 import System.Process (runProcess)
@@ -232,18 +232,17 @@ emptyWindow = do
     hadj <- layoutGetHAdjustment layout
     vadj <- layoutGetVAdjustment layout
 
-    window `onKeyPress` \event -> case event of
-        Key { eventKeyName=kn } -> case kn of
-          "Up"        -> decStep vadj
-          "Down"      -> incStep vadj
-          "Left"      -> decStep hadj
-          "Right"     -> incStep hadj
-
-          "Page_Down" -> incPage vadj
-          "space"     -> incPage vadj
-          "Page_Up"   -> decPage vadj
-          _ -> return False
-        _ -> return False
+    window `on` keyPressEvent $ tryEvent $ do
+      key <- eventKeyName
+      let keyTable = [ ("Up",        decStep vadj)
+                     , ("Down" ,     incStep vadj)
+                     , ("Left",      decStep hadj)
+                     , ("Right",     incStep hadj)
+                     , ("Page_Down", incPage vadj)
+                     , ("space",     incPage vadj)
+                     , ("Page_Up",   decPage vadj)
+                     ]
+      maybe stopEvent liftIO $ lookup key keyTable
 
     widgetShowAll window
 
@@ -263,14 +262,14 @@ displayLog (window, saveItem, nb, layout) filename shapes = do
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
-    layout `onExpose` update layout shapes
+    layout `on` exposeEvent $ liftIO (update layout shapes) >> return True
 
     notebookSetCurrentPage nb 1
 
     return ()
 
-update :: Layout -> Diagram -> Event -> IO Bool
-update layout shapes (Expose {}) = do
+update :: Layout -> Diagram -> IO ()
+update layout shapes = do
   win <- layoutGetDrawWindow layout
 
   hadj <- layoutGetHAdjustment layout
@@ -284,12 +283,10 @@ update layout shapes (Expose {}) = do
   let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
   renderWithDrawable win $ drawRegion r False shapes
-  return True
-update _layout _act _ = return False
 
 -- Add/remove one step/page increment from an Adjustment, limited to the top of
 -- the last page.
-incStep, decStep, incPage, decPage :: Adjustment -> IO Bool
+incStep, decStep, incPage, decPage :: Adjustment -> IO ()
 incStep = incdec (+) adjustmentGetStepIncrement
 decStep = incdec (-) adjustmentGetStepIncrement
 incPage = incdec (+) adjustmentGetPageIncrement
@@ -298,20 +295,20 @@ decPage = incdec (-) adjustmentGetPageIncrement
 incdec :: (Double -> Double -> Double) -- How to combine the increment
        -> (Adjustment -> IO Double)    -- Action to discover the increment
        -> Adjustment
-       -> IO Bool
+       -> IO ()
 incdec (+-) f adj = do
     pos <- adjustmentGetValue adj
     step <- f adj
     page <- adjustmentGetPageSize adj
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
-    return True
 
-withIcon :: (Pixbuf -> IO ()) -> IO ()
+withIcon :: (Maybe Pixbuf -> IO ()) -> IO ()
 withIcon act = do
   iconName <- getDataFileName "bustle.png"
-  (pixbufNewFromFile iconName >>= act) `catchGError`
-    \(GError _ _ msg) -> warn msg
+  pb <- (fmap Just (pixbufNewFromFile iconName)) `catchGError`
+    \(GError _ _ msg) -> warn msg >> return Nothing
+  act pb
 
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do
@@ -375,7 +372,7 @@ showAbout window = do
         when (response == ResponseCancel) (widgetDestroy dialog)
     windowSetTransientFor dialog window
     windowSetModal dialog True
-    withIcon (aboutDialogSetLogo dialog . Just)
+    withIcon (aboutDialogSetLogo dialog)
 
     widgetShowAll dialog
 
