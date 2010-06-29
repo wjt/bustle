@@ -1,3 +1,22 @@
+Bustle 0.2.2 (2010-06-29)
+=========================
+
+The “Shepherded” release.
+
+Fixes:
+
+ • Suppress messages sent to the bus by bus name, rather than object
+   path. This prevents Bustle blowing up when (buggy) clients call
+   methods on / rather than on /org/freedesktop/DBus. (Thanks to
+   Guillaume Desmottes for reporting the issue.)
+
+ • Build against the re-namespaced Pango in Gtk2HS 0.11, and clean up a
+   tonne of warnings. I think I've kept backwards compatibility with old
+   enough Gtk2HSes and GHCs for this to work with the versions in Ubuntu
+   10.04 and other recent-but-not-futuristic distros, but haven't
+   actually tried it. Drop me a mail in the event of landing on water.
+   (Thanks to Chris Lamb for upstreaming this from Debian bug #587132.)
+
 Bustle 0.2.1 (2009-12-02)
 =========================
 
