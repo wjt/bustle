@@ -70,9 +70,7 @@ it possible to reconstitute the monad within a Gtk callback. Given:
 One can write:
 
   embedIO $ onDance x . makeCallback dancedCB
-  embedIO $ \r -> onMeme x (reconstruct r . dancedCB)
 
-I'm not sure which of makeCallback and reconstruct are more useful.
 -}
 
 newtype B a = B (ReaderT (IORef BState) IO a)
@@ -96,9 +94,6 @@ embedIO act = B $ do
 
 makeCallback :: B a -> IORef BState -> IO a
 makeCallback (B act) x = runReaderT act x
-
-reconstruct :: IORef BState -> B a -> IO a
-reconstruct = flip makeCallback
 
 runB :: B a -> IO a
 runB (B act) = runReaderT act =<< newIORef (BState 0 Nothing)
