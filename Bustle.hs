@@ -226,15 +226,15 @@ emptyWindow = do
 
     window `on` keyPressEvent $ tryEvent $ do
       key <- eventKeyName
-      let keyTable = [ ("Up",        decStep vadj)
-                     , ("Down" ,     incStep vadj)
-                     , ("Left",      decStep hadj)
-                     , ("Right",     incStep hadj)
-                     , ("Page_Down", incPage vadj)
-                     , ("space",     incPage vadj)
-                     , ("Page_Up",   decPage vadj)
-                     ]
-      maybe stopEvent liftIO $ lookup key keyTable
+      case key of
+        "Up"        -> io $ decStep vadj
+        "Down"      -> io $ incStep vadj
+        "Left"      -> io $ decStep hadj
+        "Right"     -> io $ incStep hadj
+        "Page_Down" -> io $ incPage vadj
+        "space"     -> io $ incPage vadj
+        "Page_Up"   -> io $ decPage vadj
+        _           -> stopEvent
 
     widgetShowAll window
 
