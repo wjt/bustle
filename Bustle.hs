@@ -77,7 +77,11 @@ newtype B a = B (ReaderT (IORef BState) IO a)
   deriving (Functor, Monad, MonadIO)
 
 type Details = (FilePath, Diagram)
-type WindowInfo = (Window, ImageMenuItem, Notebook, Layout)
+data WindowInfo = WindowInfo { wiWindow :: Window
+                             , wiSave :: ImageMenuItem
+                             , wiNotebook :: Notebook
+                             , wiLayout :: Layout
+                             }
 
 data BState = BState { windows :: Int
                      , initialWindow :: Maybe WindowInfo
@@ -235,10 +239,19 @@ emptyWindow = do
     widgetShowAll window
 
   incWindows
-  return (window, saveItem, nb, layout)
+  return $ WindowInfo { wiWindow = window
+                      , wiSave = saveItem
+                      , wiNotebook = nb
+                      , wiLayout = layout
+                      }
 
 displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
-displayLog (window, saveItem, nb, layout) filename shapes = do
+displayLog (WindowInfo { wiWindow = window
+                       , wiSave = saveItem
+                       , wiLayout = layout
+                       , wiNotebook = nb
+                       })
+           filename shapes = do
   let (width, height) = dimensions shapes
       details = (filename, shapes)
 
