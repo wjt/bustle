@@ -200,26 +200,26 @@ emptyWindow :: B WindowInfo
 emptyWindow = do
   Just xml <- io $ xmlNew =<< getDataFileName "bustle.glade"
 
+  -- Grab a bunch of widgets. Surely there must be a better way to do this?
   let getW cast name = io $ xmlGetWidget xml cast name
-
   window <- getW castToWindow "diagramWindow"
-  io $ withIcon (windowSetIcon window)
-  embedIO $ onDestroy window . makeCallback maybeQuit
-
-  openItem <- getW castToImageMenuItem "open"
-  embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
-
-  saveItem <- getW castToImageMenuItem "saveAs"
-
-  closeItem <- getW castToImageMenuItem "close"
-  io $ closeItem `onActivateLeaf` widgetDestroy window
-
-  aboutItem <- getW castToImageMenuItem "about"
-  io $ onActivateLeaf aboutItem (showAbout window)
-
+  [openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
+      ["open", "saveAs", "close", "about"]
   layout <- getW castToLayout "diagramLayout"
   nb <- getW castToNotebook "notebook"
 
+  -- Set up the window itself
+  io $ withIcon (windowSetIcon window)
+  embedIO $ onDestroy window . makeCallback maybeQuit
+
+  -- File menu
+  embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
+  io $ closeItem `onActivateLeaf` widgetDestroy window
+
+  -- Help menu
+  io $ onActivateLeaf aboutItem (showAbout window)
+
+  -- Diagram area panning
   io $ do
     hadj <- layoutGetHAdjustment layout
     vadj <- layoutGetVAdjustment layout
