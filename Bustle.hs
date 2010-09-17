@@ -124,14 +124,7 @@ main = runB mainB
 
 mainB :: B ()
 mainB = do
-  io $ do
-      initGUI
-
-      -- In pre-2.18 versions of Gtk explicitly installing hooks was
-      -- neccessary. As long as I set *a* URL hook, the URL button works...
-      aboutDialogSetUrlHook (const (return ()))
-      -- ...but I have to actually do something in the email hook apparently.
-      aboutDialogSetEmailHook mailto
+  io initGUI
 
   -- Try to load arguments, if any.
   mapM_ loadLog =<< io getArgs
@@ -377,11 +370,5 @@ authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
           , "Chris Lamb"
           , "Marc Kleine-Budde"
           ]
-
-mailto :: String -> IO ()
-mailto address = do
-  let n = Nothing
-  runProcess "xdg-open" ["mailto:" ++ address] n n n n n
-  return ()
 
 -- vim: sw=2 sts=2
