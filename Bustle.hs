@@ -17,7 +17,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses,
-             ScopedTypeVariables #-}
+             ScopedTypeVariables, FlexibleInstances #-}
 module Main (main)
 where
 
@@ -133,7 +133,7 @@ mainB = do
   io initGUI
 
   -- Try to load arguments, if any.
-  mapM_ loadLog =<< io getArgs
+  mapM_ (\f -> loadLog f Nothing) =<< io getArgs
 
   -- If no windows are open (because none of the arguments, if any, were loaded
   -- successfully) create an empty window
@@ -147,7 +147,7 @@ createInitialWindow = do
   misc <- emptyWindow
   modify $ \s -> s { initialWindow = Just misc }
 
-loadInInitialWindow :: FilePath -> B ()
+loadInInitialWindow :: FilePath -> Maybe FilePath -> B ()
 loadInInitialWindow = loadLogWith consumeInitialWindow
   where consumeInitialWindow = do
           x <- gets initialWindow
@@ -157,7 +157,7 @@ loadInInitialWindow = loadLogWith consumeInitialWindow
               modify $ \s -> s { initialWindow = Nothing }
               return misc
 
-loadLog :: FilePath -> B ()
+loadLog :: FilePath -> Maybe FilePath -> B ()
 loadLog = loadLogWith emptyWindow
 
 -- Displays a modal error dialog, with the given strings as title and body
@@ -178,19 +178,40 @@ etio :: (Error e', MonadIO io)
      => (IOException -> e') -> IO a -> ErrorT e' io a
 etio f act = toET f =<< io (try act)
 
-loadLogWith :: B WindowInfo -> FilePath -> B ()
-loadLogWith act f = do
-  ret <- runErrorT llw'
-  case ret of
-    Left e -> io $ displayError ("Could not read '" ++ f ++ "'") e
-    Right () -> return ()
+-- This needs FlexibleInstances and I don't know why
+instance Error (String, String) where
+    strMsg s = ("", s)
+    noMsg = ("", "")
 
-  where llw' = do
-          input <- etio show $ readFile f
-          log <- toET (("Parse error " ++) . show) $ readLog input
-          shapes <- toET id $ process (upgrade log)
-          misc <- lift act
-          lift (displayLog misc f shapes)
+loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
+            -> FilePath       -- ^ a log file to load and display
+            -> Maybe FilePath -- ^ an optional second log to show alongside the
+                              --   first log.
+            -> B ()
+loadLogWith getWindow session maybeSystem = do
+    ret <- runErrorT $ do
+        sessionShapes <- readLogFile session
+        -- I'm sure there's a combinator for this but I can't remember it.
+        maybeSystemShapes <- case maybeSystem of
+            Just system -> Just `fmap` readLogFile system
+            Nothing     -> return Nothing
+
+
+        windowInfo <- lift getWindow
+        let title = case maybeSystem of
+                Just system -> session ++ " and " ++ system
+                Nothing     -> session
+        -- FIXME: display both sets of shapes
+        lift $ displayLog windowInfo title sessionShapes
+
+    case ret of
+      Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
+      Right () -> return ()
+
+  where readLogFile f = do
+            input <- etio (\e -> (f, show e)) $ readFile f
+            log <- toET (\e -> (f, "Parse error " ++ show e)) $ readLog input
+            toET (\e -> (f, e)) $ process (upgrade log)
 
 
 maybeQuit :: B ()
@@ -275,8 +296,12 @@ emptyWindow = do
     propagateCurrentFolder sessionBusChooser systemBusChooser
     propagateCurrentFolder systemBusChooser sessionBusChooser
 
-  embedIO $ \r ->
-    openTwoDialog `afterResponse` \resp -> do
+  let hideTwoDialog = do
+          widgetHideAll openTwoDialog
+          fileChooserUnselectAll sessionBusChooser
+          fileChooserUnselectAll systemBusChooser
+
+  embedIO $ \r -> openTwoDialog `afterResponse` \resp -> do
       -- The "Open" button should only be sensitive if both pickers have a
       -- file in them, but the GtkFileChooserButton:file-set signal is not
       -- bound in my version of Gtk2Hs. So yeah...
@@ -287,12 +312,11 @@ emptyWindow = do
 
           case (sessionLogFile, systemLogFile) of
             (Just f1, Just f2) -> do
-                -- FIXME: open them both
-                makeCallback (loadInInitialWindow f1) r
-                widgetHideAll openTwoDialog
+                makeCallback (loadInInitialWindow f1 (Just f2)) r
+                hideTwoDialog
             _ -> return ()
         else
-          widgetHideAll openTwoDialog
+          hideTwoDialog
 
   incWindows
   return windowInfo
@@ -376,7 +400,7 @@ openDialogue window = embedIO $ \r -> do
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
-          makeCallback (loadInInitialWindow fn) r
+          makeCallback (loadInInitialWindow fn Nothing) r
       widgetDestroy chooser
 
   widgetShowAll chooser
