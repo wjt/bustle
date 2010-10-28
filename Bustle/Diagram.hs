@@ -429,8 +429,8 @@ drawClientLine x y1 y2 = saved $ do
 
 drawRule :: Double -> Double -> Double -> Render ()
 drawRule x1 x2 y = saved $ do
-    setSourceRGB 0.7 0.1 0.1
-    setLineWidth 0.2
+    setSourceRGB 0.9 0.9 0.9
+    setLineWidth 0.5
 
     moveTo x1 y
     lineTo x2 y
