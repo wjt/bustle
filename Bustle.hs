@@ -334,7 +334,7 @@ displayLog (WindowInfo { wiWindow = window
                        , wiNotebook = nb
                        })
            filename shapes = do
-  let (width, height) = dimensions shapes
+  let (width, height) = diagramDimensions shapes
       details = (filename, shapes)
 
   io $ do
@@ -429,7 +429,7 @@ saveToPDFDialogue window (filename, shapes) = do
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- io $ fileChooserGetFilename chooser
-          let (width, height) = dimensions shapes
+          let (width, height) = diagramDimensions shapes
           withPDFSurface fn width height $
             \surface -> renderWith surface $ drawDiagram False shapes
       widgetDestroy chooser

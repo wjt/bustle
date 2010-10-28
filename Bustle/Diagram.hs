@@ -24,7 +24,7 @@ module Bustle.Diagram
   , Side(..)
   , Colour(..)
   , Rect
-  , dimensions
+  , diagramDimensions
   , topJustify
   , drawDiagram
   , drawRegion
@@ -198,34 +198,45 @@ headers xss y = (height, shapes)
 -- Drawing
 --
 
-dimensions :: Diagram -> (Double, Double)
-dimensions shapes = (x2, y2)
-    where (_, _, x2, y2) = corners shapes
+diagramBounds :: Diagram -> ((Double, Double), (Double, Double))
+diagramBounds shapes = ((minimum (0:x1s), minimum (0:y1s))
+                       ,(maximum (0:x2s), maximum (0:y2s))
+                       )
+  where
+    (x1s, y1s, x2s, y2s) = unzip4 $ map bounds shapes
 
-corners :: Diagram -> (Double, Double, Double, Double)
-corners [] = (0, 0, 0, 0)
-corners shapes = (minimum x1s, minimum y1s,
-                  maximum x2s, maximum y2s)
-    where (x1s, y1s, x2s, y2s) = unzip4 $ map bounds shapes
+diagramDimensions :: Diagram -> (Double, Double)
+diagramDimensions shapes = (x2 - x1, y2 - y1)
+  where
+    ((x1, y1), (x2, y2)) = diagramBounds shapes
 
 topJustify :: Diagram -> Diagram
-topJustify shapes = f shapes
-    where (_, y1, _, _) = corners shapes
-          f             = if y1 < 0 then map (mapY (subtract y1)) else id
+topJustify shapes = shift shapes
+  where
+    ((_, y1), _) = diagramBounds shapes
+    shift        = if y1 < 0 then map (mapY (subtract y1)) else id
 
-drawDiagram :: Bool -> Diagram -> Render ()
-drawDiagram drawBounds shapes = do
+drawDiagramInternal :: (Shape -> Bool) -- ^ A filter for the shapes
+                    -> Bool -- ^ True to draw canvas items' bounding boxes
+                            --   (for debugging)
+                    -> Diagram   -- ^ A diagram to render
+                    -> Render ()
+drawDiagramInternal f drawBounds shapes = do
     clearCanvas
-    forM_ shapes $ \x -> do
+
+    forM_ (filter f shapes) $ \x -> do
         when drawBounds (drawBoundingBox x)
         draw x
 
+drawDiagram :: Bool      -- ^ True to draw canvas items' bounding boxes (for
+                         --   debugging)
+            -> Diagram   -- ^ A diagram to render
+            -> Render ()
+drawDiagram = drawDiagramInternal (const True)
+
 drawRegion :: Rect -> Bool -> Diagram -> Render ()
-drawRegion r db = drawDiagram db . visible r . map (bounds &&& id)
-
-visible :: Rect -> [(Rect, Shape)] -> [Shape]
-visible r = map snd . filter (intersects r . fst)
-
+drawRegion r = drawDiagramInternal isVisible
+    where isVisible = intersects r . bounds
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore

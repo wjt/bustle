@@ -49,9 +49,10 @@ data Bus = SessionBus
     deriving (Show, Eq, Ord)
 
 process :: [Message] -> [Message] -> Either String [Shape]
-process sessionBusLog systemBusLog =
-    fmap topJustify $ execRenderer (mapM_ (uncurry munge) log')
-                                       (initialState initTime)
+process sessionBusLog systemBusLog = do
+    diagram <- execRenderer (mapM_ (uncurry munge) log') (initialState initTime)
+
+    return $ topJustify diagram
 
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
