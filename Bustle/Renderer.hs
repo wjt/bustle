@@ -90,7 +90,6 @@ combine [] ys = zip (repeat SystemBus) ys
 combine xs@(x:xs') ys@(y:ys') =
     if timestamp x < timestamp y
         then (SessionBus, x):combine xs' ys
-        -- FIXME
         else (SystemBus, y):combine xs ys'
 
 newtype Renderer a = Renderer (WriterT [Shape]
@@ -326,9 +325,9 @@ advanceBy d = do
     modify (\bs -> bs { row = row bs + d })
     next <- gets row
 
-    -- FIXME: also, the left margin.
+    leftMargin <- edgemostApp SystemBus
     rightMargin <- edgemostApp SessionBus
-    shape $ Rule (rightMargin - 35) (current + 15)
+    shape $ Rule (leftMargin + 35) (rightMargin - 35) (current + 15)
 
     let appColumns :: Applications -> [Double]
         appColumns = catMaybes . Map.fold ((:) . fst) []

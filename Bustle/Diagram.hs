@@ -92,7 +92,7 @@ data Shape = Header { strs :: [String]
                             , shapey :: Double -- *centre* of the timestamp
                             }
            | ClientLine { shapex, shapey1, shapey2 :: Double }
-           | Rule { shapex, shapey :: Double }
+           | Rule { shapex1, shapex2, shapey :: Double }
            | Arrow { shapecolour :: Maybe Colour
                    , arrowhead :: Arrowhead
                    , shapex1, shapex2, shapey :: Double
@@ -124,6 +124,9 @@ arcControlPoints _ = error "i see you've played arcy-shapey before"
 
 mapX, mapY :: (Double -> Double) -> (Shape -> Shape)
 mapX f s = case s of
+    Rule {}        -> s { shapex1 = f (shapex1 s)
+                        , shapex2 = f (shapex2 s)
+                        }
     Arrow {}       -> s { shapex1 = f (shapex1 s)
                         , shapex2 = f (shapex2 s)
                         }
@@ -186,7 +189,7 @@ headerHeight = fromIntegral . (10 *) . length
 bounds :: Shape -> Rect
 bounds s = case s of
   ClientLine {} -> (shapex s, shapey1 s, shapex s, shapey2 s)
-  Rule {} -> (0, shapey s, shapex s, shapey s)
+  Rule {} -> (shapex1 s, shapey s, shapex2 s, shapey s)
   Arrow {} ->
     let (x1, x2) = xMinMax s
         y1 = shapey s - (if above (arrowhead s) then 5 else 0)
@@ -309,7 +312,9 @@ draw s = draw' s
                                              <*> shapex
                                              <*> shapey
           ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
-          Rule {} -> drawRule <$> shapex <*> shapey
+          Rule {} -> drawRule <$> shapex1
+                              <*> shapex2
+                              <*> shapey
 
 
 halfArrowHead :: Arrowhead -> Bool -> Render ()
@@ -421,13 +426,13 @@ drawClientLine x y1 y2 = saved $ do
     lineTo x y2
     stroke
 
-drawRule :: Double -> Double -> Render ()
-drawRule x y = saved $ do
+drawRule :: Double -> Double -> Double -> Render ()
+drawRule x1 x2 y = saved $ do
     setSourceRGB 0.7 0.1 0.1
     setLineWidth 0.2
 
-    moveTo 0 y
-    lineTo x y
+    moveTo x1 y
+    lineTo x2 y
     stroke
 
 -- vim: sw=2 sts=2
