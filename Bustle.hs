@@ -16,7 +16,8 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses,
+             ScopedTypeVariables #-}
 module Main (main)
 where
 
@@ -30,6 +31,7 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import Data.IORef
+import Data.Maybe (isJust, isNothing, fromJust)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Version (showVersion)
@@ -202,11 +204,24 @@ emptyWindow = do
 
   -- Grab a bunch of widgets. Surely there must be a better way to do this?
   let getW cast name = io $ xmlGetWidget xml cast name
+
   window <- getW castToWindow "diagramWindow"
   [openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
-      ["open", "saveAs", "close", "about"]
+       ["open", "saveAs", "close", "about"]
+  openTwoItem <- getW castToMenuItem "openTwo"
   layout <- getW castToLayout "diagramLayout"
   nb <- getW castToNotebook "notebook"
+
+  -- Open two logs dialog widgets
+  openTwoDialog <- getW castToDialog "openTwoDialog"
+  [sessionBusChooser, systemBusChooser] <- mapM (getW castToFileChooserButton)
+      ["sessionBusChooser", "systemBusChooser"]
+
+  let windowInfo = WindowInfo { wiWindow = window
+                              , wiSave = saveItem
+                              , wiNotebook = nb
+                              , wiLayout = layout
+                              }
 
   -- Set up the window itself
   io $ withIcon (windowSetIcon window)
@@ -214,6 +229,7 @@ emptyWindow = do
 
   -- File menu
   embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
+  io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
   io $ closeItem `onActivateLeaf` widgetDestroy window
 
   -- Help menu
@@ -238,12 +254,48 @@ emptyWindow = do
 
     widgetShowAll window
 
+  -- Open two logs dialog
+  io $ do
+    withIcon (windowSetIcon openTwoDialog)
+    windowSetTransientFor openTwoDialog window
+    openTwoDialog `on` deleteEvent $ tryEvent $ io $ widgetHide openTwoDialog
+
+    -- Keep the two dialogs' current folders in sync. We only propagate when
+    -- the new dialog doesn't have a current file. Otherwise, choosing a file
+    -- from a different directory in the second chooser unselects the first.
+    let propagateCurrentFolder d1 d2 = do
+            d1 `onCurrentFolderChanged` do
+                f1 <- fileChooserGetCurrentFolder d1
+                f2 <- fileChooserGetCurrentFolder d2
+                otherFile <- fileChooserGetFilename d2
+                when (isNothing otherFile && f1 /= f2 && isJust f1) $ do
+                    fileChooserSetCurrentFolder d2 (fromJust f1)
+                    return ()
+
+    propagateCurrentFolder sessionBusChooser systemBusChooser
+    propagateCurrentFolder systemBusChooser sessionBusChooser
+
+  embedIO $ \r ->
+    openTwoDialog `afterResponse` \resp -> do
+      -- The "Open" button should only be sensitive if both pickers have a
+      -- file in them, but the GtkFileChooserButton:file-set signal is not
+      -- bound in my version of Gtk2Hs. So yeah...
+      if (resp == ResponseAccept)
+        then do
+          sessionLogFile <- fileChooserGetFilename sessionBusChooser
+          systemLogFile <- fileChooserGetFilename systemBusChooser
+
+          case (sessionLogFile, systemLogFile) of
+            (Just f1, Just f2) -> do
+                -- FIXME: open them both
+                makeCallback (loadInInitialWindow f1) r
+                widgetHideAll openTwoDialog
+            _ -> return ()
+        else
+          widgetHideAll openTwoDialog
+
   incWindows
-  return $ WindowInfo { wiWindow = window
-                      , wiSave = saveItem
-                      , wiNotebook = nb
-                      , wiLayout = layout
-                      }
+  return windowInfo
 
 displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
 displayLog (WindowInfo { wiWindow = window
