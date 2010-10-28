@@ -34,6 +34,7 @@ import Data.Map (Map)
 import Data.Ratio
 
 import Control.Applicative (Applicative(..), (<$>), (<*>))
+import Control.Arrow ((&&&))
 import Control.Monad.Error
 import Control.Monad.Identity
 import Control.Monad.State
@@ -41,7 +42,7 @@ import Control.Monad.Writer
 import Control.Monad (forM_)
 
 import Data.List (isPrefixOf, stripPrefix, sort, sortBy)
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromJust, maybe, fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
 data Bus = SessionBus
@@ -325,9 +326,12 @@ advanceBy d = do
     modify (\bs -> bs { row = row bs + d })
     next <- gets row
 
-    leftMargin <- edgemostApp SystemBus
-    rightMargin <- edgemostApp SessionBus
-    shape $ Rule (leftMargin + 35) (rightMargin - 35) (current + 15)
+    -- The adjustments here leave space for a new app's headers to be drawn
+    -- without overlapping the rule.
+    leftMargin <- maybe 0 (+ 35) <$> edgemostApp SystemBus
+    rightMargin <- maybe timestampAndMemberWidth (subtract 35)
+                   <$> edgemostApp SessionBus
+    shape $ Rule leftMargin rightMargin (current + 15)
 
     let appColumns :: Applications -> [Double]
         appColumns = catMaybes . Map.fold ((:) . fst) []
@@ -347,9 +351,9 @@ appCoordinate bus s = getApp bus s >>= \coord -> case coord of
                             ++ unBusName s
     Just x -> return x
 
-edgemostApp :: Bus -> Renderer Double
+edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do
-    first <- getsBusState nextColumn bus
+    (first, next) <- getsBusState (firstColumn &&& nextColumn) bus
     xs <- getsApps (catMaybes . map fst . Map.elems) bus
 
     -- FIXME: per-bus sign
@@ -357,7 +361,12 @@ edgemostApp bus = do
             SessionBus -> maximum
             SystemBus -> minimum
 
-    return $ edgiest (first:xs)
+    if first == next
+        then return Nothing
+        -- FIXME: Including 'next' here seems to fix the rendering of signals
+        -- which are the first appearence on the chart of a name on the system
+        -- bus.  This is a hack but I CBA to figure out why.
+        else return $ Just $ edgiest (next:xs)
 
 senderCoordinate :: Bus -> Message -> Renderer Double
 senderCoordinate bus m = appCoordinate bus (sender m)
@@ -454,7 +463,9 @@ signal bus m = do
     let f = case bus of
             SessionBus -> subtract
             SystemBus  -> (+)
-    outside <- f columnWidth <$> edgemostApp bus
+    -- fromJust is safe here because we must have an app to have a signal. It
+    -- doesn't make me very happy though.
+    outside <- f columnWidth . fromJust <$> edgemostApp bus
     inside <- getsBusState firstColumn bus
     let [x1, x2] = sort [outside, inside]
 
