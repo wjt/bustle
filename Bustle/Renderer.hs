@@ -40,7 +40,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad (forM_)
 
-import Data.List (isPrefixOf, stripPrefix, sortBy)
+import Data.List (isPrefixOf, stripPrefix, sort, sortBy)
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
@@ -450,10 +450,14 @@ signal bus m = do
     x <- senderCoordinate bus m
     t <- gets row
 
-    -- FIXME: my inside is outside, my right side's on the left side.
-    outside <- subtract columnWidth <$> edgemostApp bus
+    -- FIXME: per-bus sign.
+    let f = case bus of
+            SessionBus -> subtract
+            SystemBus  -> (+)
+    outside <- f columnWidth <$> edgemostApp bus
     inside <- getsBusState firstColumn bus
+    let [x1, x2] = sort [outside, inside]
 
-    shape $ SignalArrow (inside - 20) x (outside + 20) t
+    shape $ SignalArrow (x1 - 20) x (x2 + 20) t
 
 -- vim: sw=2 sts=2

@@ -131,6 +131,7 @@ mapX f s = case s of
                         , shapex2 = f (shapex2 s)
                         }
     SignalArrow {} -> s { shapex1 = f (shapex1 s)
+                        , epicentre = f (epicentre s)
                         , shapex2 = f (shapex2 s)
                         }
     Arc {}         -> s { topx = f (topx s)
