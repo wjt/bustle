@@ -38,7 +38,7 @@ import Data.Version (showVersion)
 
 import Paths_bustle
 import Bustle.Parser
-import Bustle.Renderer
+import Bustle.Renderer (process)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
@@ -194,19 +194,22 @@ loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) 
             -> B ()
 loadLogWith getWindow session maybeSystem = do
     ret <- runErrorT $ do
-        sessionShapes <- readLogFile session
-        -- I'm sure there's a combinator for this but I can't remember it.
-        maybeSystemShapes <- case maybeSystem of
-            Just system -> Just `fmap` readLogFile system
-            Nothing     -> return Nothing
+        sessionMessages <- readLogFile session
+        systemMessages <- case maybeSystem of
+            Just system -> readLogFile system
+            Nothing     -> return []
 
+        -- FIXME: pass the log file name into the renderer
+        shapes <- toET (\e -> ("one of the logs", e)) $
+                      process (upgrade sessionMessages)
+                              (upgrade systemMessages)
 
         windowInfo <- lift getWindow
         let title = case maybeSystem of
                 Just system -> session ++ " and " ++ system
                 Nothing     -> session
-        -- FIXME: display both sets of shapes
-        lift $ displayLog windowInfo title sessionShapes
+
+        lift $ displayLog windowInfo title shapes
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -214,8 +217,7 @@ loadLogWith getWindow session maybeSystem = do
 
   where readLogFile f = do
             input <- etio (\e -> (f, show e)) $ readFile f
-            log <- toET (\e -> (f, "Parse error " ++ show e)) $ readLog input
-            toET (\e -> (f, e)) $ process (upgrade log)
+            toET (\e -> (f, "Parse error " ++ show e)) $ readLog input
 
 
 maybeQuit :: B ()

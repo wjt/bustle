@@ -33,7 +33,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Ratio
 
-import Control.Applicative ((<$>))
+import Control.Applicative (Applicative(..), (<$>), (<*>))
 import Control.Monad.Error
 import Control.Monad.Identity
 import Control.Monad.State
@@ -44,9 +44,14 @@ import Data.List (isPrefixOf, stripPrefix, sortBy)
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
-process :: [Message] -> Either String [Shape]
-process log = fmap topJustify $ execRenderer (mapM_ munge log')
-                                             (initialState initTime)
+data Bus = SessionBus
+         | SystemBus
+    deriving (Show, Eq, Ord)
+
+process :: [Message] -> [Message] -> Either String [Shape]
+process sessionBusLog systemBusLog =
+    fmap topJustify $ execRenderer (mapM_ (uncurry munge) log')
+                                       (initialState initTime)
 
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
@@ -66,11 +71,26 @@ process log = fmap topJustify $ execRenderer (mapM_ munge log')
                                                        ]
         relevant _ = True
 
-        log' = filter relevant log
+        log' = filter (relevant . snd) $ combine sessionBusLog systemBusLog
 
-        initTime = case dropWhile (== 0) (map timestamp log') of
+        initTime = case dropWhile (== 0) (map (timestamp . snd) log') of
             t:_ -> t
             _   -> 0
+
+-- Combines a series of messages on the session bus and system bus into a
+-- single ordered list, annotated by timestamp. Assumes both the source lists
+-- are sorted.
+combine :: [Message] -- ^ session bus messages
+        -> [Message] -- ^ system bus messages
+        -> [(Bus, Message)]
+combine [] [] = []
+combine xs [] = zip (repeat SessionBus) xs
+combine [] ys = zip (repeat SystemBus) ys
+combine xs@(x:xs') ys@(y:ys') =
+    if timestamp x < timestamp y
+        then (SessionBus, x):combine xs' ys
+        -- FIXME
+        else (SystemBus, y):combine xs ys'
 
 newtype Renderer a = Renderer (WriterT [Shape]
                                 (StateT RendererState
@@ -79,26 +99,44 @@ newtype Renderer a = Renderer (WriterT [Shape]
   deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape],
       MonadError String)
 
+instance Applicative Renderer where
+    pure = return
+    (<*>) = ap
+
 execRenderer :: Renderer () -> RendererState -> Either String [Shape]
 execRenderer (Renderer act) = runIdentity . runErrorT . evalStateT (execWriterT act)
 
+data BusState = BusState { apps :: Applications
+                         , firstColumn :: Double
+                         , nextColumn :: Double
+                         , pending :: Pending
+                         }
+
 data RendererState =
-    RendererState { apps :: Applications
-                  , nextColumn :: Double
-                  , pending :: Map Message (Double, Double)
+    RendererState { sessionBusState :: BusState
+                  , systemBusState :: BusState
                   , row :: Double
                   , mostRecentLabels :: Double
                   , startTime :: Milliseconds
                   }
 
-firstColumn :: Double
-firstColumn = 470 -- FIXME: magic number :'(
+initialBusState :: Double ->  BusState
+initialBusState first =
+    BusState { apps = Map.empty
+             , firstColumn = first
+             , nextColumn = first
+             , pending = Map.empty
+             }
+
+-- FIXME: magic numbers :'(
+initialSessionBusState, initialSystemBusState :: BusState
+initialSessionBusState = initialBusState 470
+initialSystemBusState = initialBusState (-70) -- FIXME
 
 initialState :: Milliseconds -> RendererState
 initialState t = RendererState
-    { apps = Map.empty
-    , nextColumn = firstColumn
-    , pending = Map.empty
+    { sessionBusState = initialSessionBusState
+    , systemBusState = initialSystemBusState
     , row = 0
     , mostRecentLabels = 0
     , startTime = t
@@ -107,6 +145,35 @@ initialState t = RendererState
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
 type Applications = Map UniqueName (Maybe Double, Set OtherName)
+
+-- Map from a method call message to the coordinates at which the arc to its
+-- return should start.
+type Pending = Map Message (Double, Double)
+
+getBusState :: Bus -> Renderer BusState
+getBusState = getsBusState id
+
+getsBusState :: (BusState -> a) -> Bus -> Renderer a
+getsBusState f SessionBus = gets (f . sessionBusState)
+getsBusState f SystemBus = gets (f . systemBusState)
+
+modifyBusState :: Bus -> (BusState -> BusState) -> Renderer ()
+modifyBusState bus f = case bus of
+    SessionBus -> modify $ \rs -> rs { sessionBusState = f (sessionBusState rs)
+                                     }
+    SystemBus -> modify $ \rs -> rs { systemBusState = f (systemBusState rs)
+                                    }
+
+getApps :: Bus -> Renderer Applications
+getApps bus = apps <$> getBusState bus
+
+getsApps :: (Applications -> a) -> Bus -> Renderer a
+getsApps f = getsBusState (f . apps)
+
+lookupUniqueName :: Bus
+                 -> UniqueName
+                 -> Renderer (Maybe (Maybe Double, Set OtherName))
+lookupUniqueName bus u = getsApps (Map.lookup u) bus
 
 -- Finds a BusName in a map of applications
 lookupApp :: BusName
@@ -125,9 +192,9 @@ lookupApp n as = case n of
 
 -- Finds a BusName in the current state, yielding its column if it exists.  If
 -- it exists, but previously lacked a column, a column is allocated.
-getApp :: BusName -> Renderer (Maybe Double)
-getApp n = do
-    app <- gets (lookupApp n . apps)
+getApp :: Bus -> BusName -> Renderer (Maybe Double)
+getApp bus n = do
+    app <- lookupApp n <$> getApps bus
     case app of
         Nothing -> return Nothing
         Just (u, details) -> Just <$> case details of
@@ -135,9 +202,14 @@ getApp n = do
             (Nothing, os) -> assignColumn u os
   where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
-            x <- gets nextColumn
-            modify $ \bs -> bs { nextColumn = x + columnWidth }
-            modifyApps $ Map.insert u (Just x, os)
+            x <- nextColumn <$> getBusState bus
+
+            -- FIXME: ick
+            let f = case bus of
+                    SessionBus -> (+ columnWidth)
+                    SystemBus -> subtract columnWidth
+            modifyBusState bus $ \bs -> bs { nextColumn = f x }
+            modifyApps bus $ Map.insert u (Just x, os)
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
@@ -149,83 +221,89 @@ getApp n = do
             return x
 
 -- Modify the application table directly.
-modifyApps :: (Applications -> Applications) -> Renderer ()
-modifyApps f = modify $ \bs -> bs { apps = f (apps bs) }
+modifyApps :: Bus -> (Applications -> Applications) -> Renderer ()
+modifyApps bus f = modifyBusState bus $ \bs -> bs { apps = f (apps bs) }
 
 -- Updates the current set of applications in response to a well-known name's
 -- owner changing.
-updateApps :: OtherName -- name whose owner has changed.
+updateApps :: Bus -- ^ bus on which a name's owner has changed
+           -> OtherName -- name whose owner has changed.
            -> Change -- details of the change
            -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
-updateApps n c = case c of
-    Claimed new -> (,) Nothing `fmap` addOther n new
-    Stolen old new -> (,) `fmap` remOther n old `ap` addOther n new
-    Released old -> flip (,) Nothing `fmap` remOther n old
+updateApps bus n c = case c of
+    Claimed new -> (,) Nothing `fmap` addOther bus n new
+    Stolen old new -> (,) `fmap` remOther bus n old `ap` addOther bus n new
+    Released old -> flip (,) Nothing `fmap` remOther bus n old
 
 -- updateApps but ignore the reply.
-updateApps_ :: OtherName -- name whose owner has changed.
+updateApps_ :: Bus -- ^ bus on which a name's owner has changed
+            -> OtherName -- name whose owner has changed.
             -> Change -- details of the change
             -> Renderer ()
-updateApps_ n c = updateApps n c >> return ()
+updateApps_ bus n c = updateApps bus n c >> return ()
 
 -- Adds a new unique name
-addUnique :: UniqueName -> Renderer ()
-addUnique n = modifyApps $ Map.insert n (Nothing, Set.empty)
+addUnique :: Bus -> UniqueName -> Renderer ()
+addUnique bus n = modifyApps bus $ Map.insert n (Nothing, Set.empty)
   -- FIXME: this could trample on names that erroneously already exist...
 
 -- Removes a unique name, yielding its column (if any)
-remUnique :: UniqueName -> Renderer (Maybe Double)
-remUnique n = do
-    coord <- gets (fmap fst . Map.lookup n . apps)
+remUnique :: Bus -> UniqueName -> Renderer (Maybe Double)
+remUnique bus n = do
+    coord <- fmap fst <$> lookupUniqueName bus n
     case coord of
-      Just x  -> modifyApps (Map.delete n) >> return x
+      Just x  -> modifyApps bus (Map.delete n) >> return x
       Nothing -> throwError $ concat [ "corrupt log: "
                                      , show n
                                      , " apparently disconnected without connecting"
                                      ]
 
-addOther, remOther :: OtherName -> UniqueName -> Renderer (Maybe Double)
+addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
-addOther n u = do
-    a <- gets (Map.lookup u . apps)
+addOther bus n u = do
+    a <- lookupUniqueName bus u
     case a of
         Nothing -> throwError $ concat [ "corrupt log: "
                                        , show n
                                        , " claimed by unknown unique name "
                                        , show u
                                        ]
-        Just (x, ns) -> do modifyApps (Map.insert u (x, Set.insert n ns))
+        Just (x, ns) -> do modifyApps bus (Map.insert u (x, Set.insert n ns))
                            return x
 
 -- Remove a well-known name from a unique name
-remOther n u = do
-    a <- gets (Map.lookup u . apps)
+remOther bus n u = do
+    a <- lookupUniqueName bus u
     case a of
         Nothing -> throwError $ concat [ "corrupt log: "
                                        , show n
                                        , " released by unknown unique name "
                                        , show u
                                        ]
-        Just (x, ns) -> do modifyApps (Map.insert u (x, Set.delete n ns))
+        Just (x, ns) -> do modifyApps bus (Map.insert u (x, Set.delete n ns))
                            return x
 
 shape :: Shape -> Renderer ()
 shape = tell . (:[])
 
-modifyPending :: (Map Message (Double, Double) -> Map Message (Double, Double))
+modifyPending :: Bus
+              -> (Pending -> Pending)
               -> Renderer ()
-modifyPending f = modify $ \bs -> bs { pending = f (pending bs) }
+modifyPending bus f = modifyBusState bus $ \bs ->
+    bs { pending = f (pending bs) }
 
-addPending :: Message -> Renderer ()
-addPending m = do
-    x <- destinationCoordinate m
+addPending :: Bus -> Message -> Renderer ()
+addPending bus m = do
+    x <- destinationCoordinate bus m
     y <- gets row
-    modifyPending $ Map.insert m (x, y)
+    modifyPending bus $ Map.insert m (x, y)
 
-findCallCoordinates :: Maybe Message -> Renderer (Maybe (Message, (Double, Double)))
-findCallCoordinates = maybe (return Nothing) $ \m -> do
-    ret <- gets (Map.lookup m . pending)
-    modifyPending $ Map.delete m
+findCallCoordinates :: Bus
+                    -> Maybe Message
+                    -> Renderer (Maybe (Message, (Double, Double)))
+findCallCoordinates bus = maybe (return Nothing) $ \m -> do
+    ret <- getsBusState (Map.lookup m . pending) bus
+    modifyPending bus $ Map.delete m
     return $ fmap ((,) m) ret
 
 advanceBy :: Double -> Renderer ()
@@ -235,7 +313,8 @@ advanceBy d = do
     current' <- gets row
 
     when (current' - lastLabelling > 400) $ do
-        xs <- gets (Map.toList . apps)
+        xs <- (++) <$> getsApps Map.toList SessionBus
+                   <*> getsApps Map.toList SystemBus
         let xs' = [ (x, bestNames u os) | (u, (Just x, os)) <- xs ]
         let (height, ss) = headers xs' (current' + 20)
         mapM_ shape ss
@@ -246,11 +325,14 @@ advanceBy d = do
     modify (\bs -> bs { row = row bs + d })
     next <- gets row
 
-    margin <- rightmostApp
+    -- FIXME: also, the left margin.
+    rightMargin <- edgemostApp SessionBus
+    shape $ Rule (rightMargin - 35) (current + 15)
 
-    shape $ Rule (margin - 35) (current + 15)
-
-    xs <- gets (catMaybes . Map.fold ((:) . fst) [] . apps)
+    let appColumns :: Applications -> [Double]
+        appColumns = catMaybes . Map.fold ((:) . fst) []
+    xs <- (++) <$> getsApps appColumns SessionBus
+               <*> getsApps appColumns SystemBus
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
 
 bestNames :: UniqueName -> Set OtherName -> [String]
@@ -259,23 +341,29 @@ bestNames (UniqueName u) os
     | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
-appCoordinate :: BusName -> Renderer Double
-appCoordinate s = getApp s >>= \coord -> case coord of
+appCoordinate :: Bus -> BusName -> Renderer Double
+appCoordinate bus s = getApp bus s >>= \coord -> case coord of
     Nothing -> throwError $ "corrupt log: contains nonexistant name "
                             ++ unBusName s
     Just x -> return x
 
-rightmostApp :: Renderer Double
-rightmostApp = do
-    first <- gets nextColumn
-    xs <- gets $ catMaybes . map fst . Map.elems . apps
-    return $ maximum (first:xs)
+edgemostApp :: Bus -> Renderer Double
+edgemostApp bus = do
+    first <- getsBusState nextColumn bus
+    xs <- getsApps (catMaybes . map fst . Map.elems) bus
 
-senderCoordinate :: Message -> Renderer Double
-senderCoordinate m = appCoordinate (sender m)
+    -- FIXME: per-bus sign
+    let edgiest = case bus of
+            SessionBus -> maximum
+            SystemBus -> minimum
 
-destinationCoordinate :: Message -> Renderer Double
-destinationCoordinate m = appCoordinate (destination m)
+    return $ edgiest (first:xs)
+
+senderCoordinate :: Bus -> Message -> Renderer Double
+senderCoordinate bus m = appCoordinate bus (sender m)
+
+destinationCoordinate :: Bus -> Message -> Renderer Double
+destinationCoordinate bus m = appCoordinate bus (destination m)
 
 memberName :: Message -> Bool -> Renderer ()
 memberName message isReturn = do
@@ -296,10 +384,10 @@ relativeTimestamp m = do
     current <- gets row
     shape $ Timestamp (show relative ++ "ms") current
 
-returnArc :: Message -> Double -> Double -> Milliseconds -> Renderer ()
-returnArc mr callx cally duration = do
-    destinationx <- destinationCoordinate mr
-    currentx     <- senderCoordinate mr
+returnArc :: Bus -> Message -> Double -> Double -> Milliseconds -> Renderer ()
+returnArc bus mr callx cally duration = do
+    destinationx <- destinationCoordinate bus mr
+    currentx     <- senderCoordinate bus mr
     currenty     <- gets row
 
     shape $ Arc { topx = callx, topy = cally
@@ -308,33 +396,33 @@ returnArc mr callx cally duration = do
                 , caption = show (duration `div` 1000) ++ "ms"
                 }
 
-munge :: Message -> Renderer ()
-munge m = case m of
+munge :: Bus -> Message -> Renderer ()
+munge bus m = case m of
         Signal {}       -> do
             advance
             relativeTimestamp m
             memberName m False
-            signal m
+            signal bus m
 
         MethodCall {}   -> do
             advance
             relativeTimestamp m
             memberName m False
-            methodCall m
-            addPending m
+            methodCall bus m
+            addPending bus m
 
-        MethodReturn {} -> returnOrError methodReturn
-        Error {}        -> returnOrError errorReturn
+        MethodReturn {} -> returnOrError $ methodReturn bus
+        Error {}        -> returnOrError $ errorReturn bus
 
-        Connected { actor = u } -> addUnique u
-        Disconnected { actor = u } -> remUnique u >> return ()
+        Connected { actor = u } -> addUnique bus u
+        Disconnected { actor = u } -> remUnique bus  u >> return ()
         NameChanged { changedName = n
                     , change = c
-                    } -> updateApps_ n c
+                    } -> updateApps_ bus n c
 
   where advance = advanceBy 30 -- FIXME: use some function of timestamp
         returnOrError f = do
-            call <- findCallCoordinates (inReplyTo m)
+            call <- findCallCoordinates bus (inReplyTo m)
             case call of
                 Nothing    -> return ()
                 Just (m', (x,y)) -> do
@@ -343,25 +431,29 @@ munge m = case m of
                     memberName m' True
                     f m
                     let duration = timestamp m - timestamp m'
-                    returnArc m x y duration
+                    returnArc bus m x y duration
 
-methodCall, methodReturn, errorReturn :: Message -> Renderer ()
+methodCall, methodReturn, errorReturn :: Bus -> Message -> Renderer ()
 methodCall = methodLike Nothing Above
 methodReturn = methodLike Nothing Below
 errorReturn = methodLike (Just $ Colour 1 0 0) Below
 
-methodLike :: Maybe Colour -> Arrowhead -> Message -> Renderer ()
-methodLike colour a m = do
-    sc <- senderCoordinate m
-    dc <- destinationCoordinate m
+methodLike :: Maybe Colour -> Arrowhead -> Bus -> Message -> Renderer ()
+methodLike colour a bus m = do
+    sc <- senderCoordinate bus m
+    dc <- destinationCoordinate bus m
     t <- gets row
     shape $ Arrow colour a sc dc t
 
-signal :: Message -> Renderer ()
-signal m = do
-    x <- senderCoordinate m
+signal :: Bus -> Message -> Renderer ()
+signal bus m = do
+    x <- senderCoordinate bus m
     t <- gets row
-    right <- subtract columnWidth <$> rightmostApp
-    shape $ SignalArrow (firstColumn - 20) x (right + 20) t
+
+    -- FIXME: my inside is outside, my right side's on the left side.
+    outside <- subtract columnWidth <$> edgemostApp bus
+    inside <- getsBusState firstColumn bus
+
+    shape $ SignalArrow (inside - 20) x (outside + 20) t
 
 -- vim: sw=2 sts=2
