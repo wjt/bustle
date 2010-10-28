@@ -87,6 +87,7 @@ data WindowInfo = WindowInfo { wiWindow :: Window
 
 data BState = BState { windows :: Int
                      , initialWindow :: Maybe WindowInfo
+                     , debugEnabled :: Bool
                      }
 
 instance MonadState BState B where
@@ -102,7 +103,7 @@ makeCallback :: B a -> IORef BState -> IO a
 makeCallback (B act) x = runReaderT act x
 
 runB :: B a -> IO a
-runB (B act) = runReaderT act =<< newIORef (BState 0 Nothing)
+runB (B act) = runReaderT act =<< newIORef (BState 0 Nothing False)
 
 {- And now, some convenience functions -}
 
@@ -128,12 +129,25 @@ warn = hPutStrLn stderr . ("Warning: " ++)
 main :: IO ()
 main = runB mainB
 
+-- FIXME: replace this with a real option parser
+processArgs :: B [String]
+processArgs = do
+    args <- io $ getArgs
+
+    if any isDebug args
+        then do
+            modify $ \s -> s { debugEnabled = True }
+            return $ filter (not . isDebug) args
+        else return args
+  where
+    isDebug = (== "--debug")
+
 mainB :: B ()
 mainB = do
   io initGUI
 
   -- Try to load arguments, if any.
-  args <- io getArgs
+  args <- processArgs
   case args of
       ["--pair", sessionLogFile, systemLogFile] ->
           loadLog sessionLogFile (Just systemLogFile)
@@ -337,6 +351,8 @@ displayLog (WindowInfo { wiWindow = window
   let (width, height) = diagramDimensions shapes
       details = (filename, shapes)
 
+  showBounds <- gets debugEnabled
+
   io $ do
     windowSetTitle window $
         snd (splitFileName filename) ++ " — D-Bus Sequence Diagram"
@@ -345,14 +361,14 @@ displayLog (WindowInfo { wiWindow = window
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
-    layout `on` exposeEvent $ liftIO (update layout shapes) >> return True
+    layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
 
     notebookSetCurrentPage nb 1
 
     return ()
 
-update :: Layout -> Diagram -> IO ()
-update layout shapes = do
+update :: Layout -> Diagram -> Bool -> IO ()
+update layout shapes showBounds = do
   win <- layoutGetDrawWindow layout
 
   hadj <- layoutGetHAdjustment layout
@@ -365,7 +381,7 @@ update layout shapes = do
 
   let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-  renderWithDrawable win $ drawRegion r False shapes
+  renderWithDrawable win $ drawRegion r showBounds shapes
 
 -- Add/remove one step/page increment from an Adjustment, limited to the top of
 -- the last page.
