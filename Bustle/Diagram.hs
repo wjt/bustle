@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 {-# LANGUAGE CPP #-}
 module Bustle.Diagram
   ( Shape(..)
+  , memberLabel
   , Diagram
   , Arrowhead(..)
   , Side(..)
@@ -81,7 +82,8 @@ data Shape = Header { strs :: [String]
                     , shapex, shapey :: Double
                     }
            | MemberLabel { labelPath, labelMember :: String
-                         , shapey :: Double
+                         , shapex :: Double -- The coordinates of the *centre*
+                         , shapey :: Double -- of the label
                          }
            | Timestamp { str :: String, shapey :: Double }
            | ClientLine { shapex, shapey1, shapey2 :: Double }
@@ -96,6 +98,11 @@ data Shape = Header { strs :: [String]
                  , caption :: String
                  }
   deriving (Show, Read, Eq)
+
+-- Smart constructor for MemberLabel that fills in the hardcoded (spit) x
+-- coordinate.
+memberLabel :: String -> String -> Double -> Shape
+memberLabel p m y = MemberLabel p m memberx y
 
 type Diagram = [Shape]
 
@@ -128,7 +135,7 @@ timestampx = 30
 timestampWidth = 60
 
 memberx, memberWidth :: Double
-memberx = 230
+memberx = timestampWidth + memberWidth / 2
 memberWidth = 340
 
 columnWidth :: Double
@@ -171,7 +178,7 @@ bounds s = case s of
        -- FIXME: magic 5 makes the bounding box include the text
     in (min x1 cx, y1, max x2 dx, y2 + 5)
   Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
-  MemberLabel _ _ y -> fromCentre memberx y memberWidth
+  MemberLabel _ _ x y -> fromCentre x y memberWidth
   Header { strs = ss, shapex = x, shapey = y} ->
     let width = columnWidth
         height = headerHeight ss
@@ -265,7 +272,10 @@ draw s = draw' s
           Arrow {} -> drawArrow <$> shapecolour <*> arrowhead <*> shapex1 <*>
                         shapex2 <*> shapey
           Header {} -> drawHeader <$> strs <*> shapex <*> shapey
-          MemberLabel s1 s2 y -> const (drawMember s1 s2 y)
+          MemberLabel {} -> drawMember <$> labelPath
+                                       <*> labelMember
+                                       <*> shapex
+                                       <*> shapey
           Timestamp {} -> drawTimestamp <$> str <*> shapey
           ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
           Rule {} -> drawRule <$> shapex <*> shapey
@@ -360,12 +370,12 @@ drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
     showLayout l
   where h = 10
 
-drawMember :: String -> String -> Double -> Render ()
-drawMember s1 s2 y = dm s1 (y - 10) >> dm s2 y
+drawMember :: String -> String -> Double -> Double -> Render ()
+drawMember s1 s2 x y = dm s1 (y - 10) >> dm s2 y
   where
     dm s y' = do
       l <- mkLayout s EllipsizeStart AlignLeft `withWidth` memberWidth
-      moveTo timestampWidth y'
+      moveTo (x - memberWidth / 2) y'
       showLayout l
 
 drawTimestamp :: String -> Double -> Render ()

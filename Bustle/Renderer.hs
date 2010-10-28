@@ -372,7 +372,7 @@ memberName message isReturn = do
     let Member p i m = member message
         meth = i ++ "." ++ (b m)
 
-    shape $ MemberLabel (it p) (it meth) current
+    shape $ memberLabel (it p) (it meth) current
   where it x | isReturn  = "<i>" ++ x ++ "</i>"
              | otherwise = x
         b x  | isReturn  = x
