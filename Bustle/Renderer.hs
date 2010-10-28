@@ -383,7 +383,7 @@ relativeTimestamp m = do
     base <- gets startTime
     let relative = (timestamp m - base) `div` 1000
     current <- gets row
-    shape $ Timestamp (show relative ++ "ms") current
+    shape $ timestampLabel (show relative ++ "ms") current
 
 returnArc :: Bus -> Message -> Double -> Double -> Milliseconds -> Renderer ()
 returnArc bus mr callx cally duration = do

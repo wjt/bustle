@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Bustle.Diagram
   ( Shape(..)
   , memberLabel
+  , timestampLabel
   , Diagram
   , Arrowhead(..)
   , Side(..)
@@ -85,7 +86,10 @@ data Shape = Header { strs :: [String]
                          , shapex :: Double -- The coordinates of the *centre*
                          , shapey :: Double -- of the label
                          }
-           | Timestamp { str :: String, shapey :: Double }
+           | TimestampLabel { str :: String
+                            , shapex :: Double -- The coordinates of the
+                            , shapey :: Double -- *centre* of the timestamp
+                            }
            | ClientLine { shapex, shapey1, shapey2 :: Double }
            | Rule { shapex, shapey :: Double }
            | Arrow { shapecolour :: Maybe Colour
@@ -99,10 +103,13 @@ data Shape = Header { strs :: [String]
                  }
   deriving (Show, Read, Eq)
 
--- Smart constructor for MemberLabel that fills in the hardcoded (spit) x
--- coordinate.
+-- Smart constructors for TimestampLabel and MemberLabel that fill in the
+-- hardcoded (spit) x coordinates.
 memberLabel :: String -> String -> Double -> Shape
 memberLabel p m y = MemberLabel p m memberx y
+
+timestampLabel :: String -> Double -> Shape
+timestampLabel s y = TimestampLabel s timestampx y
 
 type Diagram = [Shape]
 
@@ -131,7 +138,7 @@ eventHeight :: Double
 eventHeight = 30
 
 timestampx, timestampWidth :: Double
-timestampx = 30
+timestampx = 0 + timestampWidth / 2
 timestampWidth = 60
 
 memberx, memberWidth :: Double
@@ -177,7 +184,7 @@ bounds s = case s of
     let ((cx, _), (dx, _)) = arcControlPoints s
        -- FIXME: magic 5 makes the bounding box include the text
     in (min x1 cx, y1, max x2 dx, y2 + 5)
-  Timestamp { shapey=y } -> fromCentre timestampx y timestampWidth
+  TimestampLabel { shapex=x, shapey=y } -> fromCentre x y timestampWidth
   MemberLabel _ _ x y -> fromCentre x y memberWidth
   Header { strs = ss, shapex = x, shapey = y} ->
     let width = columnWidth
@@ -276,7 +283,9 @@ draw s = draw' s
                                        <*> labelMember
                                        <*> shapex
                                        <*> shapey
-          Timestamp {} -> drawTimestamp <$> str <*> shapey
+          TimestampLabel {} -> drawTimestamp <$> str
+                                             <*> shapex
+                                             <*> shapey
           ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
           Rule {} -> drawRule <$> shapex <*> shapey
 
@@ -378,9 +387,9 @@ drawMember s1 s2 x y = dm s1 (y - 10) >> dm s2 y
       moveTo (x - memberWidth / 2) y'
       showLayout l
 
-drawTimestamp :: String -> Double -> Render ()
-drawTimestamp ts y = do
-    moveTo 0 (y - 10)
+drawTimestamp :: String -> Double -> Double -> Render ()
+drawTimestamp ts x y = do
+    moveTo (x - timestampWidth / 2) (y - 10)
     showLayout =<< mkLayout ts EllipsizeNone AlignLeft `withWidth` timestampWidth
 
 drawClientLine :: Double -> Double -> Double -> Render ()
