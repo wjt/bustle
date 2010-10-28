@@ -121,7 +121,19 @@ arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s }) =
     in (cp1, cp2)
 arcControlPoints _ = error "i see you've played arcy-shapey before"
 
-mapY :: (Double -> Double) -> (Shape -> Shape)
+mapX, mapY :: (Double -> Double) -> (Shape -> Shape)
+mapX f s = case s of
+    Arrow {}       -> s { shapex1 = f (shapex1 s)
+                        , shapex2 = f (shapex2 s)
+                        }
+    SignalArrow {} -> s { shapex1 = f (shapex1 s)
+                        , shapex2 = f (shapex2 s)
+                        }
+    Arc {}         -> s { topx = f (topx s)
+                        , bottomx = f (bottomx s)
+                        }
+    _              -> s { shapex = f (shapex s) }
+
 mapY f s = case s of
     Arc {}        -> s { topy = f (topy s)
                        , bottomy = f (bottomy s)
