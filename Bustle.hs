@@ -214,16 +214,17 @@ loadLogWith getWindow session maybeSystem = do
             Nothing     -> return []
 
         -- FIXME: pass the log file name into the renderer
-        shapes <- toET (\e -> ("one of the logs", e)) $
-                      process (upgrade sessionMessages)
-                              (upgrade systemMessages)
+        (xTranslation, shapes) <-
+            toET (\e -> ("one of the logs", e)) $
+                process (upgrade sessionMessages)
+                        (upgrade systemMessages)
 
         windowInfo <- lift getWindow
         let title = case maybeSystem of
                 Just system -> session ++ " and " ++ system
                 Nothing     -> session
 
-        lift $ displayLog windowInfo title shapes
+        lift $ displayLog windowInfo title xTranslation shapes
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -341,13 +342,15 @@ emptyWindow = do
   incWindows
   return windowInfo
 
-displayLog :: WindowInfo -> FilePath -> Diagram -> B ()
+displayLog :: WindowInfo -> FilePath -> Double -> Diagram -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiLayout = layout
                        , wiNotebook = nb
                        })
-           filename shapes = do
+           filename
+           xTranslation
+           shapes = do
   let (width, height) = diagramDimensions shapes
       details = (filename, shapes)
 
@@ -364,6 +367,15 @@ displayLog (WindowInfo { wiWindow = window
     layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
 
     notebookSetCurrentPage nb 1
+
+    -- Shift to make the timestamp column visible
+    hadj <- layoutGetHAdjustment layout
+    (windowWidth, _) <- windowGetSize window
+    -- Roughly centre the timestamp-and-member column
+    adjustmentSetValue hadj
+        (xTranslation -
+            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
+        )
 
     return ()
 

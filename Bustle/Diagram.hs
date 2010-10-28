@@ -27,12 +27,13 @@ module Bustle.Diagram
   , Colour(..)
   , Rect
   , diagramDimensions
-  , topJustify
+  , topLeftJustifyDiagram
   , drawDiagram
   , drawRegion
   , headers
   , headerHeight
   , columnWidth
+  , timestampAndMemberWidth
   )
 where
 
@@ -157,6 +158,9 @@ memberx, memberWidth :: Double
 memberx = timestampWidth + memberWidth / 2
 memberWidth = 340
 
+timestampAndMemberWidth :: Double
+timestampAndMemberWidth = timestampWidth + memberWidth
+
 columnWidth :: Double
 columnWidth = 90
 
@@ -236,11 +240,17 @@ diagramDimensions shapes = (x2 - x1, y2 - y1)
   where
     ((x1, y1), (x2, y2)) = diagramBounds shapes
 
-topJustify :: Diagram -> Diagram
-topJustify shapes = shift shapes
+topLeftJustifyDiagram :: Diagram -- ^ the original diagram
+                      -> (Double, Diagram) -- ^ the diagram transformed to be
+                                           --   in positive space, and the
+                                           --   x-axis shift necessary to do so
+topLeftJustifyDiagram shapes = (negate x1, shapes')
   where
-    ((_, y1), _) = diagramBounds shapes
-    shift        = if y1 < 0 then map (mapY (subtract y1)) else id
+    shapes'       = transformDiagram (negate x1, negate y1) shapes
+    ((x1, y1), _) = diagramBounds shapes
+
+transformDiagram :: (Double, Double) -> (Diagram -> Diagram)
+transformDiagram (x, y) = map (mapX (+ x) . mapY (+ y))
 
 drawDiagramInternal :: (Shape -> Bool) -- ^ A filter for the shapes
                     -> Bool -- ^ True to draw canvas items' bounding boxes
