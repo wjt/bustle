@@ -78,7 +78,7 @@ One can write:
 newtype B a = B (ReaderT (IORef BState) IO a)
   deriving (Functor, Monad, MonadIO)
 
-type Details = (FilePath, Diagram)
+type Details = (FilePath, String, Diagram)
 data WindowInfo = WindowInfo { wiWindow :: Window
                              , wiSave :: ImageMenuItem
                              , wiNotebook :: Notebook
@@ -220,11 +220,7 @@ loadLogWith getWindow session maybeSystem = do
                         (upgrade systemMessages)
 
         windowInfo <- lift getWindow
-        let title = case maybeSystem of
-                Just system -> session ++ " and " ++ system
-                Nothing     -> session
-
-        lift $ displayLog windowInfo title xTranslation shapes
+        lift $ displayLog windowInfo session maybeSystem xTranslation shapes
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -342,24 +338,33 @@ emptyWindow = do
   incWindows
   return windowInfo
 
-displayLog :: WindowInfo -> FilePath -> Double -> Diagram -> B ()
+displayLog :: WindowInfo
+           -> FilePath
+           -> Maybe FilePath
+           -> Double
+           -> Diagram
+           -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiLayout = layout
                        , wiNotebook = nb
                        })
-           filename
+           sessionPath
+           maybeSystemPath
            xTranslation
            shapes = do
   let (width, height) = diagramDimensions shapes
-      details = (filename, shapes)
+      (directory, sessionName) = splitFileName sessionPath
+      baseName = snd . splitFileName
+      title = maybe sessionName
+                    ((++ (" + " ++ sessionName)) . baseName)
+                    maybeSystemPath
+      details = (directory, title, shapes)
 
   showBounds <- gets debugEnabled
 
   io $ do
-    windowSetTitle window $
-        snd (splitFileName filename) ++ " — D-Bus Sequence Diagram"
-
+    windowSetTitle window $ title ++ " — D-Bus Sequence Diagram"
     widgetSetSensitivity saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
@@ -440,7 +445,7 @@ openDialogue window = embedIO $ \r -> do
   widgetShowAll chooser
 
 saveToPDFDialogue :: Window -> Details -> IO ()
-saveToPDFDialogue window (filename, shapes) = do
+saveToPDFDialogue window (directory, filename, shapes) = do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-save", ResponseAccept)
@@ -450,9 +455,8 @@ saveToPDFDialogue window (filename, shapes) = do
                 , fileChooserDoOverwriteConfirmation := True
                 ]
 
-  let (dir, base) = splitFileName filename
-  fileChooserSetCurrentFolder chooser dir
-  fileChooserSetCurrentName chooser $ dropExtension base ++ ".pdf"
+  fileChooserSetCurrentFolder chooser directory
+  fileChooserSetCurrentName chooser $ filename ++ ".pdf"
 
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
