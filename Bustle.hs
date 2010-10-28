@@ -133,7 +133,11 @@ mainB = do
   io initGUI
 
   -- Try to load arguments, if any.
-  mapM_ (\f -> loadLog f Nothing) =<< io getArgs
+  args <- io getArgs
+  case args of
+      ["--pair", sessionLogFile, systemLogFile] ->
+          loadLog sessionLogFile (Just systemLogFile)
+      _ -> mapM_ (\file -> loadLog file Nothing) args
 
   -- If no windows are open (because none of the arguments, if any, were loaded
   -- successfully) create an empty window
