@@ -1,10 +1,14 @@
-Bustle 0.2.3 (UNRELEASED)
+Bustle 0.2.3 (2010-10-29)
 =========================
 
 The “Will it be a scone? Or will it be a lecture in category theory?”
 release.
 
-…
+Enhancements:
+
+ • You can now display two logs (for the session bus and the system bus)
+   side by side. This is handy if you want to match up timestamps
+   between the two logs.
 
 Bustle 0.2.2 (2010-06-29)
 =========================
