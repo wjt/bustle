@@ -89,6 +89,7 @@ data WindowInfo = WindowInfo { wiWindow :: Window
 
 data BConfig =
     BConfig { debugEnabled :: Bool
+            , bustleIcon :: Maybe Pixbuf
             }
 
 data BState = BState { windows :: Int
@@ -149,9 +150,15 @@ main :: IO ()
 main = do
     initGUI
 
-    -- FIXME: replace this with a real option parser
+    -- FIXME: get a real option parser
     args <- getArgs
-    let config = BConfig { debugEnabled = any isDebug args }
+    let debug = any isDebug args
+
+    icon <- loadPixbuf "bustle.png"
+
+    let config = BConfig { debugEnabled = debug
+                         , bustleIcon = icon
+                         }
 
     runB config $ mainB (filter (not . isDebug) args)
   where
@@ -274,7 +281,7 @@ emptyWindow = do
                               }
 
   -- Set up the window itself
-  io $ withProgramIcon (windowSetIcon window)
+  withProgramIcon (windowSetIcon window)
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu
@@ -283,7 +290,7 @@ emptyWindow = do
   io $ closeItem `onActivateLeaf` widgetDestroy window
 
   -- Help menu
-  io $ onActivateLeaf aboutItem (showAbout window)
+  embedIO $ onActivateLeaf aboutItem . makeCallback (showAbout window)
 
   -- Diagram area panning
   io $ do
@@ -305,8 +312,9 @@ emptyWindow = do
     widgetShowAll window
 
   -- Open two logs dialog
+  withProgramIcon (windowSetIcon openTwoDialog)
+
   io $ do
-    withProgramIcon (windowSetIcon openTwoDialog)
     windowSetTransientFor openTwoDialog window
     openTwoDialog `on` deleteEvent $ tryEvent $ io $ widgetHide openTwoDialog
 
@@ -433,8 +441,8 @@ incdec (+-) f adj = do
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
 
-withProgramIcon :: (Maybe Pixbuf -> IO ()) -> IO ()
-withProgramIcon = (loadPixbuf "bustle.png" >>=)
+withProgramIcon :: (Maybe Pixbuf -> IO ()) -> B ()
+withProgramIcon f = asks bustleIcon >>= io . f
 
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
@@ -484,8 +492,8 @@ saveToPDFDialogue window (directory, filename, shapes) = do
 
   widgetShowAll chooser
 
-showAbout :: Window -> IO ()
-showAbout window = do
+showAbout :: Window -> B ()
+showAbout window = withProgramIcon $ \icon -> io $ do
     dialog <- aboutDialogNew
 
     license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
@@ -503,7 +511,7 @@ showAbout window = do
         when (resp == ResponseCancel) (widgetDestroy dialog)
     windowSetTransientFor dialog window
     windowSetModal dialog True
-    withProgramIcon (aboutDialogSetLogo dialog)
+    aboutDialogSetLogo dialog icon
 
     widgetShowAll dialog
 
