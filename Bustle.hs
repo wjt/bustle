@@ -75,7 +75,9 @@ One can write:
 
 -}
 
-newtype B a = B (ReaderT (IORef BState) IO a)
+type BEnv = (BConfig, BState)
+
+newtype B a = B (ReaderT (IORef BEnv) IO a)
   deriving (Functor, Monad, MonadIO)
 
 type Details = (FilePath, String, Diagram)
@@ -85,25 +87,42 @@ data WindowInfo = WindowInfo { wiWindow :: Window
                              , wiLayout :: Layout
                              }
 
+data BConfig =
+    BConfig { debugEnabled :: Bool
+            }
+
 data BState = BState { windows :: Int
                      , initialWindow :: Maybe WindowInfo
-                     , debugEnabled :: Bool
                      }
 
 instance MonadState BState B where
-  get = B $ ask >>= liftIO . readIORef
-  put x = B $ ask >>= \r -> liftIO $ writeIORef r x
+  get = B $ ask >>= fmap snd . liftIO . readIORef
+  put x = B $ ask >>= \r -> liftIO $ modifyIORef r (\(conf, _) -> (conf, x))
 
-embedIO :: (IORef BState -> IO a) -> B a
+instance MonadReader BConfig B where
+    ask = B $ ask >>= fmap fst . liftIO . readIORef
+    -- FIXME: I don't actually think it's possible to implement local without
+    -- keeping two refs or something. I guess I could make a temporary ioref,
+    -- and propagate any changes to the actual state part of the ref to the
+    -- outside world. This would break horribly in the face of threads. Or we
+    -- could do something like:
+    --   MVar (BConfig, MVar BState)
+    local = error "Sorry, Dave, I can't let you do that."
+
+embedIO :: (IORef BEnv -> IO a) -> B a
 embedIO act = B $ do
   r <- ask
   liftIO $ act r
 
-makeCallback :: B a -> IORef BState -> IO a
+makeCallback :: B a -> IORef BEnv -> IO a
 makeCallback (B act) x = runReaderT act x
 
-runB :: B a -> IO a
-runB (B act) = runReaderT act =<< newIORef (BState 0 Nothing False)
+runB :: BConfig -> B a -> IO a
+runB config (B act) = runReaderT act =<< newIORef (config, initialState)
+  where
+    initialState = BState { windows = 0
+                          , initialWindow = Nothing
+                          }
 
 {- And now, some convenience functions -}
 
@@ -127,27 +146,19 @@ warn :: String -> IO ()
 warn = hPutStrLn stderr . ("Warning: " ++)
 
 main :: IO ()
-main = runB mainB
+main = do
+    initGUI
 
--- FIXME: replace this with a real option parser
-processArgs :: B [String]
-processArgs = do
-    args <- io $ getArgs
+    -- FIXME: replace this with a real option parser
+    args <- getArgs
+    let config = BConfig { debugEnabled = any isDebug args }
 
-    if any isDebug args
-        then do
-            modify $ \s -> s { debugEnabled = True }
-            return $ filter (not . isDebug) args
-        else return args
+    runB config $ mainB (filter (not . isDebug) args)
   where
     isDebug = (== "--debug")
 
-mainB :: B ()
-mainB = do
-  io initGUI
-
-  -- Try to load arguments, if any.
-  args <- processArgs
+mainB :: [String] -> B ()
+mainB args = do
   case args of
       ["--pair", sessionLogFile, systemLogFile] ->
           loadLog sessionLogFile (Just systemLogFile)
@@ -361,7 +372,7 @@ displayLog (WindowInfo { wiWindow = window
                     maybeSystemPath
       details = (directory, title, shapes)
 
-  showBounds <- gets debugEnabled
+  showBounds <- asks debugEnabled
 
   io $ do
     windowSetTitle window $ title ++ " — D-Bus Sequence Diagram"
