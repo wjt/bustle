@@ -207,7 +207,8 @@ etio :: (Error e', MonadIO io)
      => (IOException -> e') -> IO a -> ErrorT e' io a
 etio f act = toET f =<< io (try act)
 
--- This needs FlexibleInstances and I don't know why
+-- This needs FlexibleInstances and I don't know why. It's also an orphan
+-- instance, which is distressing.
 instance Error (String, String) where
     strMsg s = ("", s)
     noMsg = ("", "")
@@ -380,6 +381,8 @@ displayLog (WindowInfo { wiWindow = window
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
+    -- I think we could speed things up by only showing the revealed area
+    -- rather than everything that's visible.
     layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
 
     notebookSetCurrentPage nb 1
