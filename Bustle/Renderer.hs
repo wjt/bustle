@@ -129,10 +129,11 @@ initialBusState first =
              , pending = Map.empty
              }
 
--- FIXME: magic numbers :'(
 initialSessionBusState, initialSystemBusState :: BusState
-initialSessionBusState = initialBusState 470
-initialSystemBusState = initialBusState (-70) -- FIXME
+initialSessionBusState =
+    initialBusState $ timestampAndMemberWidth + firstColumnOffset
+initialSystemBusState =
+    initialBusState $ negate firstColumnOffset
 
 initialState :: Milliseconds -> RendererState
 initialState t = RendererState

@@ -18,22 +18,31 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 {-# LANGUAGE CPP #-}
 module Bustle.Diagram
-  ( Shape(..)
+  ( Diagram
+
+  -- Shapes, and smart constructors therefore
+  , Shape(..)
   , memberLabel
   , timestampLabel
-  , Diagram
+  , headers
+  , headerHeight
+
+  -- Attributes of shapes
   , Arrowhead(..)
   , Side(..)
   , Colour(..)
   , Rect
+
+  -- Annoying constants that users of this module need.
+  , columnWidth
+  , timestampAndMemberWidth
+  , firstColumnOffset
+
+  -- Displaying diagrams
   , diagramDimensions
   , topLeftJustifyDiagram
   , drawDiagram
   , drawRegion
-  , headers
-  , headerHeight
-  , columnWidth
-  , timestampAndMemberWidth
   )
 where
 
@@ -168,6 +177,11 @@ timestampAndMemberWidth = timestampWidth + memberWidth
 columnWidth :: Double
 columnWidth = 90
 
+-- Method return arcs can go outside the first column. Empirically, 20 is
+-- enough to stop the arc (or the duration text) overlapping the object path
+-- etc.
+firstColumnOffset :: Double
+firstColumnOffset = 20 + columnWidth / 2
 
 --
 -- Calculating bounds of shapes
