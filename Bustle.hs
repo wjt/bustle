@@ -42,6 +42,7 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 import Bustle.Util
+import Bustle.Stats
 
 import System.Glib.GError (GError(..), catchGError)
 
@@ -57,11 +58,13 @@ import System.FilePath (splitFileName, dropExtension)
 type B a = Bustle BConfig BState a
 
 type Details = (FilePath, String, Diagram)
-data WindowInfo = WindowInfo { wiWindow :: Window
-                             , wiSave :: ImageMenuItem
-                             , wiNotebook :: Notebook
-                             , wiLayout :: Layout
-                             }
+data WindowInfo =
+    WindowInfo { wiWindow :: Window
+               , wiSave :: ImageMenuItem
+               , wiNotebook :: Notebook
+               , wiLayout :: Layout
+               , wiCountStore :: ListStore Frequency
+               }
 
 data BConfig =
     BConfig { debugEnabled :: Bool
@@ -167,8 +170,13 @@ loadLogWith getWindow session maybeSystem = do
                         (upgrade systemMessages)
         forM_ ws $ io . warn
 
+        -- This conflates messages on the system bus and on the session bus,
+        -- but I think that's okay.
+        let freqs = frequencies (sessionMessages ++ systemMessages)
+
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo session maybeSystem xTranslation shapes
+                          freqs
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -184,6 +192,39 @@ maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
 
+newCountView :: IO (ListStore Frequency, TreeView)
+newCountView = do
+  countStore <- listStoreNew []
+  countView <- treeViewNewWithModel countStore
+
+  nameRenderer <- cellRendererTextNew
+  set nameRenderer [ cellTextEllipsize := EllipsizeStart
+                   , cellTextEllipsizeSet := True
+                   , cellXAlign := 1
+                   , cellTextWidthChars := 40
+                   ]
+  nameColumn <- treeViewColumnNew
+  treeViewColumnSetTitle nameColumn "Name"
+  set nameColumn [ treeViewColumnResizable := True
+                 , treeViewColumnExpand := True
+                 ]
+  cellLayoutPackStart nameColumn nameRenderer True
+  cellLayoutSetAttributes nameColumn nameRenderer countStore $
+      \(_count, (_type, name)) -> [ cellText := name ]
+
+  treeViewAppendColumn countView nameColumn
+
+  countRenderer <- cellRendererTextNew
+  countColumn <- treeViewColumnNew
+  treeViewColumnSetTitle countColumn "Frequency"
+  cellLayoutPackStart countColumn countRenderer True
+  cellLayoutSetAttributes countColumn countRenderer countStore $
+      \(count, (_type, _name)) -> [ cellText := show count ]
+
+  treeViewAppendColumn countView countColumn
+
+  return (countStore, countView)
+
 emptyWindow :: B WindowInfo
 emptyWindow = do
   Just xml <- io $ xmlNew =<< getDataFileName "bustle.glade"
@@ -196,18 +237,13 @@ emptyWindow = do
        ["open", "saveAs", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   layout <- getW castToLayout "diagramLayout"
-  nb <- getW castToNotebook "notebook"
+  [nb, statsBook] <- mapM (getW castToNotebook) ["notebook", "statsBook"]
+  frequencySW <- getW castToScrolledWindow "frequencySW"
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
   [sessionBusChooser, systemBusChooser] <- mapM (getW castToFileChooserButton)
       ["sessionBusChooser", "systemBusChooser"]
-
-  let windowInfo = WindowInfo { wiWindow = window
-                              , wiSave = saveItem
-                              , wiNotebook = nb
-                              , wiLayout = layout
-                              }
 
   -- Set up the window itself
   withProgramIcon (windowSetIcon window)
@@ -284,7 +320,18 @@ emptyWindow = do
         else
           hideTwoDialog
 
+  (countStore, countView) <- io $ newCountView
+  io $ containerAdd frequencySW countView
+
+  let windowInfo = WindowInfo { wiWindow = window
+                              , wiSave = saveItem
+                              , wiNotebook = nb
+                              , wiLayout = layout
+                              , wiCountStore = countStore
+                              }
+
   incWindows
+  io $ widgetShowAll window
   return windowInfo
 
 displayLog :: WindowInfo
@@ -292,16 +339,19 @@ displayLog :: WindowInfo
            -> Maybe FilePath
            -> Double
            -> Diagram
+           -> [Frequency]
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiLayout = layout
                        , wiNotebook = nb
+                       , wiCountStore = countStore
                        })
            sessionPath
            maybeSystemPath
            xTranslation
-           shapes = do
+           shapes
+           frequencies = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -333,7 +383,7 @@ displayLog (WindowInfo { wiWindow = window
             (fromIntegral windowWidth - timestampAndMemberWidth) / 2
         )
 
-    return ()
+    mapM_ (listStoreAppend countStore) frequencies
 
 update :: Layout -> Diagram -> Bool -> IO ()
 update layout shapes showBounds = do
