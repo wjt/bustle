@@ -1,5 +1,5 @@
 module Bustle.Stats
-  ( TallyType
+  ( TallyType(..)
   , Frequency
   , frequencies
   , methodTimes

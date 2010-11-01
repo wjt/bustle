@@ -69,6 +69,8 @@ data WindowInfo =
 data BConfig =
     BConfig { debugEnabled :: Bool
             , bustleIcon :: Maybe Pixbuf
+            , methodIcon :: Maybe Pixbuf
+            , signalIcon :: Maybe Pixbuf
             }
 
 data BState = BState { windows :: Int
@@ -92,10 +94,13 @@ main = do
     args <- getArgs
     let debug = any isDebug args
 
-    icon <- loadPixbuf "bustle.png"
+    [bustle, method, signal] <- mapM loadPixbuf
+        ["bustle.png", "dfeet-method.png", "dfeet-signal.png"]
 
     let config = BConfig { debugEnabled = debug
-                         , bustleIcon = icon
+                         , bustleIcon = bustle
+                         , methodIcon = method
+                         , signalIcon = signal
                          }
         initialState = BState { windows = 0
                               , initialWindow = Nothing
@@ -192,10 +197,33 @@ maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
 
-newCountView :: IO (ListStore Frequency, TreeView)
-newCountView = do
+newCountView :: Maybe Pixbuf
+             -> Maybe Pixbuf
+             -> IO (ListStore Frequency, TreeView)
+newCountView method signal = do
   countStore <- listStoreNew []
   countView <- treeViewNewWithModel countStore
+
+  set countView [ treeViewHeadersVisible := False ]
+
+  nameColumn <- treeViewColumnNew
+  treeViewColumnSetTitle nameColumn "Name"
+  set nameColumn [ treeViewColumnResizable := True
+                 , treeViewColumnExpand := True
+                 ]
+
+  -- If we managed to load the method and signal icons...
+  case (method, signal) of
+      (Just m, Just s) -> do
+          typeRenderer <- cellRendererPixbufNew
+          cellLayoutPackStart nameColumn typeRenderer False
+          cellLayoutSetAttributes nameColumn typeRenderer countStore $
+              \(_count, (memberType, _name)) ->
+                  [ cellPixbuf := case memberType of
+                                      TallyMethod -> m
+                                      TallySignal -> s
+                  ]
+      _ -> return ()
 
   nameRenderer <- cellRendererTextNew
   set nameRenderer [ cellTextEllipsize := EllipsizeStart
@@ -203,11 +231,6 @@ newCountView = do
                    , cellXAlign := 1
                    , cellTextWidthChars := 40
                    ]
-  nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Name"
-  set nameColumn [ treeViewColumnResizable := True
-                 , treeViewColumnExpand := True
-                 ]
   cellLayoutPackStart nameColumn nameRenderer True
   cellLayoutSetAttributes nameColumn nameRenderer countStore $
       \(_count, (_type, name)) -> [ cellText := name ]
@@ -237,7 +260,7 @@ emptyWindow = do
        ["open", "saveAs", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   layout <- getW castToLayout "diagramLayout"
-  [nb, statsBook] <- mapM (getW castToNotebook) ["notebook", "statsBook"]
+  nb <- getW castToNotebook "notebook"
   frequencySW <- getW castToScrolledWindow "frequencySW"
 
   -- Open two logs dialog widgets
@@ -320,7 +343,9 @@ emptyWindow = do
         else
           hideTwoDialog
 
-  (countStore, countView) <- io $ newCountView
+  m <- asks methodIcon
+  s <- asks signalIcon
+  (countStore, countView) <- io $ newCountView m s
   io $ containerAdd frequencySW countView
 
   let windowInfo = WindowInfo { wiWindow = window
@@ -351,7 +376,7 @@ displayLog (WindowInfo { wiWindow = window
            maybeSystemPath
            xTranslation
            shapes
-           frequencies = do
+           freqs = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -383,7 +408,7 @@ displayLog (WindowInfo { wiWindow = window
             (fromIntegral windowWidth - timestampAndMemberWidth) / 2
         )
 
-    mapM_ (listStoreAppend countStore) frequencies
+    mapM_ (listStoreAppend countStore) freqs
 
 update :: Layout -> Diagram -> Bool -> IO ()
 update layout shapes showBounds = do
