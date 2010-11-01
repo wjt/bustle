@@ -274,7 +274,7 @@ emptyWindow = do
                               }
 
   -- Set up the window itself
-  io $ withIcon (windowSetIcon window)
+  io $ withProgramIcon (windowSetIcon window)
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu
@@ -306,7 +306,7 @@ emptyWindow = do
 
   -- Open two logs dialog
   io $ do
-    withIcon (windowSetIcon openTwoDialog)
+    withProgramIcon (windowSetIcon openTwoDialog)
     windowSetTransientFor openTwoDialog window
     openTwoDialog `on` deleteEvent $ tryEvent $ io $ widgetHide openTwoDialog
 
@@ -433,12 +433,14 @@ incdec (+-) f adj = do
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
 
-withIcon :: (Maybe Pixbuf -> IO ()) -> IO ()
-withIcon act = do
-  iconName <- getDataFileName "bustle.png"
-  pb <- (fmap Just (pixbufNewFromFile iconName)) `catchGError`
+withProgramIcon :: (Maybe Pixbuf -> IO ()) -> IO ()
+withProgramIcon = (loadPixbuf "bustle.png" >>=)
+
+loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
+loadPixbuf filename = do
+  iconName <- getDataFileName filename
+  (fmap Just (pixbufNewFromFile iconName)) `catchGError`
     \(GError _ _ msg) -> warn msg >> return Nothing
-  act pb
 
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do
@@ -501,7 +503,7 @@ showAbout window = do
         when (resp == ResponseCancel) (widgetDestroy dialog)
     windowSetTransientFor dialog window
     windowSetModal dialog True
-    withIcon (aboutDialogSetLogo dialog)
+    withProgramIcon (aboutDialogSetLogo dialog)
 
     widgetShowAll dialog
 
