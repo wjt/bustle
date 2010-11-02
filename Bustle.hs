@@ -16,8 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses,
-             ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleInstances #-}
 module Main (main)
 where
 
@@ -30,18 +29,19 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.IORef
 import Data.Maybe (isJust, isNothing, fromJust)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Version (showVersion)
 
 import Paths_bustle
+import Bustle.Application.Monad
 import Bustle.Parser
 import Bustle.Renderer (process)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
+import Bustle.Util
 
 import System.Glib.GError (GError(..), catchGError)
 
@@ -53,32 +53,8 @@ import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
-import System.IO (hPutStrLn, stderr)
 
-{-
-Cunning threadable monad. Inspired by Monadic Tunnelling
-<http://www.haskell.org/pipermail/haskell-cafe/2007-July/028501.html>
-
-This is a state monad, secretly implemented with an IORef. The idea is to make
-it possible to reconstitute the monad within a Gtk callback. Given:
-
-  x :: Badger
-  onDance :: Badger -> IO a -> IO ()
-  dancedCB :: B a
-
-  onMeme :: Badger -> (Mushroom -> IO a) -> IO ()
-  memedCB :: Mushroom -> B a
-
-One can write:
-
-  embedIO $ onDance x . makeCallback dancedCB
-
--}
-
-type BEnv = (BConfig, BState)
-
-newtype B a = B (ReaderT (IORef BEnv) IO a)
-  deriving (Functor, Monad, MonadIO)
+type B a = Bustle BConfig BState a
 
 type Details = (FilePath, String, Diagram)
 data WindowInfo = WindowInfo { wiWindow :: Window
@@ -96,40 +72,6 @@ data BState = BState { windows :: Int
                      , initialWindow :: Maybe WindowInfo
                      }
 
-instance MonadState BState B where
-  get = B $ ask >>= fmap snd . liftIO . readIORef
-  put x = B $ ask >>= \r -> liftIO $ modifyIORef r (\(conf, _) -> (conf, x))
-
-instance MonadReader BConfig B where
-    ask = B $ ask >>= fmap fst . liftIO . readIORef
-    -- FIXME: I don't actually think it's possible to implement local without
-    -- keeping two refs or something. I guess I could make a temporary ioref,
-    -- and propagate any changes to the actual state part of the ref to the
-    -- outside world. This would break horribly in the face of threads. Or we
-    -- could do something like:
-    --   MVar (BConfig, MVar BState)
-    local = error "Sorry, Dave, I can't let you do that."
-
-embedIO :: (IORef BEnv -> IO a) -> B a
-embedIO act = B $ do
-  r <- ask
-  liftIO $ act r
-
-makeCallback :: B a -> IORef BEnv -> IO a
-makeCallback (B act) x = runReaderT act x
-
-runB :: BConfig -> B a -> IO a
-runB config (B act) = runReaderT act =<< newIORef (config, initialState)
-  where
-    initialState = BState { windows = 0
-                          , initialWindow = Nothing
-                          }
-
-{- And now, some convenience functions -}
-
-io :: MonadIO m => IO a -> m a
-io = liftIO
-
 modifyWindows :: (Int -> Int) -> B ()
 modifyWindows f = modify $ \s -> s { windows = f (windows s) }
 
@@ -138,13 +80,6 @@ incWindows = modifyWindows (+1)
 
 decWindows :: B Int
 decWindows = modifyWindows (subtract 1) >> gets windows
-
-{- End of boilerplate. -}
-
--- Used to log warnings which aren't important to the user, but which should
--- probably be noted.
-warn :: String -> IO ()
-warn = hPutStrLn stderr . ("Warning: " ++)
 
 main :: IO ()
 main = do
@@ -159,8 +94,11 @@ main = do
     let config = BConfig { debugEnabled = debug
                          , bustleIcon = icon
                          }
+        initialState = BState { windows = 0
+                              , initialWindow = Nothing
+                              }
 
-    runB config $ mainB (filter (not . isDebug) args)
+    runB config initialState $ mainB (filter (not . isDebug) args)
   where
     isDebug = (== "--debug")
 
@@ -205,15 +143,6 @@ displayError title body = do
   dialog `afterResponse` \_ -> widgetDestroy dialog
   widgetShowAll dialog
 
--- Converts an Either to an action in an ErrorT.
-toET :: (Monad m, Error e') => (e -> e') -> Either e a -> ErrorT e' m a
-toET f = either (throwError . f) return
-
--- Catches IOExceptions , and maps them into ErrorT
-etio :: (Error e', MonadIO io)
-     => (IOException -> e') -> IO a -> ErrorT e' io a
-etio f act = toET f =<< io (try act)
-
 -- This needs FlexibleInstances and I don't know why. It's also an orphan
 -- instance, which is distressing.
 instance Error (String, String) where
@@ -246,8 +175,8 @@ loadLogWith getWindow session maybeSystem = do
       Right () -> return ()
 
   where readLogFile f = do
-            input <- etio (\e -> (f, show e)) $ readFile f
-            toET (\e -> (f, "Parse error " ++ show e)) $ readLog input
+            input <- handleIOExceptions (\e -> (f, show e)) $ readFile f
+            toErrorT (\e -> (f, "Parse error " ++ show e)) $ readLog input
 
 
 maybeQuit :: B ()
