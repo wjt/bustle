@@ -189,8 +189,33 @@ nameOwnerChanged = do
 event :: Parser Message
 event = method <|> signal <|> nameOwnerChanged <|> parseError
 
+events :: Parser [Message]
+events = sepEndBy event (char '\n') <* eof
+
 readLog :: String -> Either ParseError [Message]
-readLog = runParser (sepEndBy event (char '\n') <* eof) Map.empty ""
+readLog filename = filter isRelevant <$> runParser events Map.empty "" filename
+  where -- FIXME: really? Maybe we should allow people to be interested in,
+        --        say, binding to signals?
+        senderIsBus m = sender m == O (OtherName "org.freedesktop.DBus")
+        destIsBus m = destination m == O (OtherName "org.freedesktop.DBus")
+
+        -- When the monitor is forcibly disconnected from the bus, the
+        -- Disconnected message has no sender, so the logger spits out <none>.
+        isDisconnected m = sender m == O (OtherName "<none>")
+
+        -- Surely this function must have a standard name?
+        none_ fs x = not $ any ($ x) fs
+
+        isRelevant m@(Signal {}) = none_ [ senderIsBus
+                                         , isDisconnected
+                                         ]
+                                         m
+        isRelevant m@(MethodCall {}) = none_ [ senderIsBus
+                                             , destIsBus
+                                             , isDisconnected
+                                             ]
+                                             m
+        isRelevant _ = True
 
 
 -- vim: sw=2 sts=2
