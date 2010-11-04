@@ -64,7 +64,9 @@ type Details = (FilePath, String, Diagram)
 data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
+               , wiViewStatistics :: CheckMenuItem
                , wiNotebook :: Notebook
+               , wiStatsBook :: Notebook
                , wiLayout :: Layout
                , wiCountStore :: ListStore Frequency
                , wiTimeStore :: ListStore TimeInfo
@@ -326,8 +328,10 @@ emptyWindow = do
   [openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
        ["open", "saveAs", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
+  viewStatistics <- getW castToCheckMenuItem "statistics"
   layout <- getW castToLayout "diagramLayout"
-  nb <- getW castToNotebook "notebook"
+  [nb, statsBook] <- mapM (getW castToNotebook)
+      ["notebook", "statsBook"]
   [frequencySW, durationSW] <- mapM (getW castToScrolledWindow)
       ["frequencySW", "durationSW"]
 
@@ -364,8 +368,6 @@ emptyWindow = do
         "space"     -> io $ incPage vadj
         "Page_Up"   -> io $ decPage vadj
         _           -> stopEvent
-
-    widgetShowAll window
 
   -- Open two logs dialog
   withProgramIcon (windowSetIcon openTwoDialog)
@@ -421,7 +423,9 @@ emptyWindow = do
 
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
+                              , wiViewStatistics = viewStatistics
                               , wiNotebook = nb
+                              , wiStatsBook = statsBook
                               , wiLayout = layout
                               , wiCountStore = countStore
                               , wiTimeStore = timeStore
@@ -441,8 +445,10 @@ displayLog :: WindowInfo
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
+                       , wiViewStatistics = viewStatistics
                        , wiLayout = layout
                        , wiNotebook = nb
+                       , wiStatsBook = statsBook
                        , wiCountStore = countStore
                        , wiTimeStore = timeStore
                        })
@@ -485,6 +491,20 @@ displayLog (WindowInfo { wiWindow = window
 
     mapM_ (listStoreAppend countStore) freqs
     mapM_ (listStoreAppend timeStore) times
+
+    widgetSetSensitivity viewStatistics True
+    -- the version of gtk2hs I'm using has a checkMenuItemToggled which is a
+    -- method not a signal.
+    connectGeneric "toggled" False viewStatistics $ do
+        active <- checkMenuItemGetActive viewStatistics
+        if active
+            then widgetShow statsBook
+            else widgetHide statsBook
+
+    -- The stats start off hidden.
+    widgetHide statsBook
+
+  return ()
 
 update :: Layout -> Diagram -> Bool -> IO ()
 update layout shapes showBounds = do
