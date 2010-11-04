@@ -1,6 +1,6 @@
 module Bustle.Stats
   ( TallyType(..)
-  , Frequency
+  , FrequencyInfo(..)
   , frequencies
   , methodTimes
   , TimeInfo(..)
@@ -28,12 +28,17 @@ repr msg =
         Signal     { member = m } -> Just (TallySignal, memberStr m)
         _                         -> Nothing
 
-type Frequency = (Int, (TallyType, String))
+data FrequencyInfo =
+    FrequencyInfo { fiFrequency :: Int
+                  , fiType :: TallyType
+                  , fiMember :: String
+                  }
+  deriving (Show, Eq, Ord)
 
-frequencies :: Log -> [Frequency]
+frequencies :: Log -> [FrequencyInfo]
 frequencies = reverse
             . sort
-            . map (\(s, c) -> (c, s))
+            . map (\((t, m), c) -> FrequencyInfo c t m)
             . M.toList
             . foldr (M.alter alt) M.empty
             . mapMaybe repr

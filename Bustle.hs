@@ -68,7 +68,7 @@ data WindowInfo =
                , wiNotebook :: Notebook
                , wiStatsBook :: Notebook
                , wiLayout :: Layout
-               , wiCountStore :: ListStore Frequency
+               , wiCountStore :: ListStore FrequencyInfo
                , wiTimeStore :: ListStore TimeInfo
                }
 
@@ -232,7 +232,7 @@ addMemberRenderer col store expand f = do
 
 newCountView :: Maybe Pixbuf
              -> Maybe Pixbuf
-             -> IO (ListStore Frequency, TreeView)
+             -> IO (ListStore FrequencyInfo, TreeView)
 newCountView method signal = do
   countStore <- listStoreNew []
   countView <- treeViewNewWithModel countStore
@@ -251,15 +251,14 @@ newCountView method signal = do
           typeRenderer <- cellRendererPixbufNew
           cellLayoutPackStart nameColumn typeRenderer False
           cellLayoutSetAttributes nameColumn typeRenderer countStore $
-              \(_count, (memberType, _name)) ->
-                  [ cellPixbuf := case memberType of
+              \fi ->
+                  [ cellPixbuf := case fiType fi of
                                       TallyMethod -> m
                                       TallySignal -> s
                   ]
       _ -> return ()
 
-  addMemberRenderer nameColumn countStore True $
-      \(_count, (_type, name)) -> name
+  addMemberRenderer nameColumn countStore True fiMember
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
@@ -269,9 +268,11 @@ newCountView method signal = do
   -- more auspicious right now. :)
   countBar <- cellRendererProgressNew
   cellLayoutPackStart countColumn countBar True
-  cellLayoutSetAttributes countColumn countBar countStore $ \(count, _) ->
+  cellLayoutSetAttributes countColumn countBar countStore $
+      \(FrequencyInfo {fiFrequency = count}) ->
       [ cellProgressValue :=> do
-          upperBound <- maximum . map fst <$> listStoreToList countStore
+          upperBound <- maximum . map fiFrequency <$>
+                        listStoreToList countStore
           return (count * 100 `div` upperBound)
       , cellProgressText := Just $ show count
       ]
@@ -440,7 +441,7 @@ displayLog :: WindowInfo
            -> Maybe FilePath
            -> Double
            -> Diagram
-           -> [Frequency]
+           -> [FrequencyInfo]
            -> [TimeInfo]
            -> B ()
 displayLog (WindowInfo { wiWindow = window
