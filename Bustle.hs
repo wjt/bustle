@@ -22,6 +22,7 @@ where
 
 import Prelude hiding (log, catch)
 
+import Control.Applicative ((<$>))
 import Control.Arrow ((&&&))
 import Control.Exception
 import Control.Monad (when, forM)
@@ -237,12 +238,19 @@ newCountView method signal = do
 
   treeViewAppendColumn countView nameColumn
 
-  countRenderer <- cellRendererTextNew
   countColumn <- treeViewColumnNew
   treeViewColumnSetTitle countColumn "Frequency"
-  cellLayoutPackStart countColumn countRenderer True
-  cellLayoutSetAttributes countColumn countRenderer countStore $
-      \(count, (_type, _name)) -> [ cellText := show count ]
+
+  -- Using a progress bar here is not really ideal, but I CBA to do anything
+  -- more auspicious right now. :)
+  countBar <- cellRendererProgressNew
+  cellLayoutPackStart countColumn countBar True
+  cellLayoutSetAttributes countColumn countBar countStore $ \(count, _) ->
+      [ cellProgressValue :=> do
+          upperBound <- maximum . map fst <$> listStoreToList countStore
+          return (count * 100 `div` upperBound)
+      , cellProgressText := Just $ show count
+      ]
 
   treeViewAppendColumn countView countColumn
 
