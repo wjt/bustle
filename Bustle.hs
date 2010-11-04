@@ -56,6 +56,8 @@ import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
 
+import Text.Printf
+
 type B a = Bustle BConfig BState a
 
 type Details = (FilePath, String, Diagram)
@@ -65,6 +67,7 @@ data WindowInfo =
                , wiNotebook :: Notebook
                , wiLayout :: Layout
                , wiCountStore :: ListStore Frequency
+               , wiTimeStore :: ListStore TimeInfo
                }
 
 data BConfig =
@@ -178,11 +181,13 @@ loadLogWith getWindow session maybeSystem = do
 
         -- This conflates messages on the system bus and on the session bus,
         -- but I think that's okay.
-        let freqs = frequencies (sessionMessages ++ systemMessages)
+        let allMessages = sessionMessages ++ systemMessages
+            freqs = frequencies allMessages
+            times = methodTimes allMessages
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo session maybeSystem xTranslation shapes
-                          freqs
+                          freqs times
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -197,6 +202,31 @@ maybeQuit :: B ()
 maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
+
+addTextRenderer :: TreeViewColumn
+                -> ListStore a
+                -> Bool
+                -> (a -> String)
+                -> IO CellRendererText
+addTextRenderer col store expand f = do
+    renderer <- cellRendererTextNew
+    cellLayoutPackStart col renderer expand
+    cellLayoutSetAttributes col renderer store $ \x -> [ cellText := f x ]
+    return renderer
+
+addMemberRenderer :: TreeViewColumn
+                  -> ListStore a
+                  -> Bool
+                  -> (a -> String)
+                  -> IO CellRendererText
+addMemberRenderer col store expand f = do
+    renderer <- addTextRenderer col store expand f
+    set renderer [ cellTextEllipsize := EllipsizeStart
+                 , cellTextEllipsizeSet := True
+                 , cellXAlign := 1
+                 , cellTextWidthChars := 40
+                 ]
+    return renderer
 
 newCountView :: Maybe Pixbuf
              -> Maybe Pixbuf
@@ -226,16 +256,8 @@ newCountView method signal = do
                   ]
       _ -> return ()
 
-  nameRenderer <- cellRendererTextNew
-  set nameRenderer [ cellTextEllipsize := EllipsizeStart
-                   , cellTextEllipsizeSet := True
-                   , cellXAlign := 1
-                   , cellTextWidthChars := 40
-                   ]
-  cellLayoutPackStart nameColumn nameRenderer True
-  cellLayoutSetAttributes nameColumn nameRenderer countStore $
-      \(_count, (_type, name)) -> [ cellText := name ]
-
+  addMemberRenderer nameColumn countStore True $
+      \(_count, (_type, name)) -> name
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
@@ -256,6 +278,43 @@ newCountView method signal = do
 
   return (countStore, countView)
 
+addStatColumn :: TreeView
+              -> ListStore a
+              -> String
+              -> (a -> String)
+              -> IO ()
+addStatColumn view store title f = do
+    col <- treeViewColumnNew
+    treeViewColumnSetTitle col title
+    renderer <- addTextRenderer col store True f
+    set renderer [ cellXAlign := 1 ]
+    treeViewAppendColumn view col
+    return ()
+
+newTimeView :: IO (ListStore TimeInfo, TreeView)
+newTimeView = do
+  timeStore <- listStoreNew []
+  timeView <- treeViewNewWithModel timeStore
+
+  set timeView [ treeViewHeadersVisible := True ]
+
+  nameColumn <- treeViewColumnNew
+  treeViewColumnSetTitle nameColumn "Method"
+  set nameColumn [ treeViewColumnResizable := True
+                 , treeViewColumnExpand := True
+                 ]
+
+  addMemberRenderer nameColumn timeStore True tiMethodName
+  treeViewAppendColumn timeView nameColumn
+
+  addStatColumn timeView timeStore "Total time"
+                (printf "%.3f" . tiTotalTime)
+  addStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
+  addStatColumn timeView timeStore "Mean time"
+                (printf "%.3f" . tiMeanCallTime)
+
+  return (timeStore, timeView)
+
 emptyWindow :: B WindowInfo
 emptyWindow = do
   Just xml <- io $ xmlNew =<< getDataFileName "bustle.glade"
@@ -269,7 +328,8 @@ emptyWindow = do
   openTwoItem <- getW castToMenuItem "openTwo"
   layout <- getW castToLayout "diagramLayout"
   nb <- getW castToNotebook "notebook"
-  frequencySW <- getW castToScrolledWindow "frequencySW"
+  [frequencySW, durationSW] <- mapM (getW castToScrolledWindow)
+      ["frequencySW", "durationSW"]
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
@@ -356,11 +416,15 @@ emptyWindow = do
   (countStore, countView) <- io $ newCountView m s
   io $ containerAdd frequencySW countView
 
+  (timeStore, timeView) <- io newTimeView
+  io $ containerAdd durationSW timeView
+
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiNotebook = nb
                               , wiLayout = layout
                               , wiCountStore = countStore
+                              , wiTimeStore = timeStore
                               }
 
   incWindows
@@ -373,18 +437,21 @@ displayLog :: WindowInfo
            -> Double
            -> Diagram
            -> [Frequency]
+           -> [TimeInfo]
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiLayout = layout
                        , wiNotebook = nb
                        , wiCountStore = countStore
+                       , wiTimeStore = timeStore
                        })
            sessionPath
            maybeSystemPath
            xTranslation
            shapes
-           freqs = do
+           freqs
+           times = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -417,6 +484,7 @@ displayLog (WindowInfo { wiWindow = window
         )
 
     mapM_ (listStoreAppend countStore) freqs
+    mapM_ (listStoreAppend timeStore) times
 
 update :: Layout -> Diagram -> Bool -> IO ()
 update layout shapes showBounds = do

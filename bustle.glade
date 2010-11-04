@@ -147,6 +147,31 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                         <property name="type">tab</property>
                       </packing>
                     </child>
+                    <child>
+                      <widget class="GtkScrolledWindow" id="durationSW">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="hscrollbar_policy">never</property>
+                        <property name="vscrollbar_policy">automatic</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="durationTabLabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Method durations</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                        <property name="tab_fill">False</property>
+                        <property name="type">tab</property>
+                      </packing>
+                    </child>
                   </widget>
                   <packing>
                     <property name="resize">True</property>
@@ -166,7 +191,7 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                   </widget>
                   <packing>
                     <property name="resize">True</property>
-                    <property name="shrink">True</property>
+                    <property name="shrink">False</property>
                   </packing>
                 </child>
               </widget>

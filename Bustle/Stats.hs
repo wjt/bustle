@@ -3,6 +3,7 @@ module Bustle.Stats
   , Frequency
   , frequencies
   , methodTimes
+  , TimeInfo(..)
   )
 where
 
@@ -45,9 +46,16 @@ mean = acc 0 0
          acc n t [] = t / n
          acc n t (x:xs) = acc (n + 1) (t + x) xs
 
-methodTimes :: Log -> [(String, Double, Int, Double)]
+data TimeInfo =
+    TimeInfo { tiMethodName :: String
+             , tiTotalTime :: Double -- seconds
+             , tiCallFrequency :: Int
+             , tiMeanCallTime :: Double -- seconds
+             }
+
+methodTimes :: Log -> [TimeInfo]
 methodTimes = reverse
-            . sortBy (comparing (\(_, b, _, _) -> b))
+            . sortBy (comparing tiTotalTime)
             . map summarize
             . M.toList
             . foldr (\(method, time) -> M.alter (alt time) method) M.empty
@@ -62,7 +70,9 @@ methodTimes = reverse
               Just (memberStr m, end - start)
           methodReturn _ = Nothing
 
-          summarize (method, (total, times)) = (method,
-                         fromInteger total / 1000,
-                         length times,
-                         (mean $ map fromInteger times) / 1000)
+          summarize (method, (total, times)) =
+              TimeInfo { tiMethodName = method
+                       , tiTotalTime = fromInteger total / 1000
+                       , tiCallFrequency = length times
+                       , tiMeanCallTime = (mean $ map fromInteger times) / 1000
+                       }
