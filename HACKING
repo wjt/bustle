@@ -1,8 +1,11 @@
 Grab the latest code from git:
 
-  git clone git://git.collabora.co.uk/git/user/wjt/bustle.git
+  git clone git://anongit.freedesktop.org/bustle
 
-and get stuck in!
+and get stuck in! Please submit patches, or links to git branches, as
+bugs on:
+
+  https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle
 
 Coding style: Haskell code must be '-Wall
 -fno-warn-unused-imports'-clean, and have pleasing layout.
