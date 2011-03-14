@@ -53,11 +53,14 @@ describeBus :: Bus -> String
 describeBus SessionBus = "session"
 describeBus SystemBus = "system"
 
-process :: [Message] -> [Message] -> (Double, [Shape])
+process :: [Message] -> [Message] -> ((Double, [Shape]), [String])
 process sessionBusLog systemBusLog =
-    topLeftJustifyDiagram $ execRenderer (mapM_ (uncurry munge) log')
-                                         (initialState initTime)
-  where -- FIXME: really? Maybe we should allow people to be interested in,
+    (topLeftJustifyDiagram diagram, ws)
+  where
+        (diagram, ws) = runRenderer (mapM_ (uncurry munge) log')
+                                          (initialState initTime)
+
+        -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
         senderIsBus m = sender m == O (OtherName "org.freedesktop.DBus")
         destIsBus m = destination m == O (OtherName "org.freedesktop.DBus")
@@ -104,8 +107,10 @@ instance Applicative Renderer where
     pure = return
     (<*>) = ap
 
-execRenderer :: Renderer () -> RendererState -> [Shape]
-execRenderer (Renderer act) = runIdentity . evalStateT (execWriterT act)
+runRenderer :: Renderer () -> RendererState -> ([Shape], [String])
+runRenderer (Renderer act) st = runIdentity $ do
+    (result, st') <- runStateT (execWriterT act) st
+    return (result, reverse (warnings st'))
 
 data BusState = BusState { apps :: Applications
                          , firstColumn :: Double

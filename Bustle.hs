@@ -213,11 +213,11 @@ loadLogWith getWindow session maybeSystem = do
             Just system -> readLogFile system
             Nothing     -> return []
 
-        -- FIXME: pass the log file name into the renderer;
-        --        also get error messages out of it.
-        let (xTranslation, shapes) =
+        -- FIXME: pass the log file name into the renderer
+        let ((xTranslation, shapes), ws) =
                 process (upgrade sessionMessages)
                         (upgrade systemMessages)
+        forM_ ws $ io . warn
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo session maybeSystem xTranslation shapes
