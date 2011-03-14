@@ -49,12 +49,14 @@ data Bus = SessionBus
          | SystemBus
     deriving (Show, Eq, Ord)
 
-process :: [Message] -> [Message] -> Either String (Double, [Shape])
-process sessionBusLog systemBusLog = do
-    diagram <- execRenderer (mapM_ (uncurry munge) log') (initialState initTime)
+describeBus :: Bus -> String
+describeBus SessionBus = "session"
+describeBus SystemBus = "system"
 
-    return $ topLeftJustifyDiagram diagram
-
+process :: [Message] -> [Message] -> (Double, [Shape])
+process sessionBusLog systemBusLog =
+    topLeftJustifyDiagram $ execRenderer (mapM_ (uncurry munge) log')
+                                         (initialState initTime)
   where -- FIXME: really? Maybe we should allow people to be interested in,
         --        say, binding to signals?
         senderIsBus m = sender m == O (OtherName "org.freedesktop.DBus")
@@ -94,18 +96,16 @@ combine xs@(x:xs') ys@(y:ys') =
         else (SystemBus, y):combine xs ys'
 
 newtype Renderer a = Renderer (WriterT [Shape]
-                                (StateT RendererState
-                                 (ErrorT String Identity)
-                                ) a)
-  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape],
-      MonadError String)
+                                (StateT RendererState Identity)
+                                a)
+  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape])
 
 instance Applicative Renderer where
     pure = return
     (<*>) = ap
 
-execRenderer :: Renderer () -> RendererState -> Either String [Shape]
-execRenderer (Renderer act) = runIdentity . runErrorT . evalStateT (execWriterT act)
+execRenderer :: Renderer () -> RendererState -> [Shape]
+execRenderer (Renderer act) = runIdentity . evalStateT (execWriterT act)
 
 data BusState = BusState { apps :: Applications
                          , firstColumn :: Double
@@ -176,34 +176,70 @@ getsApps f = getsBusState (f . apps)
 
 lookupUniqueName :: Bus
                  -> UniqueName
-                 -> Renderer (Maybe (Maybe Double, Set OtherName))
-lookupUniqueName bus u = getsApps (Map.lookup u) bus
+                 -> Renderer (Maybe Double, Set OtherName)
+lookupUniqueName bus u = do
+    thing <- getsApps (Map.lookup u) bus
+    case thing of
+        Just nameInfo -> return nameInfo
+        Nothing       -> do
+            warn $ concat [ "'"
+                          , unUniqueName u
+                          , "' appeared unheralded on the "
+                          , describeBus bus
+                          , " bus."
+                          ]
+            addUnique bus u
+            return (Nothing, Set.empty)
+
+lookupOtherName :: Bus
+                -> OtherName
+                -> Renderer (UniqueName, (Maybe Double, Set OtherName))
+lookupOtherName bus o = do
+    as <- getApps bus
+    case filter (Set.member o . snd . snd) (Map.assocs as) of
+        [details] -> return details
+
+        -- No matches indicates a corrupt log, which we try to recover from …
+        []        -> do
+            warn $ concat [ "'"
+                          , unOtherName o
+                          , "' appeared unheralded on the "
+                          , describeBus bus
+                          , " bus; making something up..."
+                          ]
+            let namesInUse = Map.keys as
+                candidates = map (UniqueName . (":0." ++) . show)
+                                 ([1..] :: [Integer])
+                u = head $ filter (not . (`elem` namesInUse)) candidates
+            addUnique bus u
+            maybeCoord <- addOther bus o u
+            return (u, (maybeCoord, Set.singleton o))
+
+        -- … but more than one match means we're screwed.
+        several   -> error $ concat [ "internal error: "
+                                    , show o
+                                    , " in several apps: "
+                                    , show several
+                                    ]
 
 -- Finds a BusName in a map of applications
-lookupApp :: BusName
-          -> Applications
-          -> Maybe (UniqueName, (Maybe Double, Set OtherName))
-lookupApp n as = case n of
-    U u -> (,) u <$> Map.lookup u as
-    O o -> case filter (Set.member o . snd . snd) (Map.assocs as) of
-              []         -> Nothing
-              [details]  -> Just details
-              several    -> error $ concat [ "internal error: "
-                                           , show o
-                                           , " in several apps: "
-                                           , show several
-                                           ]
+lookupApp :: Bus
+          -> BusName
+          -> Renderer (UniqueName, (Maybe Double, Set OtherName))
+lookupApp bus name = case name of
+    U u -> do
+        details <- lookupUniqueName bus u
+        return (u, details)
+    O o -> lookupOtherName bus o
 
 -- Finds a BusName in the current state, yielding its column if it exists.  If
 -- it exists, but previously lacked a column, a column is allocated.
-getApp :: Bus -> BusName -> Renderer (Maybe Double)
-getApp bus n = do
-    app <- lookupApp n <$> getApps bus
-    case app of
-        Nothing -> return Nothing
-        Just (u, details) -> Just <$> case details of
-            (Just col, _) -> return col
-            (Nothing, os) -> assignColumn u os
+appCoordinate :: Bus -> BusName -> Renderer Double
+appCoordinate bus n = do
+    (u, details) <- lookupApp bus n
+    case details of
+        (Just col, _) -> return col
+        (Nothing, os) -> assignColumn u os
   where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
             x <- nextColumn <$> getBusState bus
@@ -254,38 +290,22 @@ addUnique bus n = modifyApps bus $ Map.insert n (Nothing, Set.empty)
 -- Removes a unique name, yielding its column (if any)
 remUnique :: Bus -> UniqueName -> Renderer (Maybe Double)
 remUnique bus n = do
-    coord <- fmap fst <$> lookupUniqueName bus n
-    case coord of
-      Just x  -> modifyApps bus (Map.delete n) >> return x
-      Nothing -> throwError $ concat [ "corrupt log: "
-                                     , show n
-                                     , " apparently disconnected without connecting"
-                                     ]
+    coord <- fst <$> lookupUniqueName bus n
+    modifyApps bus (Map.delete n)
+    return coord
 
 addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer (Maybe Double)
 -- Add a new well-known name to a unique name.
 addOther bus n u = do
-    a <- lookupUniqueName bus u
-    case a of
-        Nothing -> throwError $ concat [ "corrupt log: "
-                                       , show n
-                                       , " claimed by unknown unique name "
-                                       , show u
-                                       ]
-        Just (x, ns) -> do modifyApps bus (Map.insert u (x, Set.insert n ns))
-                           return x
+    (x, ns) <- lookupUniqueName bus u
+    modifyApps bus (Map.insert u (x, Set.insert n ns))
+    return x
 
 -- Remove a well-known name from a unique name
 remOther bus n u = do
-    a <- lookupUniqueName bus u
-    case a of
-        Nothing -> throwError $ concat [ "corrupt log: "
-                                       , show n
-                                       , " released by unknown unique name "
-                                       , show u
-                                       ]
-        Just (x, ns) -> do modifyApps bus (Map.insert u (x, Set.delete n ns))
-                           return x
+    (x, ns) <- lookupUniqueName bus u
+    modifyApps bus (Map.insert u (x, Set.delete n ns))
+    return x
 
 shape :: Shape -> Renderer ()
 shape = tell . (:[])
@@ -350,12 +370,6 @@ bestNames (UniqueName u) os
     | Set.null os = [u]
     | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
-
-appCoordinate :: Bus -> BusName -> Renderer Double
-appCoordinate bus s = getApp bus s >>= \coord -> case coord of
-    Nothing -> throwError $ "corrupt log: contains nonexistant name "
-                            ++ unBusName s
-    Just x -> return x
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do

@@ -213,9 +213,9 @@ loadLogWith getWindow session maybeSystem = do
             Just system -> readLogFile system
             Nothing     -> return []
 
-        -- FIXME: pass the log file name into the renderer
-        (xTranslation, shapes) <-
-            toET (\e -> ("one of the logs", e)) $
+        -- FIXME: pass the log file name into the renderer;
+        --        also get error messages out of it.
+        let (xTranslation, shapes) =
                 process (upgrade sessionMessages)
                         (upgrade systemMessages)
 
