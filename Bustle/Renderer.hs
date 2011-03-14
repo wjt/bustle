@@ -119,6 +119,7 @@ data RendererState =
                   , row :: Double
                   , mostRecentLabels :: Double
                   , startTime :: Milliseconds
+                  , warnings :: [String]
                   }
 
 initialBusState :: Double ->  BusState
@@ -142,6 +143,7 @@ initialState t = RendererState
     , row = 0
     , mostRecentLabels = 0
     , startTime = t
+    , warnings = []
     }
 
 -- Maps unique connection name to the column representing that name, if
@@ -287,6 +289,9 @@ remOther bus n u = do
 
 shape :: Shape -> Renderer ()
 shape = tell . (:[])
+
+warn :: String -> Renderer ()
+warn warning = modify $ \rs -> rs { warnings = warning:warnings rs }
 
 modifyPending :: Bus
               -> (Pending -> Pending)
