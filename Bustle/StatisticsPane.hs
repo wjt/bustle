@@ -17,18 +17,54 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Bustle.StatisticsPane
-  ( newCountView
-  , newTimeView
+  ( StatsPane
+  , statsPaneNew
+  , statsPaneSetMessages
   )
 where
 
-import Text.Printf
-
 import Control.Applicative ((<$>))
-
-import Bustle.Stats
-
+import Control.Monad (forM_)
+import Text.Printf
 import Graphics.UI.Gtk
+import Graphics.UI.Gtk.Glade
+import Bustle.Stats
+import Bustle.Types (Log)
+
+data StatsPane =
+    StatsPane { spCountStore :: ListStore FrequencyInfo
+              , spTimeStore :: ListStore TimeInfo
+              }
+
+statsPaneNew :: GladeXML
+             -> Maybe Pixbuf
+             -> Maybe Pixbuf
+             -> IO StatsPane
+statsPaneNew xml methodIcon signalIcon = do
+  [frequencySW, durationSW] <- mapM (xmlGetWidget xml castToScrolledWindow)
+      ["frequencySW", "durationSW"]
+
+  (countStore, countView) <- newCountView methodIcon signalIcon
+  containerAdd frequencySW countView
+
+  (timeStore, timeView) <- newTimeView
+  containerAdd durationSW timeView
+
+  return $ StatsPane countStore timeStore
+
+statsPaneSetMessages :: StatsPane
+                     -> Log -- ^ session bus messages
+                     -> Log -- ^ system bus messages
+                     -> IO ()
+statsPaneSetMessages sp sessionMessages systemMessages = do
+    -- This conflates messages on the system bus and on the session bus,
+    -- but I think that's okay for now.
+    let allMessages = sessionMessages ++ systemMessages
+        freqs = frequencies allMessages
+        times = methodTimes allMessages
+
+    forM_ (frequencies allMessages) $ listStoreAppend (spCountStore sp)
+    forM_ (methodTimes allMessages) $ listStoreAppend (spTimeStore sp)
 
 addTextRenderer :: TreeViewColumn
                 -> ListStore a
@@ -148,4 +184,3 @@ newTimeView = do
                 (printf "%.3f" . tiMeanCallTime)
 
   return (timeStore, timeView)
-

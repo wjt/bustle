@@ -24,7 +24,7 @@ import Prelude hiding (log, catch)
 
 import Control.Arrow ((&&&))
 import Control.Exception
-import Control.Monad (when, forM)
+import Control.Monad (when)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
@@ -42,7 +42,6 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 import Bustle.Util
-import Bustle.Stats -- FIXME: ideally StatisticsPane would deal with this
 import Bustle.StatisticsPane
 
 import System.Glib.GError (GError(..), catchGError)
@@ -65,9 +64,8 @@ data WindowInfo =
                , wiViewStatistics :: CheckMenuItem
                , wiNotebook :: Notebook
                , wiStatsBook :: Notebook
+               , wiStatsPane :: StatsPane
                , wiLayout :: Layout
-               , wiCountStore :: ListStore FrequencyInfo
-               , wiTimeStore :: ListStore TimeInfo
                }
 
 data BConfig =
@@ -179,15 +177,9 @@ loadLogWith getWindow session maybeSystem = do
                         (upgrade systemMessages)
         forM_ ws $ io . warn
 
-        -- This conflates messages on the system bus and on the session bus,
-        -- but I think that's okay.
-        let allMessages = sessionMessages ++ systemMessages
-            freqs = frequencies allMessages
-            times = methodTimes allMessages
-
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo session maybeSystem xTranslation shapes
-                          freqs times
+                          sessionMessages systemMessages
 
     case ret of
       Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
@@ -218,8 +210,6 @@ emptyWindow = do
   layout <- getW castToLayout "diagramLayout"
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["notebook", "statsBook"]
-  [frequencySW, durationSW] <- mapM (getW castToScrolledWindow)
-      ["frequencySW", "durationSW"]
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
@@ -301,20 +291,15 @@ emptyWindow = do
 
   m <- asks methodIcon
   s <- asks signalIcon
-  (countStore, countView) <- io $ newCountView m s
-  io $ containerAdd frequencySW countView
-
-  (timeStore, timeView) <- io newTimeView
-  io $ containerAdd durationSW timeView
+  statsPane <- io $ statsPaneNew xml m s
 
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiViewStatistics = viewStatistics
                               , wiNotebook = nb
                               , wiStatsBook = statsBook
+                              , wiStatsPane = statsPane
                               , wiLayout = layout
-                              , wiCountStore = countStore
-                              , wiTimeStore = timeStore
                               }
 
   incWindows
@@ -326,8 +311,8 @@ displayLog :: WindowInfo
            -> Maybe FilePath
            -> Double
            -> Diagram
-           -> [FrequencyInfo]
-           -> [TimeInfo]
+           -> Log
+           -> Log
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
@@ -335,15 +320,14 @@ displayLog (WindowInfo { wiWindow = window
                        , wiLayout = layout
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
-                       , wiCountStore = countStore
-                       , wiTimeStore = timeStore
+                       , wiStatsPane = statsPane
                        })
            sessionPath
            maybeSystemPath
            xTranslation
            shapes
-           freqs
-           times = do
+           sessionMessages
+           systemMessages = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -375,8 +359,7 @@ displayLog (WindowInfo { wiWindow = window
             (fromIntegral windowWidth - timestampAndMemberWidth) / 2
         )
 
-    mapM_ (listStoreAppend countStore) freqs
-    mapM_ (listStoreAppend timeStore) times
+    statsPaneSetMessages statsPane sessionMessages systemMessages
 
     widgetSetSensitivity viewStatistics True
     -- the version of gtk2hs I'm using has a checkMenuItemToggled which is a
