@@ -20,9 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Main (main)
 where
 
-import Prelude hiding (log, catch)
+import Prelude hiding (catch)
 
-import Control.Arrow ((&&&))
 import Control.Exception
 import Control.Monad (when)
 import Control.Monad.Reader
@@ -30,8 +29,6 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import Data.Maybe (isJust, isNothing, fromJust)
-import qualified Data.Set as Set
-import Data.Set (Set)
 import Data.Version (showVersion)
 
 import Paths_bustle
@@ -51,7 +48,6 @@ import Graphics.UI.Gtk.Glade
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
-import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
 
