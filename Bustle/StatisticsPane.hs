@@ -60,8 +60,6 @@ statsPaneSetMessages sp sessionMessages systemMessages = do
     -- This conflates messages on the system bus and on the session bus,
     -- but I think that's okay for now.
     let allMessages = sessionMessages ++ systemMessages
-        freqs = frequencies allMessages
-        times = methodTimes allMessages
 
     forM_ (frequencies allMessages) $ listStoreAppend (spCountStore sp)
     forM_ (methodTimes allMessages) $ listStoreAppend (spTimeStore sp)
@@ -135,7 +133,7 @@ newCountView method signal = do
       _ -> return ()
 
   addMemberRenderer nameColumn countStore True $ \fi ->
-      fiInterface fi ++ "<b>" ++ fiMember fi ++ "</b>"
+      fiInterface fi ++ ".<b>" ++ fiMember fi ++ "</b>"
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
