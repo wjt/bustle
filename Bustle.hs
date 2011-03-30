@@ -22,7 +22,6 @@ where
 
 import Prelude hiding (log, catch)
 
-import Control.Applicative ((<$>))
 import Control.Arrow ((&&&))
 import Control.Exception
 import Control.Monad (when, forM)
@@ -43,7 +42,8 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 import Bustle.Util
-import Bustle.Stats
+import Bustle.Stats -- FIXME: ideally StatisticsPane would deal with this
+import Bustle.StatisticsPane
 
 import System.Glib.GError (GError(..), catchGError)
 
@@ -55,8 +55,6 @@ import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 import System.Process (runProcess)
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
-
-import Text.Printf
 
 type B a = Bustle BConfig BState a
 
@@ -204,124 +202,6 @@ maybeQuit :: B ()
 maybeQuit = do
   n <- decWindows
   when (n == 0) (io mainQuit)
-
-addTextRenderer :: TreeViewColumn
-                -> ListStore a
-                -> Bool
-                -> (a -> String)
-                -> IO CellRendererText
-addTextRenderer col store expand f = do
-    renderer <- cellRendererTextNew
-    cellLayoutPackStart col renderer expand
-    set renderer [ cellTextSizePoints := 7 ]
-    cellLayoutSetAttributes col renderer store $ \x -> [ cellTextMarkup := Just $ f x ]
-    return renderer
-
-addMemberRenderer :: TreeViewColumn
-                  -> ListStore a
-                  -> Bool
-                  -> (a -> String)
-                  -> IO CellRendererText
-addMemberRenderer col store expand f = do
-    renderer <- addTextRenderer col store expand f
-    set renderer [ cellTextEllipsize := EllipsizeStart
-                 , cellTextEllipsizeSet := True
-                 , cellXAlign := 1
-                 , cellTextWidthChars := 30
-                 ]
-    return renderer
-
-newCountView :: Maybe Pixbuf
-             -> Maybe Pixbuf
-             -> IO (ListStore FrequencyInfo, TreeView)
-newCountView method signal = do
-  countStore <- listStoreNew []
-  countView <- treeViewNewWithModel countStore
-
-  set countView [ treeViewHeadersVisible := False ]
-
-  nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Name"
-  set nameColumn [ treeViewColumnResizable := True
-                 , treeViewColumnExpand := True
-                 ]
-
-  -- If we managed to load the method and signal icons...
-  case (method, signal) of
-      (Just m, Just s) -> do
-          typeRenderer <- cellRendererPixbufNew
-          cellLayoutPackStart nameColumn typeRenderer False
-          cellLayoutSetAttributes nameColumn typeRenderer countStore $
-              \fi ->
-                  [ cellPixbuf := case fiType fi of
-                                      TallyMethod -> m
-                                      TallySignal -> s
-                  ]
-      _ -> return ()
-
-  addMemberRenderer nameColumn countStore True $ \fi ->
-      fiInterface fi ++ "<b>" ++ fiMember fi ++ "</b>"
-  treeViewAppendColumn countView nameColumn
-
-  countColumn <- treeViewColumnNew
-  treeViewColumnSetTitle countColumn "Frequency"
-  treeViewColumnSetMinWidth countColumn 120
-
-  -- Using a progress bar here is not really ideal, but I CBA to do anything
-  -- more auspicious right now. :)
-  countBar <- cellRendererProgressNew
-  cellLayoutPackStart countColumn countBar True
-  cellLayoutSetAttributes countColumn countBar countStore $
-      \(FrequencyInfo {fiFrequency = count}) ->
-      [ cellProgressValue :=> do
-          upperBound <- maximum . map fiFrequency <$>
-                        listStoreToList countStore
-          -- ensure that we always show *something*
-          return $ 2 + (count * 98 `div` upperBound)
-      , cellProgressText := Just $ show count
-      ]
-
-  treeViewAppendColumn countView countColumn
-
-  return (countStore, countView)
-
-addStatColumn :: TreeView
-              -> ListStore a
-              -> String
-              -> (a -> String)
-              -> IO ()
-addStatColumn view store title f = do
-    col <- treeViewColumnNew
-    treeViewColumnSetTitle col title
-    renderer <- addTextRenderer col store True f
-    set renderer [ cellXAlign := 1 ]
-    treeViewAppendColumn view col
-    return ()
-
-newTimeView :: IO (ListStore TimeInfo, TreeView)
-newTimeView = do
-  timeStore <- listStoreNew []
-  timeView <- treeViewNewWithModel timeStore
-
-  set timeView [ treeViewHeadersVisible := True ]
-
-  nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Method"
-  set nameColumn [ treeViewColumnResizable := True
-                 , treeViewColumnExpand := True
-                 ]
-
-  addMemberRenderer nameColumn timeStore True $ \ti ->
-      tiInterface ti ++ "<b>" ++ tiMethodName ti ++ "</b>"
-  treeViewAppendColumn timeView nameColumn
-
-  addStatColumn timeView timeStore "Total time"
-                (printf "%.3f" . tiTotalTime)
-  addStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
-  addStatColumn timeView timeStore "Mean time"
-                (printf "%.3f" . tiMeanCallTime)
-
-  return (timeStore, timeView)
 
 emptyWindow :: B WindowInfo
 emptyWindow = do

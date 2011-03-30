@@ -25,7 +25,8 @@ Flag PostCabalizedGtk2HS
 Executable bustle
   Main-is:        Bustle.hs
   Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer,
-                  Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util
+                  Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util,
+                  Bustle.StatisticsPane
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)
