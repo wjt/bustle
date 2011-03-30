@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# LANGUAGE ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main (main)
 where
 
@@ -149,11 +149,9 @@ displayError title body = do
   dialog `afterResponse` \_ -> widgetDestroy dialog
   widgetShowAll dialog
 
--- This needs FlexibleInstances and I don't know why. It's also an orphan
--- instance, which is distressing.
-instance Error (String, String) where
-    strMsg s = ("", s)
-    noMsg = ("", "")
+data LoadError = LoadError FilePath String
+instance Error LoadError where
+    strMsg = LoadError ""
 
 loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
             -> FilePath       -- ^ a log file to load and display
@@ -178,13 +176,14 @@ loadLogWith getWindow session maybeSystem = do
                           sessionMessages systemMessages
 
     case ret of
-      Left (f, e) -> io $ displayError ("Could not read '" ++ f ++ "'") e
+      Left (LoadError f e) -> io $
+          displayError ("Could not read '" ++ f ++ "'") e
       Right () -> return ()
 
   where readLogFile f = do
-            input <- handleIOExceptions (\e -> (f, show e)) $ readFile f
-            toErrorT (\e -> (f, "Parse error " ++ show e)) $ readLog input
-
+            input <- handleIOExceptions (LoadError f . show) $ readFile f
+            toErrorT (\e -> LoadError f ("Parse error " ++ show e)) $
+                readLog input
 
 maybeQuit :: B ()
 maybeQuit = do
