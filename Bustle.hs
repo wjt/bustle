@@ -213,7 +213,8 @@ addTextRenderer :: TreeViewColumn
 addTextRenderer col store expand f = do
     renderer <- cellRendererTextNew
     cellLayoutPackStart col renderer expand
-    cellLayoutSetAttributes col renderer store $ \x -> [ cellText := f x ]
+    set renderer [ cellTextSizePoints := 7 ]
+    cellLayoutSetAttributes col renderer store $ \x -> [ cellTextMarkup := Just $ f x ]
     return renderer
 
 addMemberRenderer :: TreeViewColumn
@@ -226,7 +227,7 @@ addMemberRenderer col store expand f = do
     set renderer [ cellTextEllipsize := EllipsizeStart
                  , cellTextEllipsizeSet := True
                  , cellXAlign := 1
-                 , cellTextWidthChars := 40
+                 , cellTextWidthChars := 30
                  ]
     return renderer
 
@@ -258,11 +259,13 @@ newCountView method signal = do
                   ]
       _ -> return ()
 
-  addMemberRenderer nameColumn countStore True fiMember
+  addMemberRenderer nameColumn countStore True $ \fi ->
+      fiInterface fi ++ "<b>" ++ fiMember fi ++ "</b>"
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
   treeViewColumnSetTitle countColumn "Frequency"
+  treeViewColumnSetMinWidth countColumn 120
 
   -- Using a progress bar here is not really ideal, but I CBA to do anything
   -- more auspicious right now. :)
@@ -307,7 +310,8 @@ newTimeView = do
                  , treeViewColumnExpand := True
                  ]
 
-  addMemberRenderer nameColumn timeStore True tiMethodName
+  addMemberRenderer nameColumn timeStore True $ \ti ->
+      tiInterface ti ++ "<b>" ++ tiMethodName ti ++ "</b>"
   treeViewAppendColumn timeView nameColumn
 
   addStatColumn timeView timeStore "Total time"
