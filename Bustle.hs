@@ -276,7 +276,8 @@ newCountView method signal = do
       [ cellProgressValue :=> do
           upperBound <- maximum . map fiFrequency <$>
                         listStoreToList countStore
-          return (count * 100 `div` upperBound)
+          -- ensure that we always show *something*
+          return $ 2 + (count * 98 `div` upperBound)
       , cellProgressText := Just $ show count
       ]
 
