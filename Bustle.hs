@@ -204,7 +204,7 @@ emptyWindow = do
   viewStatistics <- getW castToCheckMenuItem "statistics"
   layout <- getW castToLayout "diagramLayout"
   [nb, statsBook] <- mapM (getW castToNotebook)
-      ["notebook", "statsBook"]
+      ["diagramOrNot", "statsBook"]
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
