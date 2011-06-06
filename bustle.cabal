@@ -1,7 +1,7 @@
 Name:           bustle
 Category:       Network, Desktop
 Version:        0.2.3.1
-Cabal-Version:  >= 0.12
+Cabal-Version:  >= 1.6
 Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
 License:        OtherLicense
@@ -12,6 +12,10 @@ Data-files:     bustle.png, bustle.glade, LICENSE
 Build-type:     Simple
 Extra-source-files: bustle-dbus-monitor.c, Makefile, README, NEWS, HACKING,
                     run-uninstalled.sh
+
+Source-Repository head
+  Type:           git
+  Location:       git://anongit.freedesktop.org/bustle
 
 Flag PostCabalizedGtk2HS
   Description:    Build against recent gtk2hs, with reorganized packaging and
