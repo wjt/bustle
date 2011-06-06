@@ -1,7 +1,23 @@
-Bustle 0.2.4 (UNRELEASED)
+Bustle 0.2.4 (2011-06-06)
 =========================
 
-dot dot dot
+The “I think I'm a panda” release. There's just a few bits and pieces of
+clean-up along with a couple of bug fixes in this release. Hopefully
+there will be more interesting stuff in the next release.
+
+While we're here, Bustle's git repository has moved to freedesktop.org,
+and it now has a bug tracker there too. Browse the source at
+<http://cgit.freedesktop.org/bustle/>; see open bugs at
+<http://wjt.me.uk/bustle/bugs>; file new ones at
+<http://wjt.me.uk/bustle/new-bug>. Astonishing!
+
+Fixes:
+
+• The viewer is now much more tolerant of inconsistencies in log files.
+  (fd.o#35297; thanks to Marco Barisione for the report)
+
+• The linking order for bustle-dbus-monitor is fixed. (Sergei
+  Trofimovich)
 
 Bustle 0.2.3 (2010-10-29)
 =========================
