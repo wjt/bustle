@@ -1,7 +1,14 @@
-Bustle 0.2.5 (UNRELEASED)
+Bustle 0.2.5 (2011-06-25)
 =========================
 
-Blah blah.
+The “Why go all the way to Glastonbury to not watch U2 when you can just
+not turn on the BBC at any point this weekend to not watch them?”
+release.
+
+This adds a sidebar with statistics about the log: namely, method call
+and signal emission frequency, and total/mean times spent in method
+calls. This code has mostly been sitting around unreleased since
+November. Sorry, dear users!
 
 Bustle 0.2.4 (2011-06-06)
 =========================
