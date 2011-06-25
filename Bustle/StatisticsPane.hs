@@ -175,10 +175,10 @@ newTimeView = do
       tiInterface ti ++ "<b>" ++ tiMethodName ti ++ "</b>"
   treeViewAppendColumn timeView nameColumn
 
-  addStatColumn timeView timeStore "Total time"
-                (printf "%.3f" . tiTotalTime)
+  addStatColumn timeView timeStore "Total"
+                (printf "%.1f ms" . tiTotalTime)
   addStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
-  addStatColumn timeView timeStore "Mean time"
-                (printf "%.3f" . tiMeanCallTime)
+  addStatColumn timeView timeStore "Mean"
+                (printf "%.1f ms" . tiMeanCallTime)
 
   return (timeStore, timeView)
