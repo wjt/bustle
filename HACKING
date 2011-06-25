@@ -10,8 +10,6 @@ bugs on:
 Coding style: Haskell code must be '-Wall
 -fno-warn-unused-imports'-clean, and have pleasing layout.
 
-Patches, bugs, etc. etc. by email to the author.
-
 Hacking bustle-dbus-monitor.c is not advised. :)
 
 vim: tw=72
