@@ -228,16 +228,17 @@ emptyWindow = do
     hadj <- layoutGetHAdjustment layout
     vadj <- layoutGetVAdjustment layout
 
-    window `on` keyPressEvent $ tryEvent $ do
+    adjustmentSetStepIncrement hadj 30.0
+    adjustmentSetStepIncrement vadj 30.0
+
+    layout `on` keyPressEvent $ tryEvent $ do
       key <- eventKeyName
       case key of
         "Up"        -> io $ decStep vadj
         "Down"      -> io $ incStep vadj
         "Left"      -> io $ decStep hadj
         "Right"     -> io $ incStep hadj
-        "Page_Down" -> io $ incPage vadj
         "space"     -> io $ incPage vadj
-        "Page_Up"   -> io $ decPage vadj
         _           -> stopEvent
 
   -- Open two logs dialog
@@ -344,6 +345,7 @@ displayLog (WindowInfo { wiWindow = window
     layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
 
     notebookSetCurrentPage nb 1
+    layout `set` [ widgetIsFocus := True ]
 
     -- Shift to make the timestamp column visible
     hadj <- layoutGetHAdjustment layout
@@ -388,11 +390,11 @@ update layout shapes showBounds = do
 
 -- Add/remove one step/page increment from an Adjustment, limited to the top of
 -- the last page.
-incStep, decStep, incPage, decPage :: Adjustment -> IO ()
+incStep, decStep, incPage{-, decPage -} :: Adjustment -> IO ()
 incStep = incdec (+) adjustmentGetStepIncrement
 decStep = incdec (-) adjustmentGetStepIncrement
 incPage = incdec (+) adjustmentGetPageIncrement
-decPage = incdec (-) adjustmentGetPageIncrement
+--decPage = incdec (-) adjustmentGetPageIncrement
 
 incdec :: (Double -> Double -> Double) -- How to combine the increment
        -> (Adjustment -> IO Double)    -- Action to discover the increment

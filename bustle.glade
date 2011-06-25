@@ -206,6 +206,7 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                     <child>
                       <widget class="GtkLayout" id="diagramLayout">
                         <property name="visible">True</property>
+                        <property name="can_focus">True</property>
                       </widget>
                     </child>
                   </widget>
