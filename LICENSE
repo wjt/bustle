@@ -1,7 +1,14 @@
 The majority of this project is licensed under the GNU LGPL Version
-2.1 or (at your option) any later version.  bustle-dbus-monitor.c was
-taken from dbus-1.2.1 and is licensed under the GNU GPL Version 2 or
+2.1 or (at your option) any later version.
+
+bustle-dbus-monitor.c was taken from dbus-1.2.1 and is licensed under
+the GNU GPL Version 2 or (at your option) any later version.
+
+dfeet-method.png and dfeet-signal.png were, as their names suggest,
+taken from D-Feet, and are also licensed under the GNU GPL Version 2 or
 (at your option) any later version.
+
+Both relevant licenses follow.
 
 ---
 
