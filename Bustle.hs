@@ -40,6 +40,7 @@ import Bustle.Diagram
 import Bustle.Upgrade (upgrade)
 import Bustle.Util
 import Bustle.StatisticsPane
+import Bustle.Pcap
 
 import System.Glib.GError (GError(..), catchGError)
 
@@ -181,9 +182,13 @@ loadLogWith getWindow session maybeSystem = do
       Right () -> return ()
 
   where readLogFile f = do
-            input <- handleIOExceptions (LoadError f . show) $ readFile f
-            toErrorT (\e -> LoadError f ("Parse error " ++ show e)) $
-                readLog input
+            pcapResult <- io $ readPcap f
+            case pcapResult of
+                Right ms -> return ms
+                Left _ -> do
+                    input <- handleIOExceptions (LoadError f . show) $ readFile f
+                    toErrorT (\e -> LoadError f ("Parse error " ++ show e)) $
+                        readLog input
 
 maybeQuit :: B ()
 maybeQuit = do

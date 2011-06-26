@@ -27,18 +27,18 @@ Executable bustle
   Main-is:        Bustle.hs
   Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer,
                   Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util,
-                  Bustle.StatisticsPane, Bustle.Markup
+                  Bustle.StatisticsPane, Bustle.Markup, Bustle.Pcap
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)
     -- Since gtk2hs 0.11, pango is a separate package, and its module names
     -- have changed.
     Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process,
+                    filepath, process, binary, bytestring, text, dbus-core, pcap,
                     gtk > 0.11, glade, pango, glib, cairo
   else
     Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process,
+                    filepath, process, binary, bytestring, text, dbus-core, pcap,
                     gtk > 0.10 && < 0.11, glade, pango, glib, cairo
 
 Executable bustle-count
