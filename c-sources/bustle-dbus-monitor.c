@@ -336,11 +336,15 @@ main (int argc, char *argv[])
       else if (arg[0] == '-')
 	usage (argv[0], 1);
       else {
-	numFilters++;
-       filters = (char **)realloc(filters, numFilters * sizeof(char *));
-	filters[j] = (char *)malloc((strlen(arg) + 1) * sizeof(char *));
-	snprintf(filters[j], strlen(arg) + 1, "%s", arg);
-	j++;
+          numFilters++;
+          filters = (char **) realloc (filters, numFilters * sizeof (char *));
+          if (filters == NULL)
+            oom ("(re)creating filter slots");
+          filters[j] = (char *) malloc ((strlen (arg) + 1) * sizeof (char *));
+          if (filters[j] == NULL)
+            oom ("creating filter");
+          snprintf (filters[j], strlen(arg) + 1, "%s", arg);
+          j++;
       }
     }
 
