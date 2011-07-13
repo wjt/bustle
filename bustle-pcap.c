@@ -82,10 +82,20 @@ filter (
     gpointer user_data)
 {
   GAsyncQueue *message_queue = user_data;
+  const gchar *dest;
   Message m;
   GError *error = NULL;
 
   gettimeofday (&m.ts, NULL);
+
+  dest = g_dbus_message_get_destination (message);
+
+  if (g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
+    {
+      /* This messages is actually for us, as opposed to being eavesdropped. */
+      return message;
+    }
+
   m.blob = g_dbus_message_to_blob (message, &m.size, caps, &error);
   DIE_IF_NULL (m.blob, "Couldn't marshal message: %s", error->message);
   g_async_queue_push (message_queue, g_slice_dup (Message, &m));
@@ -126,7 +136,7 @@ let_me_quit (GMainLoop *loop)
 }
 
 static void
-match_everything (GDBusConnection *connection)
+match_everything (GDBusProxy *bus)
 {
   char *rules[] = {
       "type='signal'",
@@ -137,16 +147,6 @@ match_everything (GDBusConnection *connection)
   };
   char **r;
   GError *error = NULL;
-  GDBusProxy *bus = g_dbus_proxy_new_sync (connection,
-      G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
-      G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-      NULL,
-      "org.freedesktop.DBus",
-      "/org/freedesktop/DBus",
-      "org.freedesktop.DBus",
-      NULL,
-      &error);
-  DIE_IF_NULL (bus, "Couldn't construct bus proxy: %s\n", error->message);
 
   for (r = rules; *r != NULL; r++)
     {
@@ -171,6 +171,7 @@ main (
 {
   GMainLoop *loop;
   GDBusConnection *connection;
+  GDBusProxy *bus;
   GThread *thread;
   ThreadData td;
   pcap_t *p;
@@ -202,11 +203,24 @@ main (
       error->message);
 
   caps = g_dbus_connection_get_capabilities (connection);
-  match_everything (connection);
+  bus = g_dbus_proxy_new_sync (connection,
+      G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
+      G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+      NULL,
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      NULL,
+      &error);
+  DIE_IF_NULL (bus, "Couldn't construct bus proxy: %s\n", error->message);
+  match_everything (bus);
 
   filter_id = g_dbus_connection_add_filter (connection, filter,
       g_async_queue_ref (td.message_queue),
       (GDestroyNotify) g_async_queue_unref);
+
+  g_dbus_proxy_call (bus, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+      list_names_cb, NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
   let_me_quit (loop);
