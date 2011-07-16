@@ -26,10 +26,12 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (forM_)
 import Text.Printf
-import Graphics.UI.Gtk
+import Graphics.UI.Gtk hiding (Markup)
 import Graphics.UI.Gtk.Glade
 import Bustle.Stats
 import Bustle.Types (Log)
+import qualified Bustle.Markup as Markup
+import Bustle.Markup (Markup)
 
 data StatsPane =
     StatsPane { spCountStore :: ListStore FrequencyInfo
@@ -67,20 +69,20 @@ statsPaneSetMessages sp sessionMessages systemMessages = do
 addTextRenderer :: TreeViewColumn
                 -> ListStore a
                 -> Bool
-                -> (a -> String)
+                -> (a -> Markup)
                 -> IO CellRendererText
 addTextRenderer col store expand f = do
     renderer <- cellRendererTextNew
     cellLayoutPackStart col renderer expand
     set renderer [ cellTextSizePoints := 7 ]
     cellLayoutSetAttributes col renderer store $ \x ->
-        [ cellTextMarkup := Just $ f x ]
+        [ cellTextMarkup := Just . Markup.unMarkup $ f x ]
     return renderer
 
 addMemberRenderer :: TreeViewColumn
                   -> ListStore a
                   -> Bool
-                  -> (a -> String)
+                  -> (a -> Markup)
                   -> IO CellRendererText
 addMemberRenderer col store expand f = do
     renderer <- addTextRenderer col store expand f
@@ -94,7 +96,7 @@ addMemberRenderer col store expand f = do
 addStatColumn :: TreeView
               -> ListStore a
               -> String
-              -> (a -> String)
+              -> (a -> Markup)
               -> IO ()
 addStatColumn view store title f = do
     col <- treeViewColumnNew
@@ -103,6 +105,14 @@ addStatColumn view store title f = do
     set renderer [ cellXAlign := 1 ]
     treeViewAppendColumn view col
     return ()
+
+addTextStatColumn :: TreeView
+                  -> ListStore a
+                  -> String
+                  -> (a -> String)
+                  -> IO ()
+addTextStatColumn view store title f =
+    addStatColumn view store title (Markup.escape . f)
 
 newCountView :: Maybe Pixbuf
              -> Maybe Pixbuf
@@ -133,7 +143,7 @@ newCountView method signal = do
       _ -> return ()
 
   addMemberRenderer nameColumn countStore True $ \fi ->
-      fiInterface fi ++ ".<b>" ++ fiMember fi ++ "</b>"
+      Markup.formatMember (fiInterface fi) (fiMember fi)
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
@@ -172,13 +182,13 @@ newTimeView = do
                  ]
 
   addMemberRenderer nameColumn timeStore True $ \ti ->
-      tiInterface ti ++ "<b>" ++ tiMethodName ti ++ "</b>"
+      Markup.formatMember (tiInterface ti) (tiMethodName ti)
   treeViewAppendColumn timeView nameColumn
 
-  addStatColumn timeView timeStore "Total"
+  addTextStatColumn timeView timeStore "Total"
                 (printf "%.1f ms" . tiTotalTime)
-  addStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
-  addStatColumn timeView timeStore "Mean"
+  addTextStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
+  addTextStatColumn timeView timeStore "Mean"
                 (printf "%.1f ms" . tiMeanCallTime)
 
   return (timeStore, timeView)

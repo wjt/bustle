@@ -385,13 +385,7 @@ memberName :: Message -> Bool -> Renderer ()
 memberName message isReturn = do
     current <- gets row
     let Member p i m = member message
-        meth = i ++ "." ++ (b m)
-
-    shape $ memberLabel (it p) (it meth) current
-  where it x | isReturn  = "<i>" ++ x ++ "</i>"
-             | otherwise = x
-        b x  | isReturn  = x
-             | otherwise = "<b>" ++ x ++ "</b>"
+    shape $ memberLabel p i m isReturn current
 
 relativeTimestamp :: Message -> Renderer ()
 relativeTimestamp m = do

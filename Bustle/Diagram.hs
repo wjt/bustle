@@ -64,6 +64,9 @@ import Graphics.UI.Gtk.Pango.Layout
 import Graphics.UI.Gtk.Pango.Font
 #endif
 
+import qualified Bustle.Markup as Markup
+import Bustle.Markup (Markup)
+
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
 
@@ -92,7 +95,8 @@ data Colour = Colour Double Double Double
 data Shape = Header { strs :: [String]
                     , shapex, shapey :: Double
                     }
-           | MemberLabel { labelPath, labelMember :: String
+           | MemberLabel { labelPath, labelInterface, labelMember :: String
+                         , shapeIsReturn :: Bool
                          , shapex :: Double -- The coordinates of the *centre*
                          , shapey :: Double -- of the label
                          }
@@ -115,8 +119,13 @@ data Shape = Header { strs :: [String]
 
 -- Smart constructors for TimestampLabel and MemberLabel that fill in the
 -- hardcoded (spit) x coordinates.
-memberLabel :: String -> String -> Double -> Shape
-memberLabel p m y = MemberLabel p m memberx y
+memberLabel :: String -- ^ object path
+            -> String -- ^ interface
+            -> String -- ^ method name
+            -> Bool   -- ^ True if this is a return; False if it's a call
+            -> Double -- ^ y-coordinate
+            -> Shape
+memberLabel p i m isReturn y = MemberLabel p i m isReturn memberx y
 
 timestampLabel :: String -> Double -> Shape
 timestampLabel s y = TimestampLabel s timestampx y
@@ -219,7 +228,7 @@ bounds s = case s of
        -- FIXME: magic 5 makes the bounding box include the text
     in (min x1 cx, y1, max x2 dx, y2 + 5)
   TimestampLabel { shapex=x, shapey=y } -> fromCentre x y timestampWidth
-  MemberLabel _ _ x y -> fromCentre x y memberWidth
+  MemberLabel { shapex=x, shapey=y } -> fromCentre x y memberWidth
   Header { strs = ss, shapex = x, shapey = y} ->
     let width = columnWidth
         height = headerHeight ss
@@ -320,7 +329,9 @@ draw s = draw' s
                         shapex2 <*> shapey
           Header {} -> drawHeader <$> strs <*> shapex <*> shapey
           MemberLabel {} -> drawMember <$> labelPath
+                                       <*> labelInterface
                                        <*> labelMember
+                                       <*> shapeIsReturn
                                        <*> shapex
                                        <*> shapey
           TimestampLabel {} -> drawTimestamp <$> str
@@ -383,7 +394,7 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = saved $ do
     stroke
 
     setSourceRGB 0 0 0
-    l <- mkLayout cap EllipsizeNone AlignLeft
+    l <- mkLayout (Markup.escape cap) EllipsizeNone AlignLeft
     (PangoRectangle _ _ textWidth _, _) <- liftIO $ layoutGetExtents l
     let tx = min x2 dx + abs (x2 - dx) / 2
     moveTo (if x1 > cx then tx - textWidth else tx) (y2 - 5)
@@ -397,12 +408,12 @@ font = do
     return fd
 
 mkLayout :: (MonadIO m)
-         => String -> EllipsizeMode -> LayoutAlignment
+         => Markup -> EllipsizeMode -> LayoutAlignment
          -> m PangoLayout
 mkLayout s e a = liftIO $ do
     ctx <- cairoCreateContext Nothing
     layout <- layoutEmpty ctx
-    layoutSetMarkup layout s
+    layoutSetMarkup layout (Markup.unMarkup s)
     layoutSetFontDescription layout . Just =<< font
     layoutSetEllipsize layout e
     layoutSetAlignment layout a
@@ -416,23 +427,29 @@ withWidth m w = do
 
 drawHeader :: [String] -> Double -> Double -> Render ()
 drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
-    l <- mkLayout name EllipsizeEnd AlignCenter `withWidth` columnWidth
+    l <- mkLayout (Markup.escape name) EllipsizeEnd AlignCenter `withWidth` columnWidth
     moveTo (x - (columnWidth / 2)) (y + i * h)
     showLayout l
   where h = 10
 
-drawMember :: String -> String -> Double -> Double -> Render ()
-drawMember s1 s2 x y = dm s1 (y - 10) >> dm s2 y
+drawMember :: String -> String -> String -> Bool -> Double -> Double -> Render ()
+drawMember p i m isReturn x y = do
+    drawOne path (y - 10)
+    drawOne fullMethod y
   where
-    dm s y' = do
-      l <- mkLayout s EllipsizeStart AlignLeft `withWidth` memberWidth
+    drawOne markup y' = do
+      l <- mkLayout markup EllipsizeStart AlignLeft `withWidth` memberWidth
       moveTo (x - memberWidth / 2) y'
       showLayout l
+
+    path = (if isReturn then id else Markup.b) $ Markup.escape p
+    fullMethod =
+        (if isReturn then Markup.i else id) $ Markup.formatMember i m
 
 drawTimestamp :: String -> Double -> Double -> Render ()
 drawTimestamp ts x y = do
     moveTo (x - timestampWidth / 2) (y - 10)
-    showLayout =<< mkLayout ts EllipsizeNone AlignLeft `withWidth` timestampWidth
+    showLayout =<< mkLayout (Markup.escape ts) EllipsizeNone AlignLeft `withWidth` timestampWidth
 
 drawClientLine :: Double -> Double -> Double -> Render ()
 drawClientLine x y1 y2 = saved $ do
