@@ -67,6 +67,15 @@ gettimeofday (struct timeval *__p,
 #define PROFILE_TIMED_FORMAT "%s\t%lu\t%lu"
 #define TRAP_NULL_STRING(str) ((str) ? (str) : "<none>")
 
+#define EAVESDROPPING_RULE "eavesdrop=true"
+
+inline static void
+oom (const char *doing)
+{
+    fprintf (stderr, "OOM while %s\n", doing);
+      exit (1);
+}
+
 static void
 print_name_owner_changed (struct timeval *t,
     const char *name,
@@ -308,6 +317,90 @@ get_well_known_names (DBusConnection *connection)
 }
 
 
+typedef enum {
+    FEATURE_UNKNOWN = 0,
+    FEATURE_PRESENT,
+    FEATURE_NOT_PRESENT
+} FeatureDetected;
+
+char *prepend_eavesdrop_keyword (const char *filter)
+{
+  unsigned int eavesdrop_filter_len;
+  char *new_filter;
+
+  eavesdrop_filter_len = strlen (EAVESDROPPING_RULE) + 1 + \
+                         strlen (filter) + 1;
+
+  new_filter = malloc (eavesdrop_filter_len * sizeof(char *));
+  if (new_filter == NULL)
+    oom ("creating rule with eavesdrop=true prepended");
+
+  snprintf(new_filter, eavesdrop_filter_len, "%s,%s",
+      EAVESDROPPING_RULE, filter);
+
+  return new_filter;
+}
+
+/* check support for eavesdrop=true in filter and use the the right filter
+ * rules set according on whether the feature is supported */
+void bustle_bus_add_match (DBusConnection *connection,
+    const char *filter,
+    DBusError *error)
+{
+  static FeatureDetected feat_detected = FEATURE_UNKNOWN;
+
+  if (feat_detected == FEATURE_PRESENT)
+    {
+      /* silently prepend eavesdrop=true keyword to user rule, it doesn't
+       * matter if user has added it in @filter also, while it will be
+       * disabled if he/she added eavesdrop=false */
+      char *tmp_filter;
+      
+      tmp_filter = prepend_eavesdrop_keyword (filter);
+      dbus_bus_add_match (connection, tmp_filter, error);
+
+      free (tmp_filter);
+    }
+  else if (feat_detected == FEATURE_NOT_PRESENT)
+    {
+      /* do not touch anything */
+      dbus_bus_add_match (connection, filter, error);
+    }
+  else /* FEATURE_UNKNOWN -> yet to discover */
+    {
+      char *tmp_filter;
+
+      tmp_filter = prepend_eavesdrop_keyword (filter);
+      dbus_bus_add_match (connection, tmp_filter, error);
+      if (dbus_error_is_set (error) &&
+          strcmp (error->name, DBUS_ERROR_MATCH_RULE_INVALID) == 0)
+        {
+          dbus_error_free (error);
+
+          /* using a dbus version witout this feature, too bad, but still OK */
+          feat_detected = FEATURE_NOT_PRESENT;
+          /* re-call myself, now I know what to do (unless the user's rule is
+           * malformed) */
+          bustle_bus_add_match (connection, filter, error);
+          if (dbus_error_is_set (error))
+            /* probably the filter is malformed, rollback to UKNOWN and pass
+             * the error to the caller */
+            feat_detected = FEATURE_UNKNOWN;
+        }
+      else if (!dbus_error_is_set (error)) /* we support it! */
+        {
+          feat_detected = FEATURE_PRESENT;
+        }
+
+      /* the case when @error is set but it's not
+       * DBUS_ERROR_MATCH_RULE_INVALID is left to be handled by the caller, we
+       * cannot take a decision under this situation. leaving feat_detected
+       * untouched and passing the error to the user*/
+
+      free (tmp_filter);
+    }
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -365,7 +458,7 @@ main (int argc, char *argv[])
     {
       for (i = 0; i < j; i++)
         {
-          dbus_bus_add_match (connection, filters[i], &error);
+          bustle_bus_add_match (connection, filters[i], &error);
           if (dbus_error_is_set (&error))
             {
               fprintf (stderr, "Failed to setup match \"%s\": %s\n",
@@ -378,22 +471,22 @@ main (int argc, char *argv[])
     }
   else
     {
-      dbus_bus_add_match (connection,
+      bustle_bus_add_match (connection,
 		          "type='signal'",
 		          &error);
       if (dbus_error_is_set (&error))
         goto lose;
-      dbus_bus_add_match (connection,
+      bustle_bus_add_match (connection,
 		          "type='method_call'",
 		          &error);
       if (dbus_error_is_set (&error))
         goto lose;
-      dbus_bus_add_match (connection,
+      bustle_bus_add_match (connection,
 		          "type='method_return'",
 		          &error);
       if (dbus_error_is_set (&error))
         goto lose;
-      dbus_bus_add_match (connection,
+      bustle_bus_add_match (connection,
 		          "type='error'",
 		          &error);
       if (dbus_error_is_set (&error))
