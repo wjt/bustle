@@ -466,8 +466,9 @@ main (int argc, char *argv[])
               dbus_error_free (&error);
               exit (1);
             }
-	  free(filters[i]);
+          free(filters[i]);
         }
+      free (filters);
     }
   else
     {
