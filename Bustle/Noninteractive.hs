@@ -1,10 +1,14 @@
-module Bustle.Noninteractive (run)
+module Bustle.Noninteractive
+  ( run
+  , formatInterface
+  )
 where
 
 import Prelude hiding (log)
 
 import System
 import System.IO (hPutStrLn, stderr)
+import Data.Maybe (fromMaybe)
 
 import Bustle.Parser (readLog)
 import Bustle.Types
@@ -34,3 +38,6 @@ run appName analyze format = do
                                                    , " foo.bustle"
                                                    ]
                          exitFailure
+
+formatInterface :: Maybe String -> String
+formatInterface = fromMaybe "(no interface)"

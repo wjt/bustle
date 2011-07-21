@@ -95,7 +95,9 @@ data Colour = Colour Double Double Double
 data Shape = Header { strs :: [String]
                     , shapex, shapey :: Double
                     }
-           | MemberLabel { labelPath, labelInterface, labelMember :: String
+           | MemberLabel { labelPath :: String
+                         , labelInterface :: Maybe String
+                         , labelMember :: String
                          , shapeIsReturn :: Bool
                          , shapex :: Double -- The coordinates of the *centre*
                          , shapey :: Double -- of the label
@@ -120,7 +122,7 @@ data Shape = Header { strs :: [String]
 -- Smart constructors for TimestampLabel and MemberLabel that fill in the
 -- hardcoded (spit) x coordinates.
 memberLabel :: String -- ^ object path
-            -> String -- ^ interface
+            -> Maybe String -- ^ interface
             -> String -- ^ method name
             -> Bool   -- ^ True if this is a return; False if it's a call
             -> Double -- ^ y-coordinate
@@ -432,7 +434,7 @@ drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
     showLayout l
   where h = 10
 
-drawMember :: String -> String -> String -> Bool -> Double -> Double -> Render ()
+drawMember :: String -> Maybe String -> String -> Bool -> Double -> Double -> Render ()
 drawMember p i m isReturn x y = do
     drawOne path (y - 10)
     drawOne fullMethod y

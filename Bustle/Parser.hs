@@ -54,7 +54,10 @@ parseUniqueName = do
   <?> "unique name"
 
 parseOtherName :: Parser OtherName
-parseOtherName = fmap OtherName (none <|> nameChars) <?> "non-unique name"
+parseOtherName =
+    fmap OtherName ((none >> return "") <|> nameChars)
+  <?>
+    "non-unique name"
 
 parseBusName :: Parser BusName
 parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
@@ -70,13 +73,16 @@ parseTimestamp = do
     return (seconds * 1000000 + ms)
   where i = read <$> many1 digit <?> "timestamp"
 
-none :: Parser String
-none = string "<none>"
+none :: Parser (Maybe a)
+none = do
+    string "<none>"
+    return Nothing
+
 
 entireMember :: Parser Member
 entireMember = do
     let p = many1 (oneOf "/_" <|> alphaNum) <?> "path"
-        i = none <|> many1 (oneOf "._" <|> alphaNum) <?> "iface"
+        i = none <|> fmap Just (many1 (oneOf "._" <|> alphaNum)) <?> "iface"
         m = many1 (oneOf "_" <|> alphaNum) <?> "membername"
     Member <$> p <* t <*> i <* t <*> m
   <?> "member"
@@ -201,7 +207,8 @@ readLog filename = filter isRelevant <$> runParser events Map.empty "" filename
 
         -- When the monitor is forcibly disconnected from the bus, the
         -- Disconnected message has no sender, so the logger spits out <none>.
-        isDisconnected m = sender m == O (OtherName "<none>")
+        -- This gets turned into OtherName ""
+        isDisconnected m = sender m == O (OtherName "")
 
         -- Surely this function must have a standard name?
         none_ fs x = not $ any ($ x) fs

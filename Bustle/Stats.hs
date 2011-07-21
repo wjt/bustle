@@ -18,7 +18,7 @@ import Bustle.Types
 data TallyType = TallyMethod | TallySignal
     deriving (Eq, Ord, Show)
 
-repr :: Message -> Maybe (TallyType, String, String)
+repr :: Message -> Maybe (TallyType, Maybe Interface, MemberName)
 repr msg =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
@@ -28,8 +28,8 @@ repr msg =
 data FrequencyInfo =
     FrequencyInfo { fiFrequency :: Int
                   , fiType :: TallyType
-                  , fiInterface :: String
-                  , fiMember :: String
+                  , fiInterface :: Maybe Interface
+                  , fiMember :: MemberName
                   }
   deriving (Show, Eq, Ord)
 
@@ -50,8 +50,8 @@ mean = acc 0 0
          acc n t (x:xs) = acc (n + 1) (t + x) xs
 
 data TimeInfo =
-    TimeInfo { tiInterface :: String
-             , tiMethodName :: String
+    TimeInfo { tiInterface :: Maybe Interface
+             , tiMethodName :: MemberName
              , tiTotalTime :: Double -- seconds
              , tiCallFrequency :: Int
              , tiMeanCallTime :: Double -- seconds
@@ -69,6 +69,8 @@ methodTimes = reverse
           alt newtime (Just (total, times)) =
               Just (newtime + total, newtime : times)
 
+          methodReturn :: Message
+                       -> Maybe (Maybe Interface, MemberName, Integer)
           methodReturn (MethodReturn { timestamp = end,
                             inReplyTo = Just (MethodCall {
                                 timestamp = start, member = m }) }) =

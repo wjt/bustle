@@ -46,7 +46,7 @@ unBusName (O (OtherName  x)) = x
 type Milliseconds = Integer
 
 data Member = Member { path :: ObjectPath
-                     , iface :: Interface
+                     , iface :: Maybe Interface
                      , membername :: MemberName
                      }
   deriving (Ord, Show, Read, Eq)

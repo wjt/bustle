@@ -32,9 +32,13 @@ where
 import Data.Monoid
 
 #if MIN_VERSION_gtk(0,11,0)
+import Graphics.Rendering.Pango.BasicTypes (Weight(..))
 import Graphics.Rendering.Pango.Layout (escapeMarkup)
+import Graphics.Rendering.Pango.Markup (markSpan, SpanAttribute(..))
 #else
+import Graphics.UI.Gtk.Pango.BasicTypes (Weight(..))
 import Graphics.UI.Gtk.Pango.Layout (escapeMarkup)
+import Graphics.UI.Gtk.Pango.Markup (markSpan, SpanAttribute(..))
 #endif
 
 newtype Markup = Markup { unMarkup :: String }
@@ -59,11 +63,18 @@ b, i :: Markup -> Markup
 b = tag "b"
 i = tag "i"
 
+span_ :: [SpanAttribute] -> Markup -> Markup
+span_ attrs = Markup . markSpan attrs . unMarkup
+
+light :: Markup -> Markup
+light = span_ [FontWeight WeightLight]
+
 escape :: String -> Markup
 escape = Markup . escapeMarkup
 
-formatMember :: String -> String -> Markup
-formatMember iface member = mconcat [ escape iface
-                                    , escape "."
-                                    , b (escape member)
-                                    ]
+formatMember :: Maybe String -> String -> Markup
+formatMember iface member = iface' `mappend` b (escape member)
+  where
+    iface' = case iface of
+        Just ifaceName -> escape $ ifaceName ++ "."
+        Nothing        -> light (escape "(no interface) ")
