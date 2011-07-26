@@ -24,11 +24,11 @@
 #include <gio/gio.h>
 #include <gio/gunixinputstream.h>
 
-#define DIE_IF_NULL(_x, ...) \
+#define DIE_IF_NULL(_x, _fmt, ...) \
   G_STMT_START { \
     if (_x == NULL) \
       { \
-        fprintf (stderr, __VA_ARGS__); \
+        fprintf (stderr, _fmt "\n", ##__VA_ARGS__); \
         exit (1); \
       } \
   } G_STMT_END
@@ -158,7 +158,7 @@ match_everything (GDBusProxy *bus)
           -1,
           NULL,
           &error);
-      DIE_IF_NULL (ret, "Couldn't AddMatch(%s): %s\n", *r, error->message);
+      DIE_IF_NULL (ret, "Couldn't AddMatch(%s): %s", *r, error->message);
     }
 
   g_object_unref (bus);
@@ -182,7 +182,7 @@ main (
 
   if (argc != 2)
     {
-      fprintf (stderr, "Usage: bustle-pcap OUTPUT-FILE\n");
+      fprintf (stderr, "Usage: bustle-pcap OUTPUT-FILE");
       return 2;
     }
 
@@ -191,15 +191,15 @@ main (
   DIE_IF_NULL (p, "pcap_open_dead failed. wtf");
 
   td.dumper = pcap_dump_open (p, argv[1]);
-  DIE_IF_NULL (td.dumper, "Couldn't open pcap dump: %s\n", pcap_geterr (p));
+  DIE_IF_NULL (td.dumper, "Couldn't open pcap dump: %s", pcap_geterr (p));
 
   td.message_queue = g_async_queue_new ();
 
   thread = g_thread_create (log_thread, &td, TRUE, &error);
-  DIE_IF_NULL (thread, "Couldn't spawn logging thread: %s\n", error->message);
+  DIE_IF_NULL (thread, "Couldn't spawn logging thread: %s", error->message);
 
   connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
-  DIE_IF_NULL (connection, "Couldn't connect to session bus: %s\n",
+  DIE_IF_NULL (connection, "Couldn't connect to session bus: %s",
       error->message);
 
   caps = g_dbus_connection_get_capabilities (connection);
@@ -212,7 +212,7 @@ main (
       "org.freedesktop.DBus",
       NULL,
       &error);
-  DIE_IF_NULL (bus, "Couldn't construct bus proxy: %s\n", error->message);
+  DIE_IF_NULL (bus, "Couldn't construct bus proxy: %s", error->message);
   match_everything (bus);
 
   filter_id = g_dbus_connection_add_filter (connection, filter,
