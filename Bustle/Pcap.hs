@@ -88,7 +88,9 @@ isNOC (Just sender) s | looksLikeNOC =
 isNOC _ _ = Nothing
 
 
-bustlifyNOC :: B.Milliseconds -> (BusName, Maybe BusName, Maybe BusName) -> B.Message
+bustlifyNOC :: B.Milliseconds
+            -> (BusName, Maybe BusName, Maybe BusName)
+            -> B.Message
 bustlifyNOC ms ns@(name, oldOwner, newOwner)
     | isUnique name =
           case (oldOwner, newOwner) of
@@ -110,9 +112,12 @@ bustlifyNOC ms ns@(name, oldOwner, newOwner)
 
 bustlify :: B.Milliseconds
          -> ReceivedMessage
-         -> State PendingMessages B.Message
-bustlify ms m =
-    case m of
+         -> State PendingMessages B.DetailedMessage
+bustlify ms m = do
+    bm <- buildBustledMessage
+    return $ B.DetailedMessage bm (Just m)
+  where
+    buildBustledMessage = case m of
         (ReceivedMethodCall serial sender mc) -> do
             let call = B.MethodCall
                              { B.timestamp = ms
@@ -185,7 +190,7 @@ fromPacket hdr body =
 convert :: PktHdr
         -> BS.ByteString
         -> PendingMessages
-        -> Either String (B.Message, PendingMessages)
+        -> Either String (B.DetailedMessage, PendingMessages)
 convert hdr body s =
     case fromPacket hdr body of
         Left unmarshalError -> Left $ show unmarshalError
@@ -214,7 +219,7 @@ mapBodies p f s = do
                         Left e -> return $ Left e
                         Right as -> return $ Right (a:as)
 
-readPcap :: FilePath -> IO (Either IOError [B.Message])
+readPcap :: FilePath -> IO (Either IOError [B.DetailedMessage])
 readPcap path = try $ do
     p <- openOffline path
 

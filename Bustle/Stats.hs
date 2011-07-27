@@ -18,8 +18,9 @@ import Bustle.Types
 data TallyType = TallyMethod | TallySignal
     deriving (Eq, Ord, Show)
 
-repr :: Message -> Maybe (TallyType, Maybe Interface, MemberName)
-repr msg =
+repr :: DetailedMessage
+     -> Maybe (TallyType, Maybe Interface, MemberName)
+repr (DetailedMessage msg _) =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
         Signal     { member = m } -> Just (TallySignal, iface m, membername m)
@@ -57,14 +58,15 @@ data TimeInfo =
              , tiMeanCallTime :: Double -- seconds
              }
 
-methodTimes :: Log -> [TimeInfo]
+methodTimes :: Log
+            -> [TimeInfo]
 methodTimes = reverse
             . sortBy (comparing tiTotalTime)
             . map summarize
             . M.toList
             . foldr (\(i, method, time) ->
                         M.alter (alt time) (i, method)) M.empty
-            . mapMaybe methodReturn
+            . mapMaybe (methodReturn . dmMessage)
     where alt newtime Nothing = Just (newtime, [newtime])
           alt newtime (Just (total, times)) =
               Just (newtime + total, newtime : times)

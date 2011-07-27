@@ -9,8 +9,9 @@ import Prelude hiding (log)
 import System
 import System.IO (hPutStrLn, stderr)
 import Data.Maybe (fromMaybe)
+import Control.Monad.Error
 
-import Bustle.Parser (readLog)
+import Bustle.Loader
 import Bustle.Types
 
 warn :: String -> IO ()
@@ -18,14 +19,15 @@ warn = hPutStrLn stderr
 
 process :: FilePath -> (Log -> [a]) -> (a -> String) -> IO ()
 process filepath analyze format = do
-    input <- readFile filepath
-    case readLog input of
-        Left err -> do warn $ concat [ "Couldn't parse "
-                                     , filepath
-                                     , ": "
-                                     , show err
-                                     ]
-                       exitFailure
+    ret <- runErrorT $ readLog filepath
+    case ret of
+        Left (LoadError _ err) -> do
+            warn $ concat [ "Couldn't parse "
+                          , filepath
+                          , ": "
+                          , err
+                          ]
+            exitFailure
         Right log -> mapM_ (putStrLn . format) $ analyze log
 
 run :: String -> (Log -> [a]) -> (a -> String) -> IO ()

@@ -19,6 +19,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Bustle.Types where
 
 import Data.Word (Word32)
+import Data.Ord (comparing)
+import DBus.Message (ReceivedMessage)
 
 type ObjectPath = String
 type Interface = String
@@ -83,6 +85,15 @@ data Message = MethodCall { timestamp :: Milliseconds
                            }
   deriving (Show, Eq, Ord)
 
+data DetailedMessage =
+    DetailedMessage { dmMessage :: Message
+                    , dmDetails :: (Maybe ReceivedMessage)
+                    }
+  deriving (Show, Eq)
+
+instance Ord DetailedMessage where
+    compare (DetailedMessage x _) (DetailedMessage y _) = compare x y
+
 data Change = Claimed UniqueName
             | Stolen UniqueName UniqueName
             | Released UniqueName
@@ -94,6 +105,6 @@ isNameOwnerChanged (Disconnected {}) = True
 isNameOwnerChanged (NameChanged {}) = True
 isNameOwnerChanged _ = False
 
-type Log = [Message]
+type Log = [DetailedMessage]
 
 -- vim: sw=2 sts=2

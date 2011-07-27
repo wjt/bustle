@@ -53,43 +53,60 @@ describeBus :: Bus -> String
 describeBus SessionBus = "session"
 describeBus SystemBus = "system"
 
-process :: [Message] -> [Message] -> ((Double, [Shape]), [String])
+process :: Log
+        -> Log
+        -> ((Double, [Shape]), [(Rect, DetailedMessage)], [String])
 process sessionBusLog systemBusLog =
-    (topLeftJustifyDiagram diagram, ws)
+    (topLeftJustifyDiagram diagram, messageRegions, ws)
   where
-        (diagram, ws) = runRenderer (mapM_ (uncurry munge) log')
+        ((diagram, messageRegions), ws) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)
 
         log' = combine sessionBusLog systemBusLog
 
-        initTime = case dropWhile (== 0) (map (timestamp . snd) log') of
+        timestamps = map (timestamp . dmMessage . snd) log'
+        initTime = case dropWhile (== 0) timestamps of
             t:_ -> t
             _   -> 0
 
 -- Combines a series of messages on the session bus and system bus into a
 -- single ordered list, annotated by timestamp. Assumes both the source lists
 -- are sorted.
-combine :: [Message] -- ^ session bus messages
-        -> [Message] -- ^ system bus messages
-        -> [(Bus, Message)]
+combine :: Log -- ^ session bus messages
+        -> Log -- ^ system bus messages
+        -> [(Bus, DetailedMessage)]
 combine [] [] = []
 combine xs [] = zip (repeat SessionBus) xs
 combine [] ys = zip (repeat SystemBus) ys
 combine xs@(x:xs') ys@(y:ys') =
-    if timestamp x < timestamp y
+    if timestamp (dmMessage x) < timestamp (dmMessage y)
         then (SessionBus, x):combine xs' ys
         else (SystemBus, y):combine xs ys'
 
-newtype Renderer a = Renderer (WriterT [Shape]
-                                (StateT RendererState Identity)
-                                a)
-  deriving (Functor, Monad, MonadState RendererState, MonadWriter [Shape])
+newtype Renderer a = Renderer (WriterT ( [Shape]
+                                       , [(Rect, DetailedMessage)]
+                                       )
+                              (StateT (RendererState) Identity)
+                              a)
+  deriving ( Functor
+           , Monad
+           , MonadState (RendererState)
+           , MonadWriter ( [Shape]
+                         , [(Rect, DetailedMessage)]
+                         )
+           )
 
 instance Applicative Renderer where
     pure = return
     (<*>) = ap
 
-runRenderer :: Renderer () -> RendererState -> ([Shape], [String])
+runRenderer :: Renderer ()
+            -> RendererState
+            -> ( ( [Shape]
+                 , [(Rect, DetailedMessage)]
+                 )
+               , [String]
+               )
 runRenderer (Renderer act) st = runIdentity $ do
     (result, st') <- runStateT (execWriterT act) st
     return (result, reverse (warnings st'))
@@ -295,7 +312,10 @@ remOther bus n u = do
     return x
 
 shape :: Shape -> Renderer ()
-shape = tell . (:[])
+shape s = tell ([s], [])
+
+region :: Rect -> DetailedMessage -> Renderer ()
+region r m = tell ([], [(r, m)])
 
 warn :: String -> Renderer ()
 warn warning = modify $ \rs -> rs { warnings = warning:warnings rs }
@@ -320,6 +340,14 @@ findCallCoordinates bus = maybe (return Nothing) $ \m -> do
     modifyPending bus $ Map.delete m
     return $ fmap ((,) m) ret
 
+-- The adjustments here leave space for a new app's headers to be drawn
+-- without overlapping the rule.
+getLeftMargin, getRightMargin :: Renderer Double
+getLeftMargin =
+    maybe 0 (+ 35) <$> edgemostApp SystemBus
+getRightMargin =
+    maybe timestampAndMemberWidth (subtract 35) <$> edgemostApp SessionBus
+
 advanceBy :: Double -> Renderer ()
 advanceBy d = do
     lastLabelling <- gets mostRecentLabels
@@ -339,11 +367,8 @@ advanceBy d = do
     modify (\bs -> bs { row = row bs + d })
     next <- gets row
 
-    -- The adjustments here leave space for a new app's headers to be drawn
-    -- without overlapping the rule.
-    leftMargin <- maybe 0 (+ 35) <$> edgemostApp SystemBus
-    rightMargin <- maybe timestampAndMemberWidth (subtract 35)
-                   <$> edgemostApp SessionBus
+    leftMargin <- getLeftMargin
+    rightMargin <- getRightMargin
     shape $ Rule leftMargin rightMargin (current + 15)
 
     let appColumns :: Applications -> [Double]
@@ -406,13 +431,27 @@ returnArc bus mr callx cally duration = do
                 , caption = show (duration `div` 1000) ++ "ms"
                 }
 
-munge :: Bus -> Message -> Renderer ()
-munge bus m = case m of
+addMessageRegion :: DetailedMessage
+                 -> Renderer ()
+addMessageRegion m = do
+    newRow <- gets row
+
+    -- FIXME: wtf. "row" points to the ... middle ... of the current row.
+    leftMargin <- getLeftMargin
+    rightMargin <- getRightMargin
+    region (leftMargin, newRow - 15, rightMargin, newRow + 15) m
+
+munge :: Bus
+      -> DetailedMessage
+      -> Renderer ()
+munge bus dm@(DetailedMessage m _) =
+    case m of
         Signal {}       -> do
             advance
             relativeTimestamp m
             memberName m False
             signal bus m
+            addMessageRegion dm
 
         MethodCall {}   -> do
             advance
@@ -420,6 +459,7 @@ munge bus m = case m of
             memberName m False
             methodCall bus m
             addPending bus m
+            addMessageRegion dm
 
         MethodReturn {} -> returnOrError $ methodReturn bus
         Error {}        -> returnOrError $ errorReturn bus
@@ -442,6 +482,7 @@ munge bus m = case m of
                     f m
                     let duration = timestamp m - timestamp m'
                     returnArc bus m x y duration
+                    addMessageRegion dm
 
 methodCall, methodReturn, errorReturn :: Bus -> Message -> Renderer ()
 methodCall = methodLike Nothing Above

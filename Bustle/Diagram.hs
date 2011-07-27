@@ -43,10 +43,11 @@ module Bustle.Diagram
   , topLeftJustifyDiagram
   , drawDiagram
   , drawRegion
+  , findHit
   )
 where
 
-import Data.Maybe (maybe)
+import Data.Maybe (maybe, listToMaybe)
 import Data.List (unzip4)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
@@ -302,6 +303,17 @@ drawDiagram = drawDiagramInternal (const True)
 drawRegion :: Rect -> Bool -> Diagram -> Render ()
 drawRegion r = drawDiagramInternal isVisible
     where isVisible = intersects r . bounds
+
+findHit :: Point -> [(Rect, a)] -> Maybe a
+findHit (x, y) regions =
+    listToMaybe [ a
+                | ((x1, y1, x2, y2), a) <- regions
+                , and [ x1 <= x
+                      ,  x <= x2
+                      , y1 <= y
+                      ,  y <= y2
+                      ]
+                ]
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore

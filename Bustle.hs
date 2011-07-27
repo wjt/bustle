@@ -29,18 +29,17 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import Data.Maybe (isJust, isNothing, fromJust)
+import Data.List (intercalate)
 import Data.Version (showVersion)
 
 import Paths_bustle
 import Bustle.Application.Monad
-import Bustle.Parser
 import Bustle.Renderer (process)
 import Bustle.Types
 import Bustle.Diagram
-import Bustle.Upgrade (upgrade)
 import Bustle.Util
 import Bustle.StatisticsPane
-import Bustle.Pcap
+import Bustle.Loader
 
 import System.Glib.GError (GError(..), catchGError)
 
@@ -51,6 +50,8 @@ import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
 import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
+
+import qualified DBus.Message
 
 type B a = Bustle BConfig BState a
 
@@ -63,6 +64,7 @@ data WindowInfo =
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiLayout :: Layout
+               , wiMessageBodyView :: TextView
                }
 
 data BConfig =
@@ -150,10 +152,6 @@ displayError title body = do
   dialog `afterResponse` \_ -> widgetDestroy dialog
   widgetShowAll dialog
 
-data LoadError = LoadError FilePath String
-instance Error LoadError where
-    strMsg = LoadError ""
-
 loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
             -> FilePath       -- ^ a log file to load and display
             -> Maybe FilePath -- ^ an optional second log to show alongside the
@@ -161,34 +159,26 @@ loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) 
             -> B ()
 loadLogWith getWindow session maybeSystem = do
     ret <- runErrorT $ do
-        sessionMessages <- readLogFile session
+        sessionMessages <- readLog session
         systemMessages <- case maybeSystem of
-            Just system -> readLogFile system
+            Just system -> readLog system
             Nothing     -> return []
 
         -- FIXME: pass the log file name into the renderer
-        let ((xTranslation, shapes), ws) =
-                process (upgrade sessionMessages)
-                        (upgrade systemMessages)
+        let ((xTranslation, shapes), regions, ws) =
+                process sessionMessages systemMessages
         forM_ ws $ io . warn
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo session maybeSystem xTranslation shapes
-                          sessionMessages systemMessages
+                          sessionMessages
+                          systemMessages
+                          regions
 
     case ret of
       Left (LoadError f e) -> io $
           displayError ("Could not read '" ++ f ++ "'") e
       Right () -> return ()
-
-  where readLogFile f = do
-            pcapResult <- io $ readPcap f
-            case pcapResult of
-                Right ms -> return ms
-                Left _ -> do
-                    input <- handleIOExceptions (LoadError f . show) $ readFile f
-                    toErrorT (\e -> LoadError f ("Parse error " ++ show e)) $
-                        readLog input
 
 maybeQuit :: B ()
 maybeQuit = do
@@ -210,6 +200,7 @@ emptyWindow = do
   layout <- getW castToLayout "diagramLayout"
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
+  messageBodyView <- getW castToTextView "messageBodyView"
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
@@ -294,6 +285,8 @@ emptyWindow = do
   s <- asks signalIcon
   statsPane <- io $ statsPaneNew xml m s
 
+  io $ textViewSetWrapMode messageBodyView WrapWordChar
+
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiViewStatistics = viewStatistics
@@ -301,11 +294,21 @@ emptyWindow = do
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
                               , wiLayout = layout
+                              , wiMessageBodyView = messageBodyView
                               }
 
   incWindows
   io $ widgetShowAll window
   return windowInfo
+
+formatMessage :: DetailedMessage -> String
+formatMessage (DetailedMessage _ Nothing) =
+    "# No message body information is available. Please capture a fresh log\n\
+    \# using bustle-pcap if you need it!"
+formatMessage (DetailedMessage _ (Just rm)) =
+    formatArgs $ DBus.Message.receivedBody rm
+  where
+    formatArgs = intercalate "\n\n" . map show
 
 displayLog :: WindowInfo
            -> FilePath
@@ -314,6 +317,7 @@ displayLog :: WindowInfo
            -> Diagram
            -> Log
            -> Log
+           -> [(Rect, DetailedMessage)]
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
@@ -322,13 +326,15 @@ displayLog (WindowInfo { wiWindow = window
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
+                       , wiMessageBodyView = messageBodyView
                        })
            sessionPath
            maybeSystemPath
            xTranslation
            shapes
            sessionMessages
-           systemMessages = do
+           systemMessages
+           regions = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -348,6 +354,17 @@ displayLog (WindowInfo { wiWindow = window
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
     layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
+    layout `on` buttonPressEvent $ tryEvent $ do
+      LeftButton <- eventButton
+      point <- eventCoordinates
+
+      io $ do
+          buf <- textViewGetBuffer messageBodyView
+
+          textBufferSetText buf $
+              case findHit point regions of
+                  Nothing -> "(no message selected)"
+                  Just m -> formatMessage m
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]

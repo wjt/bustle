@@ -25,10 +25,15 @@ import qualified Data.Set as Set
 import Bustle.Types
 
 -- Bustle <0.2.0 did not log NameOwnerChanged; this adds fake ones to logs
--- lacking them.
-upgrade :: Log -> Log
-upgrade ms | any isNameOwnerChanged ms = ms
-           | otherwise = concat $ evalState (mapM synthesiseNOC ms) Set.empty
+-- lacking them, and and also swaddles old-style messages with new-style
+-- detailed wrappers (albeit without details).
+upgrade :: [Message] -> [DetailedMessage]
+upgrade ms = map (\m -> DetailedMessage m Nothing) withNOCs
+  where
+    withNOCs =
+        if any isNameOwnerChanged ms
+            then ms
+            else concat $ evalState (mapM synthesiseNOC ms) Set.empty
 
 synthesiseNOC :: Message -> State (Set BusName) [Message]
 synthesiseNOC m | isNameOwnerChanged m = error "guarded above"
