@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
 
-bustle_datadir="$(dirname ${0}})"
+root="$(dirname ${0}})"
+
+bustle_datadir="${root}"/data
 export bustle_datadir
 
-bustle="${bustle_datadir}"/dist/build/bustle/bustle
+bustle="${root}"/dist/build/bustle/bustle
 
 cabal build
 exec $bustle "${@}"
