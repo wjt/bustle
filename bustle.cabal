@@ -14,7 +14,12 @@ Data-files:     data/bustle.png,
                 data/bustle.glade,
                 LICENSE
 Build-type:     Simple
-Extra-source-files: bustle-dbus-monitor.c, Makefile, README, NEWS, HACKING,
+Extra-source-files: bustle-dbus-monitor.c,
+                    bustle-pcap.c,
+                    Makefile,
+                    README,
+                    NEWS,
+                    HACKING,
                     run-uninstalled.sh
 
 Source-Repository head
