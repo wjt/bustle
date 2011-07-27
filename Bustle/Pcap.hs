@@ -5,11 +5,12 @@ module Bustle.Pcap
 where
 
 import Data.Either (partitionEithers, either)
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe, catMaybes, fromJust)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Applicative ((<$>))
 import Control.Exception (try)
+import Control.Monad.State
 
 import Network.Pcap
 
@@ -47,23 +48,28 @@ convertMember getObjectPath getInterfaceName getMemberName m =
              (fmap (T.unpack . strInterfaceName) . getInterfaceName $ m)
              (T.unpack . strMemberName . getMemberName $ m)
 
-type PendingMessages = Map (B.BusName, B.Serial) B.Message
+type PendingMessages = Map (Maybe BusName, Serial) (MethodCall, B.Message)
 
-withInReplyTo :: PendingMessages
-              -> B.BusName
-              -> Serial
-              -> (Maybe B.Message -> a)
-              -> (PendingMessages, a)
-withInReplyTo pending name serial f =
-    (Map.delete key pending, f irt)
+popMatchingCall :: Maybe BusName
+                -> Serial
+                -> State PendingMessages (Maybe (MethodCall, B.Message))
+popMatchingCall name serial = do
+    ret <- tryPop (name, serial)
+    case (ret, name) of
+        -- If we don't get an answer, but we know a destination, this may be
+        -- because we didn't know the sender's bus name because it was the
+        -- logger itself. So try looking up pending replies whose sender is
+        -- Nothing.
+        (Nothing, Just _) -> tryPop (Nothing, serial)
+        _                 -> return ret
   where
-    key = (name, serialValue serial)
-    irt = Map.lookup key pending
+    tryPop key = do
+        call <- gets $ Map.lookup key
+        modify $ Map.delete key
+        return call
 
-insertPending :: PendingMessages -> B.Message -> (PendingMessages, B.Message)
-insertPending pending b = (pending', b)
-  where
-    pending' = Map.insert (B.sender b, B.serial b) b pending
+insertPending :: Maybe BusName -> Serial -> MethodCall -> B.Message -> State PendingMessages ()
+insertPending n s rawCall b = modify $ Map.insert (n, s) (rawCall, b)
 
 isNOC :: Maybe BusName -> Signal -> Maybe (BusName, Maybe BusName, Maybe BusName)
 isNOC (Just sender) s | looksLikeNOC =
@@ -102,42 +108,60 @@ bustlifyNOC ms ns@(name, oldOwner, newOwner)
     uniquify = B.UniqueName . T.unpack . strBusName
     otherify = B.OtherName . T.unpack . strBusName
 
-bustlify :: PendingMessages
-         -> B.Milliseconds
+bustlify :: B.Milliseconds
          -> ReceivedMessage
-         -> (PendingMessages, B.Message)
-bustlify pending ms m =
+         -> State PendingMessages B.Message
+bustlify ms m =
     case m of
-        (ReceivedMethodCall serial sender mc) ->
-            insertPending pending $
-                B.MethodCall { B.timestamp = ms
+        (ReceivedMethodCall serial sender mc) -> do
+            let call = B.MethodCall
+                             { B.timestamp = ms
                              , B.serial = serialValue serial
                              -- sender may be empty if it's us who sent it
                              , B.sender = convertBusName "method.call.sender" sender
                              , B.destination = convertBusName "method.call.destination" $ methodCallDestination mc
                              , B.member = convertMember methodCallPath methodCallInterface methodCallMember mc
                              }
-        (ReceivedMethodReturn _serial sender mr) ->
-            withInReplyTo pending (convertBusName "method.return.destination" $ methodReturnDestination mr) (methodReturnSerial mr) $ \irt ->
-                B.MethodReturn { B.timestamp = ms
-                               , B.inReplyTo = irt
+            insertPending sender serial mc call
+            return call
+
+        (ReceivedMethodReturn _serial sender mr) -> do
+            call <- popMatchingCall (methodReturnDestination mr) (methodReturnSerial mr)
+
+            return $ case call of
+                Just (rawCall, bustleCall)
+                    -- FIXME: obviously this should be more robust:
+                    --  • check that the service really is the bus daemon
+                    --  • don't crash if the body of the call or reply doesn't contain one bus name.
+                    | B.membername (B.member bustleCall) == "GetNameOwner"
+                        -> bustlifyNOC ms ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
+                                          , Nothing
+                                          , fromVariant $ (methodReturnBody mr !! 0)
+                                          )
+                _ -> B.MethodReturn
+                               { B.timestamp = ms
+                               , B.inReplyTo = fmap snd call
                                , B.sender = convertBusName "method.return.sender" sender
                                , B.destination = convertBusName "method.return.destination" $ methodReturnDestination mr
                                }
-        (ReceivedError _serial sender e) ->
-            withInReplyTo pending (convertBusName "method.error.destination" $ errorDestination e) (errorSerial e) $ \irt ->
-                B.Error { B.timestamp = ms
-                        , B.inReplyTo = irt
+
+        (ReceivedError _serial sender e) -> do
+            call <- popMatchingCall (errorDestination e) (errorSerial e)
+            return $ B.Error
+                        { B.timestamp = ms
+                        , B.inReplyTo = fmap snd call
                         , B.sender = convertBusName "method.error.sender" sender
                         , B.destination = convertBusName "method.error.destination" $ errorDestination e
                         }
+
         (ReceivedSignal _serial sender sig)
-            | Just names <- isNOC sender sig -> (pending, bustlifyNOC ms names)
-            | otherwise                      -> (pending,
+            | Just names <- isNOC sender sig -> return $ bustlifyNOC ms names
+            | otherwise                      -> return $
                 B.Signal { B.timestamp = ms
                          , B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
-                         })
+                         }
+
         (ReceivedUnknown _ _ _) -> error "wtf"
 
 -- This is stolen essentially verbatim from benchUnmarshal in dbus-core's
@@ -161,12 +185,14 @@ fromPacket hdr body =
 convert :: PktHdr
         -> BS.ByteString
         -> PendingMessages
-        -> Either String (PendingMessages, B.Message)
+        -> Either String (B.Message, PendingMessages)
 convert hdr body s =
-    either (Left . show) (Right . uncurry (bustlify s)) $ fromPacket hdr body
+    case fromPacket hdr body of
+        Left unmarshalError -> Left $ show unmarshalError
+        Right (ms, m)       -> Right $ runState (bustlify ms m) s
 
 mapBodies :: PcapHandle
-          -> (PktHdr -> BS.ByteString -> s -> Either e (s, a))
+          -> (PktHdr -> BS.ByteString -> s -> Either e (a, s))
           -> s
           -> IO (Either e [a])
 mapBodies p f s = do
@@ -182,7 +208,7 @@ mapBodies p f s = do
             let x = f hdr body s
             case x of
                 Left e -> return $ Left e
-                Right (s', a) -> do
+                Right (a, s') -> do
                     xs <- mapBodies p f s'
                     case xs of
                         Left e -> return $ Left e

@@ -78,7 +78,7 @@ GDBusMessage *
 filter (
     GDBusConnection *connection,
     GDBusMessage *message,
-    gboolean incoming,
+    gboolean is_incoming,
     gpointer user_data)
 {
   GAsyncQueue *message_queue = user_data;
@@ -87,22 +87,31 @@ filter (
   GError *error = NULL;
 
   gettimeofday (&m.ts, NULL);
-
-  dest = g_dbus_message_get_destination (message);
-
-  if (g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
-    {
-      /* This messages is actually for us, as opposed to being eavesdropped. */
-      return message;
-    }
-
   m.blob = g_dbus_message_to_blob (message, &m.size, caps, &error);
   DIE_IF_NULL (m.blob, "Couldn't marshal message: %s", error->message);
   g_async_queue_push (message_queue, g_slice_dup (Message, &m));
 
+  dest = g_dbus_message_get_destination (message);
+
+  g_print ("(%s) %s -> %s: %u %s\n",
+      is_incoming ? "incoming" : "outgoing",
+      g_dbus_message_get_sender (message),
+      dest,
+      g_dbus_message_get_message_type (message),
+      g_dbus_message_get_member (message));
+
+  if (!is_incoming ||
+      g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
+    {
+      /* This message is either outgoing or actually for us, as opposed to
+       * being eavesdropped. */
+      return message;
+    }
+
   /* We have to say we've handled the message, or else GDBus replies to other
    * people's method calls and we all get really confused.
    */
+  g_object_unref (message);
   return NULL;
 }
 
@@ -160,8 +169,42 @@ match_everything (GDBusProxy *bus)
           &error);
       DIE_IF_NULL (ret, "Couldn't AddMatch(%s): %s", *r, error->message);
     }
+}
 
-  g_object_unref (bus);
+static void
+list_all_names (
+    GDBusProxy *bus)
+{
+  GError *error = NULL;
+  GVariant *ret;
+  gchar **names;
+
+  g_assert (G_IS_DBUS_PROXY (bus));
+
+  ret = g_dbus_proxy_call_sync (bus, "ListNames", NULL,
+      G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+  DIE_IF_NULL (ret, "Couldn't ListNames: %s", error->message);
+
+  for (g_variant_get_child (ret, 0, "^a&s", &names);
+       *names != NULL;
+       names++)
+    {
+      gchar *name = *names;
+
+      if (!g_dbus_is_unique_name (name) &&
+          strcmp (name, "org.freedesktop.DBus") != 0)
+        {
+          GVariant *owner = g_dbus_proxy_call_sync (bus, "GetNameOwner",
+              g_variant_new ("(s)", name),
+              G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+
+          if (owner != NULL)
+            g_variant_unref (owner);
+          /* else they were too quick for us! */
+        }
+    }
+
+  g_variant_unref (ret);
 }
 
 int
@@ -219,8 +262,13 @@ main (
       g_async_queue_ref (td.message_queue),
       (GDestroyNotify) g_async_queue_unref);
 
-  g_dbus_proxy_call (bus, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL,
-      list_names_cb, NULL);
+  /* FIXME: there's a race between listing all the names and binding to all
+   * signals (and hence getting NameOwnerChanged). Old bustle-dbus-monitor had
+   * it too.
+   */
+  list_all_names (bus);
+
+  g_object_unref (bus);
 
   loop = g_main_loop_new (NULL, FALSE);
   let_me_quit (loop);
