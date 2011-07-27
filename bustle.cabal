@@ -25,9 +25,10 @@ Flag PostCabalizedGtk2HS
 
 Executable bustle
   Main-is:        Bustle.hs
-  Other-modules:  Bustle.Types, Bustle.Parser, Bustle.Diagram, Bustle.Renderer,
+  Other-modules:  Bustle.Types, Bustle.Diagram, Bustle.Renderer,
                   Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util,
-                  Bustle.StatisticsPane, Bustle.Markup, Bustle.Pcap, Bustle.Loader
+                  Bustle.StatisticsPane, Bustle.Markup,
+                  Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)
@@ -43,20 +44,23 @@ Executable bustle
 
 Executable bustle-count
   Main-is:        bustle-count.hs
-  Other-modules:  Bustle.Parser, Bustle.Stats, Bustle.Types,
-                  Bustle.Noninteractive
+  Other-modules:  Bustle.Stats, Bustle.Types,
+                  Bustle.Noninteractive,
+                  Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool
   Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
 Executable bustle-time
   Main-is:        bustle-time.hs
-  Other-modules:  Bustle.Parser, Bustle.Stats, Bustle.Types,
+  Other-modules:  Bustle.Stats, Bustle.Types,
                   Bustle.Noninteractive
+                  Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool
   Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
 Executable bustle-dot
   Main-is:        bustle-dot.hs
-  Other-modules:  Bustle.Parser, Bustle.Types
+  Other-modules:  Bustle.Types,
+                  Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool
   Build-Depends:  haskell98, base >= 4 && < 5, containers, parsec
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind

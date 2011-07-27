@@ -1,6 +1,6 @@
 {-
-Bustle.Parser: reads the output of dbus-monitor --profile
-Copyright (C) 2008 Collabora Ltd.
+Bustle.Loader.OldSkool: reads the output of bustle-dbus-monitor
+Copyright © 2008–2011 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,9 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-module Bustle.Parser (readLog)
+module Bustle.Loader.OldSkool
+  ( readLog
+  )
 where
 
 import Bustle.Types

@@ -4,18 +4,20 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import System
+import Control.Monad.Error
 
-import Bustle.Parser (readLog)
+import Bustle.Loader
 import Bustle.Types
 
 run :: FilePath -> IO ()
 run filepath = do
-    input <- readFile filepath
-    case readLog input of
-        Left err -> putStrLn $ concat ["Couldn't parse ", filepath, ": ", show err]
+    ret <- runErrorT $ readLog filepath
+    case ret of
+        Left (LoadError _ err) ->
+            putStrLn $ concat ["Couldn't parse ", filepath, ": ", err]
         Right log -> do
             putStrLn "digraph bustle {"
-            forM_ (nub . mapMaybe methodCall $ log)
+            forM_ (nub . mapMaybe (methodCall . dmMessage) $ log)
                 (\(s, d) -> putStrLn . concat $
                     ["  \"", unBusName s, "\" -> \"", unBusName d, "\";"])
             putStrLn "}"

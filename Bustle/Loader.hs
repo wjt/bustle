@@ -6,8 +6,8 @@ where
 
 import Control.Monad.Error
 
-import qualified Bustle.Parser as Old
-import qualified Bustle.Pcap as Pcap
+import qualified Bustle.Loader.OldSkool as Old
+import qualified Bustle.Loader.Pcap as Pcap
 import Bustle.Upgrade (upgrade)
 import Bustle.Types (Log)
 import Bustle.Util (io, toErrorT, handleIOExceptions)

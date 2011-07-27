@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-module Bustle.Pcap
+module Bustle.Loader.Pcap
   ( readPcap
   )
 where
