@@ -111,11 +111,12 @@ runRenderer (Renderer act) st = runIdentity $ do
     (result, st') <- runStateT (execWriterT act) st
     return (result, reverse (warnings st'))
 
-data BusState = BusState { apps :: Applications
-                         , firstColumn :: Double
-                         , nextColumn :: Double
-                         , pending :: Pending
-                         }
+data BusState =
+    BusState { apps :: Applications
+             , firstColumn :: Double
+             , nextColumn :: Double
+             , pending :: Pending
+             }
 
 data RendererState =
     RendererState { sessionBusState :: BusState
@@ -326,7 +327,9 @@ modifyPending :: Bus
 modifyPending bus f = modifyBusState bus $ \bs ->
     bs { pending = f (pending bs) }
 
-addPending :: Bus -> Message -> Renderer ()
+addPending :: Bus
+           -> Message
+           -> Renderer ()
 addPending bus m = do
     x <- destinationCoordinate bus m
     y <- gets row
@@ -400,13 +403,19 @@ edgemostApp bus = do
         -- bus.  This is a hack but I CBA to figure out why.
         else return $ Just $ edgiest (next:xs)
 
-senderCoordinate :: Bus -> Message -> Renderer Double
+senderCoordinate :: Bus
+                 -> Message
+                 -> Renderer Double
 senderCoordinate bus m = appCoordinate bus (sender m)
 
-destinationCoordinate :: Bus -> Message -> Renderer Double
+destinationCoordinate :: Bus
+                      -> Message
+                      -> Renderer Double
 destinationCoordinate bus m = appCoordinate bus (destination m)
 
-memberName :: Message -> Bool -> Renderer ()
+memberName :: Message
+           -> Bool
+           -> Renderer ()
 memberName message isReturn = do
     current <- gets row
     let Member p i m = member message
@@ -419,7 +428,12 @@ relativeTimestamp m = do
     current <- gets row
     shape $ timestampLabel (show relative ++ "ms") current
 
-returnArc :: Bus -> Message -> Double -> Double -> Milliseconds -> Renderer ()
+returnArc :: Bus
+          -> Message
+          -> Double
+          -> Double
+          -> Milliseconds
+          -> Renderer ()
 returnArc bus mr callx cally duration = do
     destinationx <- destinationCoordinate bus mr
     currentx     <- senderCoordinate bus mr
@@ -484,12 +498,18 @@ munge bus dm@(DetailedMessage m _) =
                     returnArc bus m x y duration
                     addMessageRegion dm
 
-methodCall, methodReturn, errorReturn :: Bus -> Message -> Renderer ()
+methodCall, methodReturn, errorReturn :: Bus
+                                      -> Message
+                                      -> Renderer ()
 methodCall = methodLike Nothing Above
 methodReturn = methodLike Nothing Below
 errorReturn = methodLike (Just $ Colour 1 0 0) Below
 
-methodLike :: Maybe Colour -> Arrowhead -> Bus -> Message -> Renderer ()
+methodLike :: Maybe Colour
+           -> Arrowhead
+           -> Bus
+           -> Message
+           -> Renderer ()
 methodLike colour a bus m = do
     sc <- senderCoordinate bus m
     dc <- destinationCoordinate bus m
