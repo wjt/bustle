@@ -220,7 +220,7 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="hscrollbar_policy">automatic</property>
-                        <property name="vscrollbar_policy">always</property>
+                        <property name="vscrollbar_policy">automatic</property>
                         <child>
                           <widget class="GtkTextView" id="messageBodyView">
                             <property name="can_focus">True</property>
