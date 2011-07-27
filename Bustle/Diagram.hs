@@ -118,6 +118,8 @@ data Shape = Header { strs :: [String]
                  , arcside :: Side
                  , caption :: String
                  }
+           | Highlight { highlightRegion :: Rect
+                       }
   deriving (Show, Read, Eq)
 
 -- Smart constructors for TimestampLabel and MemberLabel that fill in the
@@ -237,6 +239,7 @@ bounds s = case s of
         height = headerHeight ss
     in (x - width / 2, y,
         x + width / 2, y + height)
+  Highlight r -> r
 
 intersects :: Rect -> Rect -> Bool
 intersects (x,y,w,z) (x', y', w', z') =
@@ -271,13 +274,16 @@ diagramDimensions shapes = (x2 - x1, y2 - y1)
     ((x1, y1), (x2, y2)) = diagramBounds shapes
 
 topLeftJustifyDiagram :: Diagram -- ^ the original diagram
-                      -> (Double, Diagram) -- ^ the diagram transformed to be
-                                           --   in positive space, and the
-                                           --   x-axis shift necessary to do so
-topLeftJustifyDiagram shapes = (negate x1, shapes')
+                      -> [(Rect, a)] -- ^ some other mysterious rectangles
+                      -> (Double, Diagram, [(Rect, a)]) -- ^ the diagram transformed to be
+                                                        --   in positive space, and the
+                                                        --   x-axis shift necessary to do so
+topLeftJustifyDiagram shapes regions = (negate x1, shapes', regions')
   where
     shapes'       = transformDiagram (negate x1, negate y1) shapes
     ((x1, y1), _) = diagramBounds shapes
+    regions'      = map (\((xx1, yy1, xx2, yy2), a) -> ((xx1 - x1, yy1 - y1, xx2 - x1, yy2 - y1), a))
+                        regions
 
 transformDiagram :: (Double, Double) -> (Diagram -> Diagram)
 transformDiagram (x, y) = map (mapX (+ x) . mapY (+ y))
@@ -304,10 +310,10 @@ drawRegion :: Rect -> Bool -> Diagram -> Render ()
 drawRegion r = drawDiagramInternal isVisible
     where isVisible = intersects r . bounds
 
-findHit :: Point -> [(Rect, a)] -> Maybe a
+findHit :: Point -> [(Rect, a)] -> Maybe (Rect, a)
 findHit (x, y) regions =
-    listToMaybe [ a
-                | ((x1, y1, x2, y2), a) <- regions
+    listToMaybe [ pair
+                | pair@((x1, y1, x2, y2), _) <- regions
                 , and [ x1 <= x
                       ,  x <= x2
                       , y1 <= y
@@ -355,7 +361,7 @@ draw s = draw' s
           Rule {} -> drawRule <$> shapex1
                               <*> shapex2
                               <*> shapey
-
+          Highlight {} -> drawHighlight <$> highlightRegion
 
 halfArrowHead :: Arrowhead -> Bool -> Render ()
 halfArrowHead a left = do
@@ -480,5 +486,11 @@ drawRule x1 x2 y = saved $ do
     moveTo x1 y
     lineTo x2 y
     stroke
+
+drawHighlight :: Rect -> Render ()
+drawHighlight (x1, y1, x2, y2) = saved $ do
+    setSourceRGB 0.8 0.9 1.0
+    rectangle x1 y1 (x2 - x1) (y2 - y1)
+    fill
 
 -- vim: sw=2 sts=2

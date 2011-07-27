@@ -31,6 +31,7 @@ import Control.Monad.Error
 import Data.Maybe (isJust, isNothing, fromJust)
 import Data.List (intercalate)
 import Data.Version (showVersion)
+import Data.IORef
 
 import Paths_bustle
 import Bustle.Application.Monad
@@ -45,6 +46,8 @@ import System.Glib.GError (GError(..), catchGError)
 
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Glade
+import Graphics.UI.Gtk.Gdk.DrawWindow (drawWindowInvalidateRect)
+import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
@@ -310,6 +313,15 @@ formatMessage (DetailedMessage _ (Just rm)) =
   where
     formatArgs = intercalate "\n\n" . map show
 
+invalidateRect :: DrawWindowClass drawWindow
+               => drawWindow
+               -> Rect
+               -> IO ()
+invalidateRect win (x1, y1, x2, y2) =
+    drawWindowInvalidateRect win pangoRectangle False
+  where
+    pangoRectangle = Rectangle (floor x1) (floor y1) (ceiling x2) (ceiling y2)
+
 displayLog :: WindowInfo
            -> FilePath
            -> Maybe FilePath
@@ -351,20 +363,38 @@ displayLog (WindowInfo { wiWindow = window
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
+    currentMessageRef <- newIORef Nothing
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
-    layout `on` exposeEvent $ tryEvent $ io $ update layout shapes showBounds
+    layout `on` exposeEvent $ tryEvent $ io $ do
+        currentMessage <- readIORef currentMessageRef
+        let shapes' =
+                case currentMessage of
+                    Nothing     -> shapes
+                    Just (r, _) -> Highlight r:shapes
+        update layout shapes' showBounds
+
     layout `on` buttonPressEvent $ tryEvent $ do
       LeftButton <- eventButton
       point <- eventCoordinates
 
       io $ do
           buf <- textViewGetBuffer messageBodyView
+          currentMessage <- readIORef currentMessageRef
+          let newMessage = findHit point regions
+          when (newMessage /= currentMessage) $ do
+              win <- layoutGetDrawWindow layout
+              writeIORef currentMessageRef newMessage
+              case newMessage of
+                  Nothing     -> do
+                      textBufferSetText buf $ ""
+                  Just (r, m) -> do
+                      textBufferSetText buf $ formatMessage m
+                      invalidateRect win r
 
-          textBufferSetText buf $
-              case findHit point regions of
-                  Nothing -> "(no message selected)"
-                  Just m -> formatMessage m
+              case currentMessage of
+                  Nothing -> return ()
+                  Just (r, _) -> invalidateRect win r
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]

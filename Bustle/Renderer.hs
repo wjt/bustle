@@ -57,10 +57,11 @@ process :: Log
         -> Log
         -> ((Double, [Shape]), [(Rect, DetailedMessage)], [String])
 process sessionBusLog systemBusLog =
-    (topLeftJustifyDiagram diagram, messageRegions, ws)
+    ((xTranslation, diagram'), regions', ws)
   where
         ((diagram, messageRegions), ws) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)
+        (xTranslation, diagram', regions') = topLeftJustifyDiagram diagram messageRegions
 
         log' = combine sessionBusLog systemBusLog
 
