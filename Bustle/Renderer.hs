@@ -188,12 +188,9 @@ lookupUniqueName bus u = do
     case thing of
         Just nameInfo -> return nameInfo
         Nothing       -> do
-            warn $ concat [ "'"
-                          , unUniqueName u
-                          , "' appeared unheralded on the "
-                          , describeBus bus
-                          , " bus."
-                          ]
+            -- This happens with pcap logs where we don't (currently) have
+            -- explicit change notification for unique names in the stream of
+            -- DetailedMessages
             addUnique bus u
             return (Nothing, Set.empty)
 
