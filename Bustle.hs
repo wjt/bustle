@@ -289,7 +289,12 @@ emptyWindow = do
   statsPane <- io $ statsPaneNew xml m s
 
   details <- io $ detailsViewNew
-  io $ panedPack2 contentVPaned (detailsViewGetTop details) False False
+  io $ do
+      let top = detailsViewGetTop details
+      panedPack2 contentVPaned top False False
+      -- Hide the details by default; they'll be shown when the user selects a
+      -- message.
+      widgetHide top
 
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem

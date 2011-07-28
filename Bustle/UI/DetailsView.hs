@@ -7,30 +7,97 @@ module Bustle.UI.DetailsView
 where
 
 import Data.List (intercalate)
-import Graphics.UI.Gtk
+import Data.Maybe (maybe)
+import Graphics.UI.Gtk hiding (Signal, Markup)
 import qualified DBus.Message
+
 import Bustle.Types
+import Bustle.Markup
 
 data DetailsView =
     DetailsView { detailsTable :: Table
+                , detailsTitle :: Label
+                , detailsPath :: Label
+                , detailsMember :: Label
                 , detailsBodyView :: TextView
                 }
 
+addTitle :: Table
+         -> String
+         -> Int
+         -> IO ()
+addTitle table title row = do
+    label <- labelNew $ Just title
+    miscSetAlignment label 0 0
+    tableAttach table label 0 1 row (row + 1) [Fill] [Fill] 0 0
+
+addValue :: Table
+         -> Int
+         -> IO Label
+addValue table row = do
+    label <- labelNew Nothing
+    miscSetAlignment label 0 0
+    labelSetEllipsize label EllipsizeStart
+    labelSetSelectable label True
+    tableAttach table label 1 2 row (row + 1) [Expand, Fill] [Fill] 0 0
+    return label
+
+addField :: Table
+         -> String
+         -> Int
+         -> IO Label
+addField table title row = do
+    addTitle table title row
+    addValue table row
+
 detailsViewNew :: IO DetailsView
 detailsViewNew = do
-    table <- tableNew 1 1 False
+    table <- tableNew 2 3 False
+    table `set` [ tableRowSpacing := 6
+                , tableColumnSpacing := 6
+                ]
+
+    title <- labelNew Nothing
+    miscSetAlignment title 0 0
+    tableAttach table title 0 2 0 1 [Fill] [Fill] 0 0
+
+    pathLabel <- addField table "Path:" 1
+    memberLabel <- addField table "Member:" 2
+
+    addTitle table "Arguments:" 3
 
     view <- textViewNew
     textViewSetWrapMode view WrapWordChar
+    textViewSetEditable view False
 
     sw <- scrolledWindowNew Nothing Nothing
     scrolledWindowSetPolicy sw PolicyAutomatic PolicyAutomatic
     containerAdd sw view
 
-    tableAttach table sw 0 1 0 1 [Expand, Fill] [Expand, Fill] 0 0
-    widgetShowAll sw
+    tableAttachDefaults table sw 1 2 3 4
 
-    return $ DetailsView table view
+    widgetShowAll table
+    return $ DetailsView table title pathLabel memberLabel view
+
+pickTitle :: DetailedMessage -> String
+pickTitle (DetailedMessage m _) = case m of
+    MethodCall {} -> "<b>Method call</b>"
+    MethodReturn {} -> "<b>Method return</b>"
+    Error {} -> "<b>Error</b>"
+    Signal {} -> "<b>Signal</b>"
+    _ -> "<b>I am made of chalk</b>"
+
+getMemberMarkup :: Member -> String
+getMemberMarkup m =
+    unMarkup $ formatMember (iface m) (membername m)
+
+getMember :: DetailedMessage -> Maybe Member
+getMember (DetailedMessage m _) = case m of
+    MethodCall {}   -> Just $ member m
+    Signal {}       -> Just $ member m
+    MethodReturn {} -> fmap member $ inReplyTo m
+    Error {}        -> fmap member $ inReplyTo m
+    _               -> Nothing
 
 formatMessage :: DetailedMessage -> String
 formatMessage (DetailedMessage _ Nothing) =
@@ -41,7 +108,6 @@ formatMessage (DetailedMessage _ (Just rm)) =
   where
     formatArgs = intercalate "\n\n" . map show
 
-
 detailsViewGetTop :: DetailsView -> Widget
 detailsViewGetTop = toWidget . detailsTable
 
@@ -50,4 +116,8 @@ detailsViewUpdate :: DetailsView
                   -> IO ()
 detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
+    let member_ = getMember m
+    labelSetMarkup (detailsTitle d) (pickTitle m)
+    labelSetText (detailsPath d) (maybe "Unknown" path member_)
+    labelSetMarkup (detailsMember d) (maybe "Unknown" getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m
