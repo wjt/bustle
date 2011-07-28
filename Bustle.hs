@@ -68,6 +68,7 @@ data WindowInfo =
                , wiStatsPane :: StatsPane
                , wiLayout :: Layout
                , wiMessageBodyView :: TextView
+               , wiMessageBodySW :: ScrolledWindow
                }
 
 data BConfig =
@@ -204,6 +205,7 @@ emptyWindow = do
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
   messageBodyView <- getW castToTextView "messageBodyView"
+  messageBodySW <- getW castToScrolledWindow "messageBodySW"
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
@@ -298,10 +300,11 @@ emptyWindow = do
                               , wiStatsPane = statsPane
                               , wiLayout = layout
                               , wiMessageBodyView = messageBodyView
+                              , wiMessageBodySW = messageBodySW
                               }
 
   incWindows
-  io $ widgetShowAll window
+  io $ widgetShow window
   return windowInfo
 
 formatMessage :: DetailedMessage -> String
@@ -339,6 +342,7 @@ displayLog (WindowInfo { wiWindow = window
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
                        , wiMessageBodyView = messageBodyView
+                       , wiMessageBodySW = messageBodySW
                        })
            sessionPath
            maybeSystemPath
@@ -388,9 +392,11 @@ displayLog (WindowInfo { wiWindow = window
               case newMessage of
                   Nothing     -> do
                       textBufferSetText buf $ ""
+                      widgetHide messageBodySW
                   Just (r, m) -> do
                       textBufferSetText buf $ formatMessage m
                       invalidateRect win r
+                      widgetShow messageBodySW
 
               case currentMessage of
                   Nothing -> return ()

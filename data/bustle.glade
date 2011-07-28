@@ -217,7 +217,7 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                     </child>
                     <child>
                       <widget class="GtkScrolledWindow" id="messageBodySW">
-                        <property name="visible">True</property>
+                        <property name="visible">False</property>
                         <property name="can_focus">True</property>
                         <property name="hscrollbar_policy">automatic</property>
                         <property name="vscrollbar_policy">automatic</property>
@@ -225,6 +225,7 @@ open that file to see a sequence diagram of D-Bus activity.</property>
                           <widget class="GtkTextView" id="messageBodyView">
                             <property name="can_focus">True</property>
                             <property name="editable">False</property>
+                            <property name="visible">True</property>
                           </widget>
                         </child>
                       </widget>

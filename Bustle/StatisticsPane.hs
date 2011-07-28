@@ -52,6 +52,9 @@ statsPaneNew xml methodIcon signalIcon = do
   (timeStore, timeView) <- newTimeView
   containerAdd durationSW timeView
 
+  widgetShow countView
+  widgetShow timeView
+
   return $ StatsPane countStore timeStore
 
 statsPaneSetMessages :: StatsPane
