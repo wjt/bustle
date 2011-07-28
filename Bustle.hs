@@ -29,7 +29,6 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import Data.Maybe (isJust, isNothing, fromJust)
-import Data.List (intercalate)
 import Data.Version (showVersion)
 import Data.IORef
 
@@ -39,6 +38,7 @@ import Bustle.Renderer (process)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Util
+import Bustle.UI.DetailsView
 import Bustle.StatisticsPane
 import Bustle.Loader
 
@@ -67,8 +67,7 @@ data WindowInfo =
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiLayout :: Layout
-               , wiMessageBodyView :: TextView
-               , wiMessageBodySW :: ScrolledWindow
+               , wiDetailsView :: DetailsView
                }
 
 data BConfig =
@@ -204,8 +203,7 @@ emptyWindow = do
   layout <- getW castToLayout "diagramLayout"
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
-  messageBodyView <- getW castToTextView "messageBodyView"
-  messageBodySW <- getW castToScrolledWindow "messageBodySW"
+  contentVPaned <- getW castToVPaned "contentVPaned"
 
   -- Open two logs dialog widgets
   openTwoDialog <- getW castToDialog "openTwoDialog"
@@ -290,7 +288,8 @@ emptyWindow = do
   s <- asks signalIcon
   statsPane <- io $ statsPaneNew xml m s
 
-  io $ textViewSetWrapMode messageBodyView WrapWordChar
+  details <- io $ detailsViewNew
+  io $ panedPack2 contentVPaned (detailsViewGetTop details) False False
 
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
@@ -299,22 +298,12 @@ emptyWindow = do
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
                               , wiLayout = layout
-                              , wiMessageBodyView = messageBodyView
-                              , wiMessageBodySW = messageBodySW
+                              , wiDetailsView = details
                               }
 
   incWindows
   io $ widgetShow window
   return windowInfo
-
-formatMessage :: DetailedMessage -> String
-formatMessage (DetailedMessage _ Nothing) =
-    "# No message body information is available. Please capture a fresh log\n\
-    \# using bustle-pcap if you need it!"
-formatMessage (DetailedMessage _ (Just rm)) =
-    formatArgs $ DBus.Message.receivedBody rm
-  where
-    formatArgs = intercalate "\n\n" . map show
 
 invalidateRect :: DrawWindowClass drawWindow
                => drawWindow
@@ -341,8 +330,7 @@ displayLog (WindowInfo { wiWindow = window
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
-                       , wiMessageBodyView = messageBodyView
-                       , wiMessageBodySW = messageBodySW
+                       , wiDetailsView = detailsView
                        })
            sessionPath
            maybeSystemPath
@@ -383,7 +371,6 @@ displayLog (WindowInfo { wiWindow = window
       point <- eventCoordinates
 
       io $ do
-          buf <- textViewGetBuffer messageBodyView
           currentMessage <- readIORef currentMessageRef
           let newMessage = findHit point regions
           when (newMessage /= currentMessage) $ do
@@ -391,12 +378,11 @@ displayLog (WindowInfo { wiWindow = window
               writeIORef currentMessageRef newMessage
               case newMessage of
                   Nothing     -> do
-                      textBufferSetText buf $ ""
-                      widgetHide messageBodySW
+                      widgetHide $ detailsViewGetTop detailsView
                   Just (r, m) -> do
-                      textBufferSetText buf $ formatMessage m
+                      detailsViewUpdate detailsView m
                       invalidateRect win r
-                      widgetShow messageBodySW
+                      widgetShow $ detailsViewGetTop detailsView
 
               case currentMessage of
                   Nothing -> return ()
