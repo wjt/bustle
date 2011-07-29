@@ -26,6 +26,7 @@ import Prelude hiding (log)
 
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Regions
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -55,13 +56,14 @@ describeBus SystemBus = "system"
 
 process :: Log
         -> Log
-        -> ((Double, [Shape]), [(Rect, DetailedMessage)], [String])
+        -> ((Double, [Shape]), Regions DetailedMessage, [String])
 process sessionBusLog systemBusLog =
-    ((xTranslation, diagram'), regions', ws)
+    ((x, diagram'), regions', ws)
   where
         ((diagram, messageRegions), ws) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)
-        (xTranslation, diagram', regions') = topLeftJustifyDiagram diagram messageRegions
+        (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
+        regions' = translateRegions y messageRegions
 
         log' = combine sessionBusLog systemBusLog
 
@@ -84,17 +86,14 @@ combine xs@(x:xs') ys@(y:ys') =
         then (SessionBus, x):combine xs' ys
         else (SystemBus, y):combine xs ys'
 
-newtype Renderer a = Renderer (WriterT ( [Shape]
-                                       , [(Rect, DetailedMessage)]
-                                       )
-                              (StateT (RendererState) Identity)
-                              a)
+newtype Renderer a =
+    Renderer (WriterT ([Shape], Regions DetailedMessage)
+                 (StateT (RendererState) Identity)
+                    a)
   deriving ( Functor
            , Monad
            , MonadState (RendererState)
-           , MonadWriter ( [Shape]
-                         , [(Rect, DetailedMessage)]
-                         )
+           , MonadWriter ([Shape], Regions DetailedMessage)
            )
 
 instance Applicative Renderer where
@@ -103,9 +102,7 @@ instance Applicative Renderer where
 
 runRenderer :: Renderer ()
             -> RendererState
-            -> ( ( [Shape]
-                 , [(Rect, DetailedMessage)]
-                 )
+            -> ( ([Shape], Regions DetailedMessage)
                , [String]
                )
 runRenderer (Renderer act) st = runIdentity $ do
@@ -313,7 +310,7 @@ remOther bus n u = do
 shape :: Shape -> Renderer ()
 shape s = tell ([s], [])
 
-region :: Rect -> DetailedMessage -> Renderer ()
+region :: Stripe -> DetailedMessage -> Renderer ()
 region r m = tell ([], [(r, m)])
 
 warn :: String -> Renderer ()
@@ -449,9 +446,7 @@ addMessageRegion m = do
     newRow <- gets row
 
     -- FIXME: wtf. "row" points to the ... middle ... of the current row.
-    leftMargin <- getLeftMargin
-    rightMargin <- getRightMargin
-    region (leftMargin, newRow - 15, rightMargin, newRow + 15) m
+    region (Stripe (newRow - eventHeight / 2) (newRow + eventHeight / 2)) m
 
 munge :: Bus
       -> DetailedMessage

@@ -28,7 +28,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
 import Data.Version (showVersion)
 import Data.IORef
 
@@ -37,6 +37,7 @@ import Bustle.Application.Monad
 import Bustle.Renderer (process)
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Regions
 import Bustle.Util
 import Bustle.UI.DetailsView
 import Bustle.StatisticsPane
@@ -312,12 +313,25 @@ emptyWindow = do
 
 invalidateRect :: DrawWindowClass drawWindow
                => drawWindow
-               -> Rect
+               -> Stripe
+               -> Double
                -> IO ()
-invalidateRect win (x1, y1, x2, y2) =
+invalidateRect win (Stripe y1 y2) width =
     drawWindowInvalidateRect win pangoRectangle False
   where
-    pangoRectangle = Rectangle (floor x1) (floor y1) (ceiling x2) (ceiling y2)
+    pangoRectangle = Rectangle 0 (floor y1) (ceiling width) (ceiling y2)
+
+-- FIXME: obviously this shouldn't be here
+findHit :: (Double, Double)
+        -> Regions a
+        -> Maybe (Stripe, a)
+findHit (_x, y) regions =
+    listToMaybe [ pair
+                | pair@(Stripe y1 y2, _) <- regions
+                , and [ y1 <= y
+                      , y <= y2
+                      ]
+                ]
 
 displayLog :: WindowInfo
            -> FilePath
@@ -326,7 +340,7 @@ displayLog :: WindowInfo
            -> Diagram
            -> Log
            -> Log
-           -> [(Rect, DetailedMessage)]
+           -> Regions DetailedMessage
            -> B ()
 displayLog (WindowInfo { wiWindow = window
                        , wiSave = saveItem
@@ -368,7 +382,7 @@ displayLog (WindowInfo { wiWindow = window
         let shapes' =
                 case currentMessage of
                     Nothing     -> shapes
-                    Just (r, _) -> Highlight r:shapes
+                    Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
         update layout shapes' showBounds
 
     layout `on` buttonPressEvent $ tryEvent $ do
@@ -386,12 +400,12 @@ displayLog (WindowInfo { wiWindow = window
                       widgetHide $ detailsViewGetTop detailsView
                   Just (r, m) -> do
                       detailsViewUpdate detailsView m
-                      invalidateRect win r
+                      invalidateRect win r width
                       widgetShow $ detailsViewGetTop detailsView
 
               case currentMessage of
                   Nothing -> return ()
-                  Just (r, _) -> invalidateRect win r
+                  Just (r, _) -> invalidateRect win r width
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]

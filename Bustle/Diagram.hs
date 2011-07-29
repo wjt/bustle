@@ -37,13 +37,13 @@ module Bustle.Diagram
   , columnWidth
   , timestampAndMemberWidth
   , firstColumnOffset
+  , eventHeight
 
   -- Displaying diagrams
   , diagramDimensions
   , topLeftJustifyDiagram
   , drawDiagram
   , drawRegion
-  , findHit
   )
 where
 
@@ -273,20 +273,20 @@ diagramDimensions shapes = (x2 - x1, y2 - y1)
   where
     ((x1, y1), (x2, y2)) = diagramBounds shapes
 
-topLeftJustifyDiagram :: Diagram -- ^ the original diagram
-                      -> [(Rect, a)] -- ^ some other mysterious rectangles
-                      -> (Double, Diagram, [(Rect, a)]) -- ^ the diagram transformed to be
-                                                        --   in positive space, and the
-                                                        --   x-axis shift necessary to do so
-topLeftJustifyDiagram shapes regions = (negate x1, shapes', regions')
+topLeftJustifyDiagram
+    :: Diagram -- ^ the original diagram
+    -> ((Double, Double), Diagram) -- ^ the diagram transformed to be in
+                                   --   positive space, and the (x, y)-axis
+                                   --   shifts necessary to do so
+topLeftJustifyDiagram shapes =
+    (translation, shapes')
   where
-    shapes'       = transformDiagram (negate x1, negate y1) shapes
     ((x1, y1), _) = diagramBounds shapes
-    regions'      = map (\((xx1, yy1, xx2, yy2), a) -> ((xx1 - x1, yy1 - y1, xx2 - x1, yy2 - y1), a))
-                        regions
+    translation   = (negate x1, negate y1)
+    shapes'       = translateDiagram translation shapes
 
-transformDiagram :: (Double, Double) -> (Diagram -> Diagram)
-transformDiagram (x, y) = map (mapX (+ x) . mapY (+ y))
+translateDiagram :: (Double, Double) -> (Diagram -> Diagram)
+translateDiagram (x, y) = map (mapX (+ x) . mapY (+ y))
 
 drawDiagramInternal :: (Shape -> Bool) -- ^ A filter for the shapes
                     -> Bool -- ^ True to draw canvas items' bounding boxes
@@ -309,17 +309,6 @@ drawDiagram = drawDiagramInternal (const True)
 drawRegion :: Rect -> Bool -> Diagram -> Render ()
 drawRegion r = drawDiagramInternal isVisible
     where isVisible = intersects r . bounds
-
-findHit :: Point -> [(Rect, a)] -> Maybe (Rect, a)
-findHit (x, y) regions =
-    listToMaybe [ pair
-                | pair@((x1, y1, x2, y2), _) <- regions
-                , and [ x1 <= x
-                      ,  x <= x2
-                      , y1 <= y
-                      ,  y <= y2
-                      ]
-                ]
 
 saved :: Render () -> Render ()
 saved act = save >> act >> restore
