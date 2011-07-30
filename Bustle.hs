@@ -446,6 +446,8 @@ displayLog wi@(WindowInfo { wiWindow = window
       case key of
         "Up"        -> modifyRS regionSelectionUp
         "Down"      -> modifyRS regionSelectionDown
+        "Home"      -> modifyRS regionSelectionFirst
+        "End"       -> modifyRS regionSelectionLast
         _           -> stopEvent
 
     notebookSetCurrentPage nb 1

@@ -13,6 +13,8 @@ module Bustle.Regions
   , regionSelectionUpdate
   , regionSelectionUp
   , regionSelectionDown
+  , regionSelectionFirst
+  , regionSelectionLast
   )
 where
 
@@ -123,6 +125,20 @@ regionSelectionUp rs@(RegionSelection before lastClick current after) =
 regionSelectionDown :: RegionSelection a
                     -> RegionSelection a
 regionSelectionDown = invert . regionSelectionUp . invert
+
+regionSelectionFirst :: RegionSelection a
+                     -> RegionSelection a
+regionSelectionFirst rs =
+    case (reverse (rsBefore rs) ++ maybeToList (rsCurrent rs) ++ rsAfter rs) of
+        []             -> rs
+        (first:others) -> RegionSelection []
+                                          (midpoint (fst first))
+                                          (Just first)
+                                          others
+
+regionSelectionLast :: RegionSelection a
+                    -> RegionSelection a
+regionSelectionLast = invert . regionSelectionFirst . invert
 
 searchy :: Double
         -> (Double -> Stripe -> Bool)
