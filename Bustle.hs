@@ -232,10 +232,9 @@ emptyWindow = do
     adjustmentSetStepIncrement vadj 30.0
 
     layout `on` keyPressEvent $ tryEvent $ do
+      [] <- eventModifier
       key <- eventKeyName
       case key of
-        "Up"        -> io $ decStep vadj
-        "Down"      -> io $ incStep vadj
         "Left"      -> io $ decStep hadj
         "Right"     -> io $ incStep hadj
         "space"     -> io $ incPage vadj
@@ -321,17 +320,33 @@ invalidateRect win (Stripe y1 y2) width =
   where
     pangoRectangle = Rectangle 0 (floor y1) (ceiling width) (ceiling y2)
 
--- FIXME: obviously this shouldn't be here
-findHit :: (Double, Double)
-        -> Regions a
-        -> Maybe (Stripe, a)
-findHit (_x, y) regions =
-    listToMaybe [ pair
-                | pair@(Stripe y1 y2, _) <- regions
-                , and [ y1 <= y
-                      , y <= y2
-                      ]
-                ]
+type RSDM = RegionSelection DetailedMessage
+modifyRegionSelection :: IORef RSDM
+                      -> Layout
+                      -> DetailsView
+                      -> (RSDM -> RSDM)
+                      -> IO ()
+modifyRegionSelection regionSelectionRef layout detailsView f = do
+    rs <- readIORef regionSelectionRef
+    let currentMessage = rsCurrent rs
+        rs' = f rs
+        newMessage = rsCurrent rs'
+    writeIORef regionSelectionRef rs'
+
+    when (newMessage /= currentMessage) $ do
+        win <- layoutGetDrawWindow layout
+        width <- liftM (fromIntegral . snd) (layoutGetSize layout)
+        case newMessage of
+            Nothing     -> do
+                widgetHide $ detailsViewGetTop detailsView
+            Just (r, m) -> do
+                detailsViewUpdate detailsView m
+                invalidateRect win r width
+                widgetShow $ detailsViewGetTop detailsView
+
+        case currentMessage of
+            Nothing -> return ()
+            Just (r, _) -> invalidateRect win r width
 
 displayLog :: WindowInfo
            -> FilePath
@@ -385,30 +400,24 @@ displayLog (WindowInfo { wiWindow = window
                     Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
         update layout shapes' showBounds
 
+    let modifyRS :: MonadIO io
+                 => (RSDM -> RSDM)
+                 -> io ()
+        modifyRS = io . modifyRegionSelection regionSelectionRef layout detailsView
+
     layout `on` buttonPressEvent $ tryEvent $ do
       LeftButton <- eventButton
       (_, y) <- eventCoordinates
 
-      io $ do
-          rs <- readIORef regionSelectionRef
-          let currentMessage = rsCurrent rs
-              rs' = regionSelectionUpdate y rs
-              newMessage = rsCurrent rs'
-          writeIORef regionSelectionRef rs'
+      modifyRS (regionSelectionUpdate y)
 
-          when (newMessage /= currentMessage) $ do
-              win <- layoutGetDrawWindow layout
-              case newMessage of
-                  Nothing     -> do
-                      widgetHide $ detailsViewGetTop detailsView
-                  Just (r, m) -> do
-                      detailsViewUpdate detailsView m
-                      invalidateRect win r width
-                      widgetShow $ detailsViewGetTop detailsView
-
-              case currentMessage of
-                  Nothing -> return ()
-                  Just (r, _) -> invalidateRect win r width
+    layout `on` keyPressEvent $ tryEvent $ do
+      [] <- eventModifier
+      key <- eventKeyName
+      case key of
+        "Up"        -> modifyRS regionSelectionUp
+        "Down"      -> modifyRS regionSelectionDown
+        _           -> stopEvent
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]
