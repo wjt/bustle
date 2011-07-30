@@ -23,6 +23,7 @@ module Bustle.Markup
   , tag
   , b
   , i
+  , a
   , escape
 
   , formatMember
@@ -62,6 +63,15 @@ tag name contents =
 b, i :: Markup -> Markup
 b = tag "b"
 i = tag "i"
+
+a :: String
+  -> String
+  -> Markup
+a href contents =
+  Markup $ concat [ "<a href=\"", escapeMarkup href, "\">"
+                  , escapeMarkup contents
+                  , "</a>"
+                  ]
 
 span_ :: [SpanAttribute] -> Markup -> Markup
 span_ attrs = Markup . markSpan attrs . unMarkup
