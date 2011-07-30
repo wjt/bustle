@@ -477,7 +477,7 @@ munge bus dm@(DetailedMessage _ m _) =
                     , change = c
                     } -> updateApps_ bus n c
 
-  where advance = advanceBy 30 -- FIXME: use some function of timestamp
+  where advance = advanceBy eventHeight -- FIXME: use some function of timestamp?
         returnOrError f = do
             call <- findCallCoordinates bus (inReplyTo m)
             case call of

@@ -230,8 +230,8 @@ emptyWindow = do
     hadj <- layoutGetHAdjustment layout
     vadj <- layoutGetVAdjustment layout
 
-    adjustmentSetStepIncrement hadj 30.0
-    adjustmentSetStepIncrement vadj 30.0
+    adjustmentSetStepIncrement hadj eventHeight
+    adjustmentSetStepIncrement vadj eventHeight
 
     layout `on` keyPressEvent $ tryEvent $ do
       [] <- eventModifier
