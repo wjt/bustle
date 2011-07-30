@@ -44,7 +44,7 @@ prop_UpDoesNothing = \rs -> isNothing $ rsCurrent $ regionSelectionUp rs
 prop_DownDoesNothing vr@(ValidRegions regions) =
     withRegions vr $ \rs ->
         let final = last regions
-            rs'   = regionSelectionUpdate (midpoint . fst $ last regions) rs
+            rs'   = regionSelectionLast rs
         in
             rsCurrent (regionSelectionDown rs') == Just final
 
@@ -67,6 +67,18 @@ prop_UpdateToFirst vr@(ValidRegions regions) = withRegions vr $ \rs ->
   where
     first@(Stripe top bottom, _) = head regions
     y = (top + bottom) / 2
+
+prop_SelectFirst :: (Eq a)
+                 => ValidRegions a
+                 -> Bool
+prop_SelectFirst vr@(ValidRegions regions) = withRegions vr $ \rs ->
+    Just (head regions) == rsCurrent (regionSelectionFirst rs)
+
+prop_SelectLast :: (Eq a)
+                => ValidRegions a
+                -> Bool
+prop_SelectLast vr@(ValidRegions regions) = withRegions vr $ \rs ->
+    Just (last regions) == rsCurrent (regionSelectionLast rs)
 
 prop_UpdateToAny :: (Eq a, Show a)
                 => ValidRegions a
@@ -100,3 +112,7 @@ prop_UpdateToAll vr@(ValidRegions regions) =
         in rsCurrent rs' == Just x && updateAndForward rs' xs
 
 runTests = $quickCheckAll
+
+main = do
+    runTests
+    return ()
