@@ -114,7 +114,7 @@ midpoint (Stripe top bottom) = (top + bottom) / 2
 
 regionSelectionUp :: RegionSelection a
                   -> RegionSelection a
-regionSelectionUp rs@(RegionSelection before lastClick current after) =
+regionSelectionUp rs@(RegionSelection before _lastClick current after) =
     case before of
         []     -> rs
         (b:bs) -> RegionSelection bs
