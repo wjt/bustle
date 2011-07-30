@@ -374,27 +374,30 @@ displayLog (WindowInfo { wiWindow = window
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
     layoutSetSize layout (floor width) (floor height)
-    currentMessageRef <- newIORef Nothing
+    regionSelectionRef <- newIORef $ regionSelectionNew regions
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
     layout `on` exposeEvent $ tryEvent $ io $ do
-        currentMessage <- readIORef currentMessageRef
+        rs <- readIORef regionSelectionRef
         let shapes' =
-                case currentMessage of
+                case rsCurrent rs of
                     Nothing     -> shapes
                     Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
         update layout shapes' showBounds
 
     layout `on` buttonPressEvent $ tryEvent $ do
       LeftButton <- eventButton
-      point <- eventCoordinates
+      (_, y) <- eventCoordinates
 
       io $ do
-          currentMessage <- readIORef currentMessageRef
-          let newMessage = findHit point regions
+          rs <- readIORef regionSelectionRef
+          let currentMessage = rsCurrent rs
+              rs' = regionSelectionUpdate y rs
+              newMessage = rsCurrent rs'
+          writeIORef regionSelectionRef rs'
+
           when (newMessage /= currentMessage) $ do
               win <- layoutGetDrawWindow layout
-              writeIORef currentMessageRef newMessage
               case newMessage of
                   Nothing     -> do
                       widgetHide $ detailsViewGetTop detailsView
