@@ -3,7 +3,7 @@ import Test.QuickCheck
 import Test.QuickCheck.All
 
 import Data.List (sort)
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, isJust)
 
 import Bustle.Regions
 
@@ -110,6 +110,33 @@ prop_UpdateToAll vr@(ValidRegions regions) =
     updateAndForward rs (x:xs) =
         let rs' = regionSelectionUpdate (midpoint (fst x)) rs
         in rsCurrent rs' == Just x && updateAndForward rs' xs
+
+randomMutation :: Gen (RegionSelection a -> RegionSelection a)
+randomMutation = do
+    y <- arbitrary
+    elements [ regionSelectionUp
+             , regionSelectionDown
+             , regionSelectionFirst
+             , regionSelectionLast
+             , regionSelectionUpdate y
+             ]
+
+randomMutations :: Gen (RegionSelection a -> RegionSelection a)
+randomMutations = do
+    fs <- listOf randomMutation
+    return $ foldr (.) id fs
+
+prop_ClickAlwaysInSelection = \rs ->
+    forAll (fmap Blind randomMutations) $ \(Blind f) ->
+      let
+        rs' = f rs
+      in
+        isJust (rsCurrent rs') ==>
+          let
+            Just (Stripe top bottom, _) = rsCurrent rs'
+            y = rsLastClick rs'
+          in
+            top <= y && y <= bottom
 
 runTests = $quickCheckAll
 
