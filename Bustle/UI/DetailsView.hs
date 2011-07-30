@@ -80,7 +80,7 @@ detailsViewNew = do
     return $ DetailsView table title pathLabel memberLabel view
 
 pickTitle :: DetailedMessage -> Markup
-pickTitle (DetailedMessage m _) = case m of
+pickTitle (DetailedMessage _ m _) = case m of
     MethodCall {} -> b (escape "Method call")
     MethodReturn {} -> b (escape "Method return")
     Error {} -> b (escape "Error")
@@ -92,18 +92,18 @@ getMemberMarkup m =
     unMarkup $ formatMember (iface m) (membername m)
 
 getMember :: DetailedMessage -> Maybe Member
-getMember (DetailedMessage m _) = case m of
+getMember (DetailedMessage _ m _) = case m of
     MethodCall {}   -> Just $ member m
     Signal {}       -> Just $ member m
-    MethodReturn {} -> fmap member $ inReplyTo m
-    Error {}        -> fmap member $ inReplyTo m
+    MethodReturn {} -> fmap (member . dmMessage) $ inReplyTo m
+    Error {}        -> fmap (member . dmMessage) $ inReplyTo m
     _               -> Nothing
 
 formatMessage :: DetailedMessage -> String
-formatMessage (DetailedMessage _ Nothing) =
+formatMessage (DetailedMessage _ _ Nothing) =
     "# No message body information is available. Please capture a fresh log\n\
     \# using bustle-pcap if you need it!"
-formatMessage (DetailedMessage _ (Just rm)) =
+formatMessage (DetailedMessage _ _ (Just rm)) =
     formatArgs $ DBus.Message.receivedBody rm
   where
     formatArgs = intercalate "\n\n" . map show

@@ -48,11 +48,11 @@ convertMember getObjectPath getInterfaceName getMemberName m =
              (fmap (T.unpack . strInterfaceName) . getInterfaceName $ m)
              (T.unpack . strMemberName . getMemberName $ m)
 
-type PendingMessages = Map (Maybe BusName, Serial) (MethodCall, B.Message)
+type PendingMessages = Map (Maybe BusName, Serial) (MethodCall, B.DetailedMessage)
 
 popMatchingCall :: Maybe BusName
                 -> Serial
-                -> State PendingMessages (Maybe (MethodCall, B.Message))
+                -> State PendingMessages (Maybe (MethodCall, B.DetailedMessage))
 popMatchingCall name serial = do
     ret <- tryPop (name, serial)
     case (ret, name) of
@@ -68,7 +68,7 @@ popMatchingCall name serial = do
         modify $ Map.delete key
         return call
 
-insertPending :: Maybe BusName -> Serial -> MethodCall -> B.Message -> State PendingMessages ()
+insertPending :: Maybe BusName -> Serial -> MethodCall -> B.DetailedMessage -> State PendingMessages ()
 insertPending n s rawCall b = modify $ Map.insert (n, s) (rawCall, b)
 
 isNOC :: Maybe BusName -> Signal -> Maybe (BusName, Maybe BusName, Maybe BusName)
@@ -88,16 +88,15 @@ isNOC (Just sender) s | looksLikeNOC =
 isNOC _ _ = Nothing
 
 
-bustlifyNOC :: B.Microseconds
-            -> (BusName, Maybe BusName, Maybe BusName)
+bustlifyNOC :: (BusName, Maybe BusName, Maybe BusName)
             -> B.Message
-bustlifyNOC µs ns@(name, oldOwner, newOwner)
+bustlifyNOC ns@(name, oldOwner, newOwner)
     | isUnique name =
           case (oldOwner, newOwner) of
-              (Just _, Nothing) -> B.Connected µs (uniquify name)
-              (Nothing, Just _) -> B.Disconnected µs (uniquify name)
+              (Just _, Nothing) -> B.Connected (uniquify name)
+              (Nothing, Just _) -> B.Disconnected (uniquify name)
               _                 -> error $ "wtf: NOC" ++ show ns
-    | otherwise = B.NameChanged µs (otherify name) $
+    | otherwise = B.NameChanged (otherify name) $
           case (oldOwner, newOwner) of
               (Just old, Nothing)  -> B.Released (uniquify old)
               (Just old, Just new) -> B.Stolen (uniquify old) (uniquify new)
@@ -115,37 +114,37 @@ bustlify :: B.Microseconds
          -> State PendingMessages B.DetailedMessage
 bustlify µs m = do
     bm <- buildBustledMessage
-    return $ B.DetailedMessage bm (Just m)
+    return $ B.DetailedMessage µs bm (Just m)
   where
     buildBustledMessage = case m of
         (ReceivedMethodCall serial sender mc) -> do
             let call = B.MethodCall
-                             { B.timestamp = µs
-                             , B.serial = serialValue serial
+                             { B.serial = serialValue serial
                              -- sender may be empty if it's us who sent it
                              , B.sender = convertBusName "method.call.sender" sender
                              , B.destination = convertBusName "method.call.destination" $ methodCallDestination mc
                              , B.member = convertMember methodCallPath methodCallInterface methodCallMember mc
                              }
-            insertPending sender serial mc call
+            -- FIXME: we shouldn't need to construct the same DetailedMessage
+            -- both here and 10 lines above.
+            insertPending sender serial mc (B.DetailedMessage µs call (Just m))
             return call
 
         (ReceivedMethodReturn _serial sender mr) -> do
             call <- popMatchingCall (methodReturnDestination mr) (methodReturnSerial mr)
 
             return $ case call of
-                Just (rawCall, bustleCall)
+                Just (rawCall, dm)
                     -- FIXME: obviously this should be more robust:
                     --  • check that the service really is the bus daemon
                     --  • don't crash if the body of the call or reply doesn't contain one bus name.
-                    | B.membername (B.member bustleCall) == "GetNameOwner"
-                        -> bustlifyNOC µs ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
-                                          , Nothing
-                                          , fromVariant $ (methodReturnBody mr !! 0)
-                                          )
+                    | B.membername (B.member (B.dmMessage dm)) == "GetNameOwner"
+                        -> bustlifyNOC ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
+                                       , Nothing
+                                       , fromVariant $ (methodReturnBody mr !! 0)
+                                       )
                 _ -> B.MethodReturn
-                               { B.timestamp = µs
-                               , B.inReplyTo = fmap snd call
+                               { B.inReplyTo = fmap snd call
                                , B.sender = convertBusName "method.return.sender" sender
                                , B.destination = convertBusName "method.return.destination" $ methodReturnDestination mr
                                }
@@ -153,17 +152,15 @@ bustlify µs m = do
         (ReceivedError _serial sender e) -> do
             call <- popMatchingCall (errorDestination e) (errorSerial e)
             return $ B.Error
-                        { B.timestamp = µs
-                        , B.inReplyTo = fmap snd call
+                        { B.inReplyTo = fmap snd call
                         , B.sender = convertBusName "method.error.sender" sender
                         , B.destination = convertBusName "method.error.destination" $ errorDestination e
                         }
 
         (ReceivedSignal _serial sender sig)
-            | Just names <- isNOC sender sig -> return $ bustlifyNOC µs names
+            | Just names <- isNOC sender sig -> return $ bustlifyNOC names
             | otherwise                      -> return $
-                B.Signal { B.timestamp = µs
-                         , B.sender = convertBusName "signal.sender" sender
+                B.Signal { B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
                          }
 

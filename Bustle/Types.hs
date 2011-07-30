@@ -64,46 +64,41 @@ data Member = Member { path :: ObjectPath
                      }
   deriving (Ord, Show, Read, Eq)
 
-data Message = MethodCall { timestamp :: Microseconds
-                          , serial :: Serial
+data Message = MethodCall { serial :: Serial
                           , sender :: BusName
                           , destination :: BusName
                           , member :: Member
                           }
-             | MethodReturn { timestamp :: Microseconds
-                            , inReplyTo :: Maybe Message
+             | MethodReturn { inReplyTo :: Maybe DetailedMessage
                             , sender :: BusName
                             , destination :: BusName
                             }
-             | Signal { timestamp :: Microseconds
-                      , sender :: BusName
+             | Signal { sender :: BusName
                       , member :: Member
                       }
-             | Error { timestamp :: Microseconds
-                     , inReplyTo :: Maybe Message
+             | Error { inReplyTo :: Maybe DetailedMessage
                      , sender :: BusName
                      , destination :: BusName
                      }
-             | Connected { timestamp :: Microseconds
-                         , actor :: UniqueName
+             | Connected { actor :: UniqueName
                          }
-             | Disconnected { timestamp :: Microseconds
-                            , actor :: UniqueName
+             | Disconnected { actor :: UniqueName
                             }
-             | NameChanged { timestamp :: Microseconds
-                           , changedName :: OtherName
+             | NameChanged { changedName :: OtherName
                            , change :: Change
                            }
   deriving (Show, Eq, Ord)
 
 data DetailedMessage =
-    DetailedMessage { dmMessage :: Message
+    DetailedMessage { dmTimestamp :: Microseconds
+                    , dmMessage :: Message
                     , dmDetails :: (Maybe ReceivedMessage)
                     }
   deriving (Show, Eq)
 
 instance Ord DetailedMessage where
-    compare (DetailedMessage x _) (DetailedMessage y _) = compare x y
+    compare (DetailedMessage µs x _) (DetailedMessage µs' y _)
+        = compare (µs, x) (µs', y)
 
 data Change = Claimed UniqueName
             | Stolen UniqueName UniqueName

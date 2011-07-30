@@ -20,7 +20,7 @@ data TallyType = TallyMethod | TallySignal
 
 repr :: DetailedMessage
      -> Maybe (TallyType, Maybe Interface, MemberName)
-repr (DetailedMessage msg _) =
+repr (DetailedMessage _ msg _) =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
         Signal     { member = m } -> Just (TallySignal, iface m, membername m)
@@ -66,18 +66,21 @@ methodTimes = reverse
             . M.toList
             . foldr (\(i, method, time) ->
                         M.alter (alt time) (i, method)) M.empty
-            . mapMaybe (methodReturn . dmMessage)
+            . mapMaybe methodReturn
     where alt newtime Nothing = Just (newtime, [newtime])
           alt newtime (Just (total, times)) =
               Just (newtime + total, newtime : times)
 
-          methodReturn :: Message
+          methodReturn :: DetailedMessage
                        -> Maybe (Maybe Interface, MemberName, Microseconds)
-          methodReturn (MethodReturn { timestamp = end,
-                            inReplyTo = Just (MethodCall {
-                                timestamp = start, member = m }) }) =
-              Just (iface m, membername m, end - start)
-          methodReturn _ = Nothing
+          methodReturn dm = case dmMessage dm of
+              MethodReturn { inReplyTo =
+                                 Just (DetailedMessage end call@(MethodCall {}) _)
+                           } -> Just ( iface (member call)
+                                     , membername (member call)
+                                     , end - dmTimestamp dm
+                                     )
+              _              -> Nothing
 
           summarize ((i, method), (total, times)) =
               TimeInfo { tiInterface = i

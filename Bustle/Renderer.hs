@@ -67,7 +67,7 @@ process sessionBusLog systemBusLog =
 
         log' = combine sessionBusLog systemBusLog
 
-        timestamps = map (timestamp . dmMessage . snd) log'
+        timestamps = map (dmTimestamp . snd) log'
         initTime = case dropWhile (== 0) timestamps of
             t:_ -> t
             _   -> 0
@@ -82,7 +82,7 @@ combine [] [] = []
 combine xs [] = zip (repeat SessionBus) xs
 combine [] ys = zip (repeat SystemBus) ys
 combine xs@(x:xs') ys@(y:ys') =
-    if timestamp (dmMessage x) < timestamp (dmMessage y)
+    if dmTimestamp x < dmTimestamp y
         then (SessionBus, x):combine xs' ys
         else (SystemBus, y):combine xs ys'
 
@@ -155,7 +155,7 @@ type Applications = Map UniqueName (Maybe Double, Set OtherName)
 
 -- Map from a method call message to the coordinates at which the arc to its
 -- return should start.
-type Pending = Map Message (Double, Double)
+type Pending = Map DetailedMessage (Double, Double)
 
 getBusState :: Bus -> Renderer BusState
 getBusState = getsBusState id
@@ -323,7 +323,7 @@ modifyPending bus f = modifyBusState bus $ \bs ->
     bs { pending = f (pending bs) }
 
 addPending :: Bus
-           -> Message
+           -> DetailedMessage
            -> Renderer ()
 addPending bus m = do
     x <- destinationCoordinate bus m
@@ -331,8 +331,8 @@ addPending bus m = do
     modifyPending bus $ Map.insert m (x, y)
 
 findCallCoordinates :: Bus
-                    -> Maybe Message
-                    -> Renderer (Maybe (Message, (Double, Double)))
+                    -> Maybe DetailedMessage
+                    -> Renderer (Maybe (DetailedMessage, (Double, Double)))
 findCallCoordinates bus = maybe (return Nothing) $ \m -> do
     ret <- getsBusState (Map.lookup m . pending) bus
     modifyPending bus $ Map.delete m
@@ -399,32 +399,32 @@ edgemostApp bus = do
         else return $ Just $ edgiest (next:xs)
 
 senderCoordinate :: Bus
-                 -> Message
+                 -> DetailedMessage
                  -> Renderer Double
-senderCoordinate bus m = appCoordinate bus (sender m)
+senderCoordinate bus m = appCoordinate bus . sender $ dmMessage m
 
 destinationCoordinate :: Bus
-                      -> Message
+                      -> DetailedMessage
                       -> Renderer Double
-destinationCoordinate bus m = appCoordinate bus (destination m)
+destinationCoordinate bus m = appCoordinate bus . destination $ dmMessage m
 
-memberName :: Message
+memberName :: DetailedMessage
            -> Bool
            -> Renderer ()
 memberName message isReturn = do
     current <- gets row
-    let Member p i m = member message
+    let Member p i m = member $ dmMessage message
     shape $ memberLabel p i m isReturn current
 
-relativeTimestamp :: Message -> Renderer ()
-relativeTimestamp m = do
+relativeTimestamp :: DetailedMessage -> Renderer ()
+relativeTimestamp dm = do
     base <- gets startTime
-    let relative = µsToMs (timestamp m - base)
+    let relative = µsToMs (dmTimestamp dm - base)
     current <- gets row
     shape $ timestampLabel (show relative ++ "ms") current
 
 returnArc :: Bus
-          -> Message
+          -> DetailedMessage
           -> Double
           -> Double
           -> Microseconds
@@ -451,21 +451,21 @@ addMessageRegion m = do
 munge :: Bus
       -> DetailedMessage
       -> Renderer ()
-munge bus dm@(DetailedMessage m _) =
+munge bus dm@(DetailedMessage _ m _) =
     case m of
         Signal {}       -> do
             advance
-            relativeTimestamp m
-            memberName m False
-            signal bus m
+            relativeTimestamp dm
+            memberName dm False
+            signal bus dm
             addMessageRegion dm
 
         MethodCall {}   -> do
             advance
-            relativeTimestamp m
-            memberName m False
-            methodCall bus m
-            addPending bus m
+            relativeTimestamp dm
+            memberName dm False
+            methodCall bus dm
+            addPending bus dm
             addMessageRegion dm
 
         MethodReturn {} -> returnOrError $ methodReturn bus
@@ -482,17 +482,17 @@ munge bus dm@(DetailedMessage m _) =
             call <- findCallCoordinates bus (inReplyTo m)
             case call of
                 Nothing    -> return ()
-                Just (m', (x,y)) -> do
+                Just (dm', (x,y)) -> do
                     advance
-                    relativeTimestamp m
-                    memberName m' True
-                    f m
-                    let duration = timestamp m - timestamp m'
-                    returnArc bus m x y duration
+                    relativeTimestamp dm
+                    memberName dm' True
+                    f dm
+                    let duration = dmTimestamp dm - dmTimestamp dm'
+                    returnArc bus dm x y duration
                     addMessageRegion dm
 
 methodCall, methodReturn, errorReturn :: Bus
-                                      -> Message
+                                      -> DetailedMessage
                                       -> Renderer ()
 methodCall = methodLike Nothing Above
 methodReturn = methodLike Nothing Below
@@ -501,17 +501,17 @@ errorReturn = methodLike (Just $ Colour 1 0 0) Below
 methodLike :: Maybe Colour
            -> Arrowhead
            -> Bus
-           -> Message
+           -> DetailedMessage
            -> Renderer ()
-methodLike colour a bus m = do
-    sc <- senderCoordinate bus m
-    dc <- destinationCoordinate bus m
+methodLike colour a bus dm = do
+    sc <- senderCoordinate bus dm
+    dc <- destinationCoordinate bus dm
     t <- gets row
     shape $ Arrow colour a sc dc t
 
-signal :: Bus -> Message -> Renderer ()
-signal bus m = do
-    x <- senderCoordinate bus m
+signal :: Bus -> DetailedMessage -> Renderer ()
+signal bus dm = do
+    x <- senderCoordinate bus dm
     t <- gets row
 
     -- FIXME: per-bus sign.
