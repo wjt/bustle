@@ -67,8 +67,10 @@ data WindowInfo =
                , wiNotebook :: Notebook
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
+               , wiContentVPaned :: VPaned
                , wiLayout :: Layout
                , wiDetailsView :: DetailsView
+               , wiClampIdleId :: IORef (Maybe HandlerId)
                }
 
 data BConfig =
@@ -296,14 +298,17 @@ emptyWindow = do
       -- message.
       widgetHide top
 
+  clampIdleId <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiViewStatistics = viewStatistics
                               , wiNotebook = nb
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
+                              , wiContentVPaned = contentVPaned
                               , wiLayout = layout
                               , wiDetailsView = details
+                              , wiClampIdleId = clampIdleId
                               }
 
   incWindows
@@ -321,12 +326,35 @@ invalidateRect win (Stripe y1 y2) width =
     pangoRectangle = Rectangle 0 (floor y1) (ceiling width) (ceiling y2)
 
 type RSDM = RegionSelection DetailedMessage
+queueClampAroundSelection :: IORef RSDM
+                          -> WindowInfo
+                          -> IO ()
+queueClampAroundSelection regionSelectionRef wi = do
+    let idRef = wiClampIdleId wi
+    id_ <- readIORef idRef
+    when (isNothing id_) $ do
+        id' <- flip idleAdd priorityDefaultIdle $ do
+            rs <- readIORef regionSelectionRef
+            case rsCurrent rs of
+                Nothing -> return ()
+                Just (Stripe top bottom, _) -> do
+                    vadj <- layoutGetVAdjustment (wiLayout wi)
+                    let padding = (bottom - top) / 2
+                    adjustmentClampPage vadj (top - padding) (bottom + padding)
+
+            writeIORef idRef Nothing
+            return False
+
+        writeIORef idRef (Just id')
+
 modifyRegionSelection :: IORef RSDM
-                      -> Layout
-                      -> DetailsView
+                      -> WindowInfo
                       -> (RSDM -> RSDM)
                       -> IO ()
-modifyRegionSelection regionSelectionRef layout detailsView f = do
+modifyRegionSelection regionSelectionRef wi f = do
+    let layout      = wiLayout wi
+        detailsView = wiDetailsView wi
+
     rs <- readIORef regionSelectionRef
     let currentMessage = rsCurrent rs
         rs' = f rs
@@ -343,6 +371,7 @@ modifyRegionSelection regionSelectionRef layout detailsView f = do
                 detailsViewUpdate detailsView m
                 invalidateRect win r width
                 widgetShow $ detailsViewGetTop detailsView
+                queueClampAroundSelection regionSelectionRef wi
 
         case currentMessage of
             Nothing -> return ()
@@ -357,14 +386,13 @@ displayLog :: WindowInfo
            -> Log
            -> Regions DetailedMessage
            -> B ()
-displayLog (WindowInfo { wiWindow = window
+displayLog wi@(WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiViewStatistics = viewStatistics
                        , wiLayout = layout
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
-                       , wiDetailsView = detailsView
                        })
            sessionPath
            maybeSystemPath
@@ -403,7 +431,7 @@ displayLog (WindowInfo { wiWindow = window
     let modifyRS :: MonadIO io
                  => (RSDM -> RSDM)
                  -> io ()
-        modifyRS = io . modifyRegionSelection regionSelectionRef layout detailsView
+        modifyRS = io . modifyRegionSelection regionSelectionRef wi
 
     layout `on` buttonPressEvent $ tryEvent $ do
       LeftButton <- eventButton
