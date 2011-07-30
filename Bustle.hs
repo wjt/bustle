@@ -434,6 +434,7 @@ displayLog wi@(WindowInfo { wiWindow = window
         modifyRS = io . modifyRegionSelection regionSelectionRef wi
 
     layout `on` buttonPressEvent $ tryEvent $ do
+      io $ layout `set` [ widgetIsFocus := True ]
       LeftButton <- eventButton
       (_, y) <- eventCoordinates
 
