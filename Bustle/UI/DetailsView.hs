@@ -79,13 +79,13 @@ detailsViewNew = do
     widgetShowAll table
     return $ DetailsView table title pathLabel memberLabel view
 
-pickTitle :: DetailedMessage -> String
+pickTitle :: DetailedMessage -> Markup
 pickTitle (DetailedMessage m _) = case m of
-    MethodCall {} -> "<b>Method call</b>"
-    MethodReturn {} -> "<b>Method return</b>"
-    Error {} -> "<b>Error</b>"
-    Signal {} -> "<b>Signal</b>"
-    _ -> "<b>I am made of chalk</b>"
+    MethodCall {} -> b (escape "Method call")
+    MethodReturn {} -> b (escape "Method return")
+    Error {} -> b (escape "Error")
+    Signal {} -> b (escape "Signal")
+    _ -> escape "I am made of chalk"
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =
@@ -117,7 +117,7 @@ detailsViewUpdate :: DetailsView
 detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
-    labelSetMarkup (detailsTitle d) (pickTitle m)
+    labelSetMarkup (detailsTitle d) (unMarkup $ pickTitle m)
     labelSetText (detailsPath d) (maybe "Unknown" path member_)
     labelSetMarkup (detailsMember d) (maybe "Unknown" getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m
