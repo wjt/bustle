@@ -53,9 +53,9 @@ mean = acc 0 0
 data TimeInfo =
     TimeInfo { tiInterface :: Maybe Interface
              , tiMethodName :: MemberName
-             , tiTotalTime :: Double -- seconds
+             , tiTotalTime :: Double -- milliseconds
              , tiCallFrequency :: Int
-             , tiMeanCallTime :: Double -- seconds
+             , tiMeanCallTime :: Double -- milliseconds
              }
 
 methodTimes :: Log
@@ -72,7 +72,7 @@ methodTimes = reverse
               Just (newtime + total, newtime : times)
 
           methodReturn :: Message
-                       -> Maybe (Maybe Interface, MemberName, Integer)
+                       -> Maybe (Maybe Interface, MemberName, Microseconds)
           methodReturn (MethodReturn { timestamp = end,
                             inReplyTo = Just (MethodCall {
                                 timestamp = start, member = m }) }) =
@@ -82,7 +82,7 @@ methodTimes = reverse
           summarize ((i, method), (total, times)) =
               TimeInfo { tiInterface = i
                        , tiMethodName = method
-                       , tiTotalTime = fromInteger total / 1000
+                       , tiTotalTime = fromIntegral total / 1000
                        , tiCallFrequency = length times
-                       , tiMeanCallTime = (mean $ map fromInteger times) / 1000
+                       , tiMeanCallTime = (mean $ map fromIntegral times) / 1000
                        }

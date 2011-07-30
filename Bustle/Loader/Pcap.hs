@@ -88,16 +88,16 @@ isNOC (Just sender) s | looksLikeNOC =
 isNOC _ _ = Nothing
 
 
-bustlifyNOC :: B.Milliseconds
+bustlifyNOC :: B.Microseconds
             -> (BusName, Maybe BusName, Maybe BusName)
             -> B.Message
-bustlifyNOC ms ns@(name, oldOwner, newOwner)
+bustlifyNOC µs ns@(name, oldOwner, newOwner)
     | isUnique name =
           case (oldOwner, newOwner) of
-              (Just _, Nothing) -> B.Connected ms (uniquify name)
-              (Nothing, Just _) -> B.Disconnected ms (uniquify name)
+              (Just _, Nothing) -> B.Connected µs (uniquify name)
+              (Nothing, Just _) -> B.Disconnected µs (uniquify name)
               _                 -> error $ "wtf: NOC" ++ show ns
-    | otherwise = B.NameChanged ms (otherify name) $
+    | otherwise = B.NameChanged µs (otherify name) $
           case (oldOwner, newOwner) of
               (Just old, Nothing)  -> B.Released (uniquify old)
               (Just old, Just new) -> B.Stolen (uniquify old) (uniquify new)
@@ -110,17 +110,17 @@ bustlifyNOC ms ns@(name, oldOwner, newOwner)
     uniquify = B.UniqueName . T.unpack . strBusName
     otherify = B.OtherName . T.unpack . strBusName
 
-bustlify :: B.Milliseconds
+bustlify :: B.Microseconds
          -> ReceivedMessage
          -> State PendingMessages B.DetailedMessage
-bustlify ms m = do
+bustlify µs m = do
     bm <- buildBustledMessage
     return $ B.DetailedMessage bm (Just m)
   where
     buildBustledMessage = case m of
         (ReceivedMethodCall serial sender mc) -> do
             let call = B.MethodCall
-                             { B.timestamp = ms
+                             { B.timestamp = µs
                              , B.serial = serialValue serial
                              -- sender may be empty if it's us who sent it
                              , B.sender = convertBusName "method.call.sender" sender
@@ -139,12 +139,12 @@ bustlify ms m = do
                     --  • check that the service really is the bus daemon
                     --  • don't crash if the body of the call or reply doesn't contain one bus name.
                     | B.membername (B.member bustleCall) == "GetNameOwner"
-                        -> bustlifyNOC ms ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
+                        -> bustlifyNOC µs ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
                                           , Nothing
                                           , fromVariant $ (methodReturnBody mr !! 0)
                                           )
                 _ -> B.MethodReturn
-                               { B.timestamp = ms
+                               { B.timestamp = µs
                                , B.inReplyTo = fmap snd call
                                , B.sender = convertBusName "method.return.sender" sender
                                , B.destination = convertBusName "method.return.destination" $ methodReturnDestination mr
@@ -153,16 +153,16 @@ bustlify ms m = do
         (ReceivedError _serial sender e) -> do
             call <- popMatchingCall (errorDestination e) (errorSerial e)
             return $ B.Error
-                        { B.timestamp = ms
+                        { B.timestamp = µs
                         , B.inReplyTo = fmap snd call
                         , B.sender = convertBusName "method.error.sender" sender
                         , B.destination = convertBusName "method.error.destination" $ errorDestination e
                         }
 
         (ReceivedSignal _serial sender sig)
-            | Just names <- isNOC sender sig -> return $ bustlifyNOC ms names
+            | Just names <- isNOC sender sig -> return $ bustlifyNOC µs names
             | otherwise                      -> return $
-                B.Signal { B.timestamp = ms
+                B.Signal { B.timestamp = µs
                          , B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
                          }
@@ -179,13 +179,13 @@ unmarshalFromBS bs = G.runGet getter $ fromChunks [bs]
 
 fromPacket :: PktHdr
            -> BS.ByteString
-           -> Either UnmarshalError (B.Milliseconds, ReceivedMessage)
+           -> Either UnmarshalError (B.Microseconds, ReceivedMessage)
 fromPacket hdr body =
     case unmarshalFromBS body of
         Left e  -> Left e
-        Right m -> Right (ms, m)
+        Right m -> Right (µs, m)
   where
-    ms = fromIntegral (hdrTime hdr) `div` 1000
+    µs = fromIntegral (hdrTime hdr)
 
 convert :: PktHdr
         -> BS.ByteString

@@ -121,7 +121,7 @@ data RendererState =
                   , systemBusState :: BusState
                   , row :: Double
                   , mostRecentLabels :: Double
-                  , startTime :: Milliseconds
+                  , startTime :: Microseconds
                   , warnings :: [String]
                   }
 
@@ -139,7 +139,7 @@ initialSessionBusState =
 initialSystemBusState =
     initialBusState $ negate firstColumnOffset
 
-initialState :: Milliseconds -> RendererState
+initialState :: Microseconds -> RendererState
 initialState t = RendererState
     { sessionBusState = initialSessionBusState
     , systemBusState = initialSystemBusState
@@ -419,7 +419,7 @@ memberName message isReturn = do
 relativeTimestamp :: Message -> Renderer ()
 relativeTimestamp m = do
     base <- gets startTime
-    let relative = (timestamp m - base) `div` 1000
+    let relative = µsToMs (timestamp m - base)
     current <- gets row
     shape $ timestampLabel (show relative ++ "ms") current
 
@@ -427,7 +427,7 @@ returnArc :: Bus
           -> Message
           -> Double
           -> Double
-          -> Milliseconds
+          -> Microseconds
           -> Renderer ()
 returnArc bus mr callx cally duration = do
     destinationx <- destinationCoordinate bus mr
@@ -437,7 +437,7 @@ returnArc bus mr callx cally duration = do
     shape $ Arc { topx = callx, topy = cally
                 , bottomx = currentx, bottomy = currenty
                 , arcside = if (destinationx > currentx) then L else R
-                , caption = show (duration `div` 1000) ++ "ms"
+                , caption = show (µsToMs duration) ++ "ms"
                 }
 
 addMessageRegion :: DetailedMessage

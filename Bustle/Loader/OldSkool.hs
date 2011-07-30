@@ -67,12 +67,12 @@ parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
 parseSerial :: Parser Serial
 parseSerial = read <$> many1 digit <?> "serial"
 
-parseTimestamp :: Parser Milliseconds
+parseTimestamp :: Parser Microseconds
 parseTimestamp = do
     seconds <- i
     t
-    ms <- i
-    return (seconds * 1000000 + ms)
+    µs <- i
+    return $ µsFromPair seconds µs
   where i = read <$> many1 digit <?> "timestamp"
 
 none :: Parser (Maybe a)
@@ -111,7 +111,7 @@ methodCall = do
   <?> "method call"
 
 parseReturnOrError :: String
-                   -> (Milliseconds -> Maybe Message -> BusName -> BusName -> Message)
+                   -> (Microseconds -> Maybe Message -> BusName -> BusName -> Message)
                    -> Parser Message
 parseReturnOrError prefix constructor = do
     string prefix <* t

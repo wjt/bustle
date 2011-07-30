@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-
 Bustle.Types: defines types used by Bustle
 Copyright (C) 2008 Collabora Ltd.
@@ -45,7 +46,17 @@ unBusName :: BusName -> String
 unBusName (U (UniqueName x)) = x
 unBusName (O (OtherName  x)) = x
 
-type Milliseconds = Integer
+newtype Microseconds = Microseconds Integer
+  deriving (Show, Ord, Eq, Num, Real, Enum, Integral)
+
+µsFromPair :: Integer
+           -> Integer
+           -> Microseconds
+µsFromPair s µs = Microseconds $ (s * 1000000) + µs
+
+µsToMs :: Microseconds
+       -> Integer
+µsToMs (Microseconds µs) = µs `div` 1000
 
 data Member = Member { path :: ObjectPath
                      , iface :: Maybe Interface
@@ -53,33 +64,33 @@ data Member = Member { path :: ObjectPath
                      }
   deriving (Ord, Show, Read, Eq)
 
-data Message = MethodCall { timestamp :: Milliseconds
+data Message = MethodCall { timestamp :: Microseconds
                           , serial :: Serial
                           , sender :: BusName
                           , destination :: BusName
                           , member :: Member
                           }
-             | MethodReturn { timestamp :: Milliseconds
+             | MethodReturn { timestamp :: Microseconds
                             , inReplyTo :: Maybe Message
                             , sender :: BusName
                             , destination :: BusName
                             }
-             | Signal { timestamp :: Milliseconds
+             | Signal { timestamp :: Microseconds
                       , sender :: BusName
                       , member :: Member
                       }
-             | Error { timestamp :: Milliseconds
+             | Error { timestamp :: Microseconds
                      , inReplyTo :: Maybe Message
                      , sender :: BusName
                      , destination :: BusName
                      }
-             | Connected { timestamp :: Milliseconds
+             | Connected { timestamp :: Microseconds
                          , actor :: UniqueName
                          }
-             | Disconnected { timestamp :: Milliseconds
+             | Disconnected { timestamp :: Microseconds
                             , actor :: UniqueName
                             }
-             | NameChanged { timestamp :: Milliseconds
+             | NameChanged { timestamp :: Microseconds
                            , changedName :: OtherName
                            , change :: Change
                            }

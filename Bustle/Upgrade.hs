@@ -43,17 +43,17 @@ synthesiseNOC m = do
     f2 <- synth (destination m) (timestamp m)
     return ( f1 ++ f2 ++ [m] )
 
-synth :: BusName -> Milliseconds -> State (Set BusName) [Message]
-synth n ts = do
+synth :: BusName -> Microseconds -> State (Set BusName) [Message]
+synth n µs = do
     b <- gets (Set.member n)
     if b
       then return []
       else do
         modify (Set.insert n)
         return $ case n of
-          U u -> [ Connected ts u ]
-          O o -> [ Connected ts (fake o)
-                 , NameChanged ts o (Claimed (fake o))
+          U u -> [ Connected µs u ]
+          O o -> [ Connected µs (fake o)
+                 , NameChanged µs o (Claimed (fake o))
                  ]
 
 fake :: OtherName -> UniqueName
