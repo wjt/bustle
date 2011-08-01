@@ -4,11 +4,9 @@ module Bustle.Loader.Pcap
   )
 where
 
-import Data.Either (partitionEithers, either)
-import Data.Maybe (fromMaybe, catMaybes, fromJust)
+import Data.Maybe (fromJust)
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Control.Applicative ((<$>))
 import Control.Exception (try)
 import Control.Monad.State
 
