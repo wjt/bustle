@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts #-}
 module Bustle.Loader.Pcap
   ( readPcap
   )
@@ -46,11 +46,13 @@ convertMember getObjectPath getInterfaceName getMemberName m =
              (fmap (T.unpack . strInterfaceName) . getInterfaceName $ m)
              (T.unpack . strMemberName . getMemberName $ m)
 
-type PendingMessages = Map (Maybe BusName, Serial) (MethodCall, B.DetailedMessage)
+type PendingMessages = Map (Maybe BusName, Serial)
+                           (MethodCall, B.DetailedMessage)
 
-popMatchingCall :: Maybe BusName
+popMatchingCall :: (MonadState PendingMessages m)
+                => Maybe BusName
                 -> Serial
-                -> State PendingMessages (Maybe (MethodCall, B.DetailedMessage))
+                -> m (Maybe (MethodCall, B.DetailedMessage))
 popMatchingCall name serial = do
     ret <- tryPop (name, serial)
     case (ret, name) of
@@ -66,7 +68,12 @@ popMatchingCall name serial = do
         modify $ Map.delete key
         return call
 
-insertPending :: Maybe BusName -> Serial -> MethodCall -> B.DetailedMessage -> State PendingMessages ()
+insertPending :: (MonadState PendingMessages m)
+              => Maybe BusName
+              -> Serial
+              -> MethodCall
+              -> B.DetailedMessage
+              -> m ()
 insertPending n s rawCall b = modify $ Map.insert (n, s) (rawCall, b)
 
 isNOC :: Maybe BusName -> Signal -> Maybe (BusName, Maybe BusName, Maybe BusName)
@@ -107,9 +114,10 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
     uniquify = B.UniqueName . T.unpack . strBusName
     otherify = B.OtherName . T.unpack . strBusName
 
-bustlify :: B.Microseconds
+bustlify :: Monad m
+         => B.Microseconds
          -> ReceivedMessage
-         -> State PendingMessages B.DetailedMessage
+         -> StateT PendingMessages m B.DetailedMessage
 bustlify µs m = do
     bm <- buildBustledMessage
     return $ B.DetailedMessage µs bm (Just m)
@@ -182,43 +190,60 @@ fromPacket hdr body =
   where
     µs = fromIntegral (hdrTime hdr)
 
-convert :: PktHdr
+convert :: Monad m
+        => PktHdr
         -> BS.ByteString
-        -> PendingMessages
-        -> Either String (B.DetailedMessage, PendingMessages)
-convert hdr body s =
+        -> StateT PendingMessages m (Either String B.DetailedMessage)
+convert hdr body =
     case fromPacket hdr body of
-        Left unmarshalError -> Left $ show unmarshalError
-        Right (ms, m)       -> Right $ runState (bustlify ms m) s
+        Left unmarshalError -> return $ Left $ show unmarshalError
+        Right (ms, m)       -> liftM Right $ bustlify ms m
 
-mapBodies :: PcapHandle
-          -> (PktHdr -> BS.ByteString -> s -> Either e (a, s))
-          -> s
-          -> IO (Either e [a])
-mapBodies p f s = do
-    (hdr, body) <- nextBS p
+data Result e a =
+    EOF
+  | Failed e
+  | Read a
+  deriving Show
+
+readOne :: (Monad m, MonadIO m)
+        => PcapHandle
+        -> (PktHdr -> BS.ByteString -> StateT s m (Either e a))
+        -> StateT s m (Result e a)
+readOne p f = do
+    (hdr, body) <- liftIO $ nextBS p
     -- No really, nextBS just returns null packets when you hit the end of the
     -- file.
     --
     -- It occurs to me that we could stream by just polling this every second
     -- or something?
     if hdrCaptureLength hdr == 0
-        then return $ Right []
+        then return EOF
         else do
-            let x = f hdr body s
-            case x of
-                Left e -> return $ Left e
-                Right (a, s') -> do
-                    xs <- mapBodies p f s'
-                    case xs of
-                        Left e -> return $ Left e
-                        Right as -> return $ Right (a:as)
+            x <- f hdr body
+            return $ case x of
+                Left e  -> Failed e
+                Right a -> Read a
+
+mapBodies :: (Monad m, MonadIO m)
+          => PcapHandle
+          -> (PktHdr -> BS.ByteString -> StateT s m (Either e a))
+          -> StateT s m (Either e [a])
+mapBodies p f = do
+    ret <- readOne p f
+    case ret of
+        EOF      -> return $ Right []
+        Failed e -> return $ Left e
+        Read a   -> do
+            ret' <- mapBodies p f
+            case ret' of
+                Left _   -> return ret'
+                Right as -> return (Right (a:as))
 
 readPcap :: FilePath -> IO (Either IOError [B.DetailedMessage])
 readPcap path = try $ do
     p <- openOffline path
 
-    ret <- mapBodies p convert Map.empty
+    ret <- evalStateT (mapBodies p convert) Map.empty
     -- FIXME: make the error handling less shoddy
     case ret of
         Left e -> error $ show e
