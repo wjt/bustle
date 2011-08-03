@@ -158,12 +158,28 @@ initialState t = RendererState
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
+data Column = NoColumn
+            | CurrentColumn Double
+            | FormerColumn (Maybe Double)
+  deriving
+    Show
+
+currentColumn :: Column
+              -> Maybe Double
+currentColumn (CurrentColumn x) = Just x
+currentColumn _ = Nothing
+
 data ApplicationInfo =
-    ApplicationInfo { aiColumn :: Maybe Double
+    ApplicationInfo { aiColumn :: Column
                     , aiCurrentNames :: Set OtherName
+                    , aiEverNames :: Set OtherName
                     }
   deriving
     Show
+
+aiCurrentColumn :: ApplicationInfo -> Maybe Double
+aiCurrentColumn = currentColumn . aiColumn
+
 type Applications = Map UniqueName ApplicationInfo
 
 -- Map from a method call message to the coordinates at which the arc to its
@@ -250,8 +266,13 @@ appCoordinate :: Bus -> BusName -> Renderer Double
 appCoordinate bus n = do
     (u, details) <- lookupApp bus n
     case aiColumn details of
-        Just col -> return col
-        Nothing  -> assignColumn u (aiCurrentNames details)
+        NoColumn        -> assignColumn u (aiCurrentNames details)
+        CurrentColumn x -> return x
+        FormerColumn c  -> do
+            warn $ show n ++ "(owned by " ++ show u ++ ") spontaneously reappeared"
+            case c of
+                Just x  -> return x
+                Nothing -> assignColumn u (aiCurrentNames details)
   where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
             x <- nextColumn <$> getBusState bus
@@ -261,7 +282,7 @@ appCoordinate bus n = do
                     SessionBus -> (+ columnWidth)
                     SystemBus -> subtract columnWidth
             modifyBusState bus $ \bs -> bs { nextColumn = f x }
-            modifyApps bus $ Map.adjust (\ai -> ai { aiColumn = Just x }) u
+            modifyApps bus $ Map.adjust (\ai -> ai { aiColumn = CurrentColumn x }) u
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
@@ -290,21 +311,29 @@ updateApps bus n c = case c of
 -- Adds a new unique name
 addUnique :: Bus -> UniqueName -> Renderer ApplicationInfo
 addUnique bus n = do
-    let ai = ApplicationInfo Nothing Set.empty
+    let ai = ApplicationInfo NoColumn Set.empty Set.empty
     -- FIXME: this could trample on names that erroneously already exist...
     modifyApps bus $ Map.insert n ai
     return ai
 
--- Removes a unique name
+-- Removes a unique name from the diagram. If we ever try to reuse columns
+-- we'll have to revisit the FormerColumn concept to include a range of time.
 remUnique :: Bus -> UniqueName -> Renderer ()
 remUnique bus n = do
-    modifyApps bus (Map.delete n)
+    modifyApps bus (Map.adjust clearColumn n)
+  where
+    clearColumn :: ApplicationInfo -> ApplicationInfo
+    clearColumn ai = case aiColumn ai of
+        CurrentColumn x -> ai { aiColumn = FormerColumn (Just x) }
+        _               -> ai { aiColumn = FormerColumn Nothing }
 
 addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer ()
 -- Add a new well-known name to a unique name.
 addOther bus n u = do
     ai <- lookupUniqueName bus u
-    let ai' = ai { aiCurrentNames = Set.insert n (aiCurrentNames ai) }
+    let ai' = ai { aiCurrentNames = Set.insert n (aiCurrentNames ai)
+                 , aiEverNames = Set.insert n (aiEverNames ai)
+                 }
     modifyApps bus $ Map.insert u ai'
 
 -- Remove a well-known name from a unique name
@@ -361,7 +390,9 @@ advanceBy d = do
     when (current' - lastLabelling > 400) $ do
         xs <- (++) <$> getsApps Map.toList SessionBus
                    <*> getsApps Map.toList SystemBus
-        let xs' = [ (x, bestNames u os) | (u, ApplicationInfo (Just x) os) <- xs ]
+        let xs' = [ (x, bestNames u os)
+                  | (u, ApplicationInfo (CurrentColumn x) os _) <- xs
+                  ]
         let (height, ss) = headers xs' (current' + 20)
         mapM_ shape ss
         modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
@@ -376,7 +407,7 @@ advanceBy d = do
     shape $ Rule leftMargin rightMargin (current + 15)
 
     let appColumns :: Applications -> [Double]
-        appColumns = catMaybes . Map.fold ((:) . aiColumn) []
+        appColumns = catMaybes . Map.fold ((:) . aiCurrentColumn) []
     xs <- (++) <$> getsApps appColumns SessionBus
                <*> getsApps appColumns SystemBus
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
@@ -390,7 +421,7 @@ bestNames (UniqueName u) os
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do
     (first, next) <- getsBusState (firstColumn &&& nextColumn) bus
-    xs <- getsApps (catMaybes . map aiColumn . Map.elems) bus
+    xs <- getsApps (catMaybes . map aiCurrentColumn . Map.elems) bus
 
     -- FIXME: per-bus sign
     let edgiest = case bus of
