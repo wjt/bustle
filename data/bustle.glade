@@ -3,7 +3,7 @@
   <!-- interface-requires gtk+ 2.16 -->
   <!-- interface-naming-policy project-wide -->
   <widget class="GtkWindow" id="diagramWindow">
-    <property name="title" translatable="yes">No document &#x2014; D-Bus Sequence Diagram</property>
+    <property name="title" translatable="yes">No document &#x2014; Bustle</property>
     <property name="default_width">900</property>
     <property name="default_height">700</property>
     <child>
@@ -119,10 +119,8 @@
             <child>
               <widget class="GtkLabel" id="label3">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">&lt;b&gt;No diagram loaded&lt;/b&gt;
-
-Having saved the output of &lt;tt&gt;bustle-dbus-monitor&lt;/tt&gt; to a file,
-open that file to see a sequence diagram of D-Bus activity.</property>
+                <property name="label" translatable="yes">Run &lt;i&gt;bustle-pcap foo.bustle&lt;/i&gt; to record a log of D-Bus traffic;
+then open &lt;i&gt;foo.bustle&lt;/i&gt; to view the log.</property>
                 <property name="use_markup">True</property>
               </widget>
             </child>

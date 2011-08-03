@@ -412,7 +412,7 @@ displayLog wi@(WindowInfo { wiWindow = window
   showBounds <- asks debugEnabled
 
   io $ do
-    windowSetTitle window $ title ++ " — D-Bus Sequence Diagram"
+    windowSetTitle window $ title ++ " — Bustle"
     widgetSetSensitivity saveItem True
     onActivateLeaf saveItem $ saveToPDFDialogue window details
 
