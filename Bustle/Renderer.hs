@@ -18,7 +18,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bustle.Renderer
-    ( process
+    (
+      process
+    , RendererResult(..)
     )
 where
 
@@ -54,11 +56,18 @@ describeBus :: Bus -> String
 describeBus SessionBus = "session"
 describeBus SystemBus = "system"
 
+data RendererResult =
+    RendererResult { rrCentreOffset :: Double
+                   , rrShapes :: [Shape]
+                   , rrRegions :: Regions DetailedMessage
+                   , rrWarnings :: [String]
+                   }
+
 process :: Log
         -> Log
-        -> ((Double, [Shape]), Regions DetailedMessage, [String])
+        -> RendererResult
 process sessionBusLog systemBusLog =
-    ((x, diagram'), regions', ws)
+    RendererResult x diagram' regions' ws
   where
         ((diagram, messageRegions), ws) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)

@@ -34,7 +34,7 @@ import Data.IORef
 
 import Paths_bustle
 import Bustle.Application.Monad
-import Bustle.Renderer (process)
+import Bustle.Renderer (process, RendererResult(..))
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
@@ -171,15 +171,18 @@ loadLogWith getWindow session maybeSystem = do
             Nothing     -> return []
 
         -- FIXME: pass the log file name into the renderer
-        let ((xTranslation, shapes), regions, ws) =
-                process sessionMessages systemMessages
-        forM_ ws $ io . warn
+        let rr = process sessionMessages systemMessages
+        forM_ (rrWarnings rr) $ io . warn
 
         windowInfo <- lift getWindow
-        lift $ displayLog windowInfo session maybeSystem xTranslation shapes
+        lift $ displayLog windowInfo
+                          session
+                          maybeSystem
+                          (rrCentreOffset rr)
+                          (rrShapes rr)
                           sessionMessages
                           systemMessages
-                          regions
+                          (rrRegions rr)
 
     case ret of
       Left (LoadError f e) -> io $
