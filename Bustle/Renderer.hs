@@ -215,7 +215,7 @@ lookupOtherName bus o = do
                           , " bus; making something up..."
                           ]
             let namesInUse = Map.keys as
-                candidates = map (UniqueName . (":0." ++) . show)
+                candidates = map (UniqueName . (":fake." ++) . show)
                                  ([1..] :: [Integer])
                 u = head $ filter (not . (`elem` namesInUse)) candidates
             addUnique bus u
