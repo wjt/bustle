@@ -158,7 +158,13 @@ initialState t = RendererState
 
 -- Maps unique connection name to the column representing that name, if
 -- allocated, and a set of non-unique names for the connection, if any.
-type Applications = Map UniqueName (Maybe Double, Set OtherName)
+data ApplicationInfo =
+    ApplicationInfo { aiColumn :: Maybe Double
+                    , aiCurrentNames :: Set OtherName
+                    }
+  deriving
+    Show
+type Applications = Map UniqueName ApplicationInfo
 
 -- Map from a method call message to the coordinates at which the arc to its
 -- return should start.
@@ -186,24 +192,22 @@ getsApps f = getsBusState (f . apps)
 
 lookupUniqueName :: Bus
                  -> UniqueName
-                 -> Renderer (Maybe Double, Set OtherName)
+                 -> Renderer ApplicationInfo
 lookupUniqueName bus u = do
     thing <- getsApps (Map.lookup u) bus
     case thing of
         Just nameInfo -> return nameInfo
-        Nothing       -> do
-            -- This happens with pcap logs where we don't (currently) have
-            -- explicit change notification for unique names in the stream of
-            -- DetailedMessages
-            addUnique bus u
-            return (Nothing, Set.empty)
+        -- This happens with pcap logs where we don't (currently) have
+        -- explicit change notification for unique names in the stream of
+        -- DetailedMessages.
+        Nothing       -> addUnique bus u
 
 lookupOtherName :: Bus
                 -> OtherName
-                -> Renderer (UniqueName, (Maybe Double, Set OtherName))
+                -> Renderer (UniqueName, ApplicationInfo)
 lookupOtherName bus o = do
     as <- getApps bus
-    case filter (Set.member o . snd . snd) (Map.assocs as) of
+    case filter (Set.member o . aiCurrentNames . snd) (Map.assocs as) of
         [details] -> return details
 
         -- No matches indicates a corrupt log, which we try to recover from …
@@ -219,8 +223,9 @@ lookupOtherName bus o = do
                                  ([1..] :: [Integer])
                 u = head $ filter (not . (`elem` namesInUse)) candidates
             addUnique bus u
-            maybeCoord <- addOther bus o u
-            return (u, (maybeCoord, Set.singleton o))
+            addOther bus o u
+            ai <- lookupUniqueName bus u
+            return (u, ai)
 
         -- … but more than one match means we're screwed.
         several   -> error $ concat [ "internal error: "
@@ -232,7 +237,7 @@ lookupOtherName bus o = do
 -- Finds a BusName in a map of applications
 lookupApp :: Bus
           -> BusName
-          -> Renderer (UniqueName, (Maybe Double, Set OtherName))
+          -> Renderer (UniqueName, ApplicationInfo)
 lookupApp bus name = case name of
     U u -> do
         details <- lookupUniqueName bus u
@@ -244,9 +249,9 @@ lookupApp bus name = case name of
 appCoordinate :: Bus -> BusName -> Renderer Double
 appCoordinate bus n = do
     (u, details) <- lookupApp bus n
-    case details of
-        (Just col, _) -> return col
-        (Nothing, os) -> assignColumn u os
+    case aiColumn details of
+        Just col -> return col
+        Nothing  -> assignColumn u (aiCurrentNames details)
   where assignColumn :: UniqueName -> Set OtherName -> Renderer Double
         assignColumn u os = do
             x <- nextColumn <$> getBusState bus
@@ -256,7 +261,7 @@ appCoordinate bus n = do
                     SessionBus -> (+ columnWidth)
                     SystemBus -> subtract columnWidth
             modifyBusState bus $ \bs -> bs { nextColumn = f x }
-            modifyApps bus $ Map.insert u (Just x, os)
+            modifyApps bus $ Map.adjust (\ai -> ai { aiColumn = Just x }) u
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
@@ -276,43 +281,37 @@ modifyApps bus f = modifyBusState bus $ \bs -> bs { apps = f (apps bs) }
 updateApps :: Bus -- ^ bus on which a name's owner has changed
            -> OtherName -- name whose owner has changed.
            -> Change -- details of the change
-           -> Renderer (Maybe Double, Maybe Double) -- the old and new owners' columns
+           -> Renderer ()
 updateApps bus n c = case c of
-    Claimed new -> (,) Nothing `fmap` addOther bus n new
-    Stolen old new -> (,) `fmap` remOther bus n old `ap` addOther bus n new
-    Released old -> flip (,) Nothing `fmap` remOther bus n old
-
--- updateApps but ignore the reply.
-updateApps_ :: Bus -- ^ bus on which a name's owner has changed
-            -> OtherName -- name whose owner has changed.
-            -> Change -- details of the change
-            -> Renderer ()
-updateApps_ bus n c = updateApps bus n c >> return ()
+    Claimed new -> addOther bus n new
+    Stolen old new -> remOther bus n old >> addOther bus n new
+    Released old -> remOther bus n old
 
 -- Adds a new unique name
-addUnique :: Bus -> UniqueName -> Renderer ()
-addUnique bus n = modifyApps bus $ Map.insert n (Nothing, Set.empty)
-  -- FIXME: this could trample on names that erroneously already exist...
+addUnique :: Bus -> UniqueName -> Renderer ApplicationInfo
+addUnique bus n = do
+    let ai = ApplicationInfo Nothing Set.empty
+    -- FIXME: this could trample on names that erroneously already exist...
+    modifyApps bus $ Map.insert n ai
+    return ai
 
--- Removes a unique name, yielding its column (if any)
-remUnique :: Bus -> UniqueName -> Renderer (Maybe Double)
+-- Removes a unique name
+remUnique :: Bus -> UniqueName -> Renderer ()
 remUnique bus n = do
-    coord <- fst <$> lookupUniqueName bus n
     modifyApps bus (Map.delete n)
-    return coord
 
-addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer (Maybe Double)
+addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer ()
 -- Add a new well-known name to a unique name.
 addOther bus n u = do
-    (x, ns) <- lookupUniqueName bus u
-    modifyApps bus (Map.insert u (x, Set.insert n ns))
-    return x
+    ai <- lookupUniqueName bus u
+    let ai' = ai { aiCurrentNames = Set.insert n (aiCurrentNames ai) }
+    modifyApps bus $ Map.insert u ai'
 
 -- Remove a well-known name from a unique name
 remOther bus n u = do
-    (x, ns) <- lookupUniqueName bus u
-    modifyApps bus (Map.insert u (x, Set.delete n ns))
-    return x
+    ai <- lookupUniqueName bus u
+    let ai' = ai { aiCurrentNames = Set.delete n (aiCurrentNames ai) }
+    modifyApps bus $ Map.insert u ai'
 
 shape :: Shape -> Renderer ()
 shape s = tell ([s], [])
@@ -362,7 +361,7 @@ advanceBy d = do
     when (current' - lastLabelling > 400) $ do
         xs <- (++) <$> getsApps Map.toList SessionBus
                    <*> getsApps Map.toList SystemBus
-        let xs' = [ (x, bestNames u os) | (u, (Just x, os)) <- xs ]
+        let xs' = [ (x, bestNames u os) | (u, ApplicationInfo (Just x) os) <- xs ]
         let (height, ss) = headers xs' (current' + 20)
         mapM_ shape ss
         modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
@@ -377,7 +376,7 @@ advanceBy d = do
     shape $ Rule leftMargin rightMargin (current + 15)
 
     let appColumns :: Applications -> [Double]
-        appColumns = catMaybes . Map.fold ((:) . fst) []
+        appColumns = catMaybes . Map.fold ((:) . aiColumn) []
     xs <- (++) <$> getsApps appColumns SessionBus
                <*> getsApps appColumns SystemBus
     forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
@@ -391,7 +390,7 @@ bestNames (UniqueName u) os
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do
     (first, next) <- getsBusState (firstColumn &&& nextColumn) bus
-    xs <- getsApps (catMaybes . map fst . Map.elems) bus
+    xs <- getsApps (catMaybes . map aiColumn . Map.elems) bus
 
     -- FIXME: per-bus sign
     let edgiest = case bus of
@@ -478,11 +477,11 @@ munge bus dm@(DetailedMessage _ m _) =
         MethodReturn {} -> returnOrError $ methodReturn bus
         Error {}        -> returnOrError $ errorReturn bus
 
-        Connected { actor = u } -> addUnique bus u
-        Disconnected { actor = u } -> remUnique bus  u >> return ()
+        Connected { actor = u } -> addUnique bus u >> return ()
+        Disconnected { actor = u } -> remUnique bus u
         NameChanged { changedName = n
                     , change = c
-                    } -> updateApps_ bus n c
+                    } -> updateApps bus n c
 
   where advance = advanceBy eventHeight -- FIXME: use some function of timestamp?
         returnOrError f = do
