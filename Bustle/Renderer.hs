@@ -60,6 +60,9 @@ data RendererResult =
     RendererResult { rrCentreOffset :: Double
                    , rrShapes :: [Shape]
                    , rrRegions :: Regions DetailedMessage
+                   , rrApplications :: ( Map UniqueName (Set OtherName)
+                                       , Map UniqueName (Set OtherName)
+                                       )
                    , rrWarnings :: [String]
                    }
 
@@ -67,12 +70,18 @@ process :: Log
         -> Log
         -> RendererResult
 process sessionBusLog systemBusLog =
-    RendererResult x diagram' regions' (reverse $ warnings rs)
+    RendererResult x diagram' regions'
+                   (sessionApps, systemApps)
+                   (reverse $ warnings rs)
   where
         ((diagram, messageRegions), rs) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)
         (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
         regions' = translateRegions y messageRegions
+
+        stripApps = Map.map aiEverNames . Map.filter aiHadAColumn . apps
+        sessionApps = stripApps $ sessionBusState rs
+        systemApps = stripApps $ systemBusState rs
 
         log' = combine sessionBusLog systemBusLog
 
@@ -179,6 +188,11 @@ data ApplicationInfo =
 
 aiCurrentColumn :: ApplicationInfo -> Maybe Double
 aiCurrentColumn = currentColumn . aiColumn
+
+aiHadAColumn :: ApplicationInfo -> Bool
+aiHadAColumn ai = case aiColumn ai of
+    NoColumn -> False
+    _        -> True
 
 type Applications = Map UniqueName ApplicationInfo
 
