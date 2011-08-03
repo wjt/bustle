@@ -37,7 +37,8 @@ Executable bustle
                   Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util,
                   Bustle.StatisticsPane, Bustle.Markup,
                   Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool,
-                  Bustle.UI.DetailsView, Bustle.Regions
+                  Bustle.UI.DetailsView, Bustle.UI.FilterDialog,
+                  Bustle.Regions
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)

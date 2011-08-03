@@ -31,15 +31,17 @@ import Control.Monad.Error
 import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
 import Data.Version (showVersion)
 import Data.IORef
+import qualified Data.Map as Map
 
 import Paths_bustle
 import Bustle.Application.Monad
-import Bustle.Renderer (process, RendererResult(..))
+import Bustle.Renderer (process, RendererResult(..), Participants(..))
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
 import Bustle.Util
 import Bustle.UI.DetailsView
+import Bustle.UI.FilterDialog
 import Bustle.StatisticsPane
 import Bustle.Loader
 
@@ -64,6 +66,7 @@ data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
                , wiViewStatistics :: CheckMenuItem
+               , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
@@ -173,16 +176,15 @@ loadLogWith getWindow session maybeSystem = do
         -- FIXME: pass the log file name into the renderer
         let rr = process sessionMessages systemMessages
         forM_ (rrWarnings rr) $ io . warn
+        forM_ (Map.assocs . sessionParticipants $ rrApplications rr) $ io . print
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo
                           session
                           maybeSystem
-                          (rrCentreOffset rr)
-                          (rrShapes rr)
                           sessionMessages
                           systemMessages
-                          (rrRegions rr)
+                          rr
 
     case ret of
       Left (LoadError f e) -> io $
@@ -206,6 +208,7 @@ emptyWindow = do
        ["open", "saveAs", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
+  filterNames <- getW castToMenuItem "filter"
   layout <- getW castToLayout "diagramLayout"
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
@@ -305,6 +308,7 @@ emptyWindow = do
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiViewStatistics = viewStatistics
+                              , wiFilterNames = filterNames
                               , wiNotebook = nb
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
@@ -383,15 +387,14 @@ modifyRegionSelection regionSelectionRef wi f = do
 displayLog :: WindowInfo
            -> FilePath
            -> Maybe FilePath
-           -> Double
-           -> Diagram
            -> Log
            -> Log
-           -> Regions DetailedMessage
+           -> RendererResult Participants
            -> B ()
 displayLog wi@(WindowInfo { wiWindow = window
                        , wiSave = saveItem
                        , wiViewStatistics = viewStatistics
+                       , wiFilterNames = filterNames
                        , wiLayout = layout
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
@@ -399,11 +402,12 @@ displayLog wi@(WindowInfo { wiWindow = window
                        })
            sessionPath
            maybeSystemPath
-           xTranslation
-           shapes
            sessionMessages
            systemMessages
-           regions = do
+           rr@(RendererResult { rrCentreOffset = xTranslation
+                              , rrShapes = shapes
+                              , rrRegions = regions
+                              }) = do
   let (width, height) = diagramDimensions shapes
       (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
@@ -476,6 +480,9 @@ displayLog wi@(WindowInfo { wiWindow = window
             then widgetShow statsBook
             else widgetHide statsBook
 
+    widgetSetSensitivity filterNames True
+    onActivateLeaf filterNames $ runFilterDialog window 
+      (sessionParticipants $ rrApplications rr)
     -- The stats start off hidden.
     widgetHide statsBook
 

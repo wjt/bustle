@@ -73,6 +73,14 @@
                   <widget class="GtkMenu" id="menu2">
                     <property name="visible">True</property>
                     <child>
+                      <widget class="GtkMenuItem" id="filter">
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="label" translatable="yes">_Filter names…</property>
+                        <property name="use_underline">True</property>
+                      </widget>
+                    </child>
+                    <child>
                       <widget class="GtkCheckMenuItem" id="statistics">
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
