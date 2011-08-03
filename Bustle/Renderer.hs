@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-
 Bustle.Renderer: render nice Cairo diagrams from a list of D-Bus messages
 Copyright (C) 2008 Collabora Ltd.
@@ -20,7 +21,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 module Bustle.Renderer
     (
       process
+    , processWithFilters
+
     , RendererResult(..)
+    , Participants(..)
     )
 where
 
@@ -56,32 +60,50 @@ describeBus :: Bus -> String
 describeBus SessionBus = "session"
 describeBus SystemBus = "system"
 
-data RendererResult =
+data Participants =
+    Participants { sessionParticipants
+                 , systemParticipants :: Map UniqueName (Set OtherName)
+                 }
+
+data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
                    , rrShapes :: [Shape]
                    , rrRegions :: Regions DetailedMessage
-                   , rrApplications :: ( Map UniqueName (Set OtherName)
-                                       , Map UniqueName (Set OtherName)
-                                       )
+                   , rrApplications :: apps
                    , rrWarnings :: [String]
                    }
+  deriving
+    Functor -- slight hack really
+
+processWithFilters :: (Log, Set UniqueName)
+                   -> (Log, Set UniqueName)
+                   -> RendererResult ()
+processWithFilters session system = fmap (const ()) $ processFull session system
 
 process :: Log
         -> Log
-        -> RendererResult
+        -> RendererResult Participants
 process sessionBusLog systemBusLog =
+    processFull (sessionBusLog, Set.empty) (systemBusLog, Set.empty)
+
+processFull :: (Log, Set UniqueName)
+            -> (Log, Set UniqueName)
+            -> RendererResult Participants
+processFull (sessionBusLog, sessionFilter) (systemBusLog, systemFilter) =
     RendererResult x diagram' regions'
-                   (sessionApps, systemApps)
+                   participants
                    (reverse $ warnings rs)
   where
-        ((diagram, messageRegions), rs) = runRenderer (mapM_ (uncurry munge) log')
-                                          (initialState initTime)
+        ((diagram, messageRegions), rs) =
+            runRenderer (mapM_ (uncurry munge) log')
+                        (initialState initTime sessionFilter systemFilter)
         (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
         regions' = translateRegions y messageRegions
 
         stripApps = Map.map aiEverNames . Map.filter aiHadAColumn . apps
         sessionApps = stripApps $ sessionBusState rs
         systemApps = stripApps $ systemBusState rs
+        participants = Participants sessionApps systemApps
 
         log' = combine sessionBusLog systemBusLog
 
@@ -130,6 +152,7 @@ data BusState =
              , firstColumn :: Double
              , nextColumn :: Double
              , pending :: Pending
+             , bsIgnoredNames :: Set UniqueName
              }
 
 data RendererState =
@@ -141,24 +164,30 @@ data RendererState =
                   , warnings :: [String]
                   }
 
-initialBusState :: Double ->  BusState
-initialBusState first =
+initialBusState :: Set UniqueName
+                -> Double
+                ->  BusState
+initialBusState ignore first =
     BusState { apps = Map.empty
              , firstColumn = first
              , nextColumn = first
              , pending = Map.empty
+             , bsIgnoredNames = ignore
              }
 
-initialSessionBusState, initialSystemBusState :: BusState
-initialSessionBusState =
-    initialBusState $ timestampAndMemberWidth + firstColumnOffset
-initialSystemBusState =
-    initialBusState $ negate firstColumnOffset
+initialSessionBusState, initialSystemBusState :: Set UniqueName -> BusState
+initialSessionBusState f =
+    initialBusState f $ timestampAndMemberWidth + firstColumnOffset
+initialSystemBusState f =
+    initialBusState f $ negate firstColumnOffset
 
-initialState :: Microseconds -> RendererState
-initialState t = RendererState
-    { sessionBusState = initialSessionBusState
-    , systemBusState = initialSystemBusState
+initialState :: Microseconds
+             -> Set UniqueName
+             -> Set UniqueName
+             -> RendererState
+initialState t sessionFilter systemFilter = RendererState
+    { sessionBusState = initialSessionBusState sessionFilter
+    , systemBusState = initialSystemBusState systemFilter
     , row = 0
     , mostRecentLabels = 0
     , startTime = t
@@ -499,11 +528,30 @@ addMessageRegion m = do
     -- FIXME: wtf. "row" points to the ... middle ... of the current row.
     region (Stripe (newRow - eventHeight / 2) (newRow + eventHeight / 2)) m
 
+mentionedNames :: Message
+               -> [BusName]
+mentionedNames m = case m of
+    MethodCall { sender = s, destination = d }   -> [s, d]
+    MethodReturn { sender = s, destination = d } -> [s, d]
+    Signal { sender = s }                        -> [s]
+    Error { sender = s, destination = d }        -> [s, d]
+    -- We always want to process owner changes.
+    _                                            -> []
+
+shouldShow :: Bus
+           -> Message
+           -> Renderer Bool
+shouldShow bus m = do
+    ignored <- getsBusState bsIgnoredNames bus
+    names <- mapM (fmap fst . lookupApp bus) (mentionedNames m)
+    return $ Set.null (ignored `Set.intersection` Set.fromList names)
+
 munge :: Bus
       -> DetailedMessage
       -> Renderer ()
-munge bus dm@(DetailedMessage _ m _) =
-    case m of
+munge bus dm@(DetailedMessage _ m _) = do
+    orly <- shouldShow bus m
+    when orly $ case m of
         Signal {}       -> do
             advance
             relativeTimestamp dm
