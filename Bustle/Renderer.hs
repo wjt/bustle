@@ -67,9 +67,9 @@ process :: Log
         -> Log
         -> RendererResult
 process sessionBusLog systemBusLog =
-    RendererResult x diagram' regions' ws
+    RendererResult x diagram' regions' (reverse $ warnings rs)
   where
-        ((diagram, messageRegions), ws) = runRenderer (mapM_ (uncurry munge) log')
+        ((diagram, messageRegions), rs) = runRenderer (mapM_ (uncurry munge) log')
                                           (initialState initTime)
         (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
         regions' = translateRegions y messageRegions
@@ -112,11 +112,9 @@ instance Applicative Renderer where
 runRenderer :: Renderer ()
             -> RendererState
             -> ( ([Shape], Regions DetailedMessage)
-               , [String]
+               , RendererState
                )
-runRenderer (Renderer act) st = runIdentity $ do
-    (result, st') <- runStateT (execWriterT act) st
-    return (result, reverse (warnings st'))
+runRenderer (Renderer act) st = runIdentity $ runStateT (execWriterT act) st
 
 data BusState =
     BusState { apps :: Applications
