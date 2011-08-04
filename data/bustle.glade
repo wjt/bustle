@@ -76,7 +76,7 @@
                       <widget class="GtkMenuItem" id="filter">
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
-                        <property name="label" translatable="yes">_Filter names…</property>
+                        <property name="label" translatable="yes">_Filter visible services…</property>
                         <property name="use_underline">True</property>
                       </widget>
                     </child>
