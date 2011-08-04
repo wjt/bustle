@@ -75,10 +75,10 @@ methodTimes = reverse
                        -> Maybe (Maybe Interface, MemberName, Microseconds)
           methodReturn dm = case dmMessage dm of
               MethodReturn { inReplyTo =
-                                 Just (DetailedMessage end call@(MethodCall {}) _)
+                                 Just (DetailedMessage start call@(MethodCall {}) _)
                            } -> Just ( iface (member call)
                                      , membername (member call)
-                                     , end - dmTimestamp dm
+                                     , dmTimestamp dm - start
                                      )
               _              -> Nothing
 
