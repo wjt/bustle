@@ -21,17 +21,26 @@ formatNames (u, os)
     | Set.null os = unUniqueName u
     | otherwise = intercalate "\n" . map unOtherName $ Set.toAscList os
 
+makeStore :: [(UniqueName, Set OtherName)]
+          -> Set UniqueName
+          -> IO (ListStore (Bool, (UniqueName, Set OtherName)))
+makeStore names currentlyHidden = do
+    listStoreNew $ map toPair names
+  where
+    toPair (name@(u, _)) = (not (Set.member u currentlyHidden), name)
+
 runFilterDialog :: WindowClass parent
                 => parent
-                -> Map UniqueName (Set OtherName)
+                -> [(UniqueName, Set OtherName)]
+                -> Set UniqueName
                 -> IO (Set UniqueName) -- ^ The set of names to *hide*
-runFilterDialog parent names = do
+runFilterDialog parent names currentlyHidden = do
     d <- dialogNew
     windowSetTransientFor d parent
 
     dialogAddButton d stockClose ResponseClose
 
-    nameStore <- listStoreNew . zip (repeat True) $ Map.assocs names
+    nameStore <- makeStore names currentlyHidden
 
     nameView <- treeViewNewWithModel nameStore
     -- We want rules because otherwise it's tough to see where each group

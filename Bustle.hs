@@ -398,11 +398,13 @@ updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
     writeIORef shapesRef shapes
     writeIORef widthRef width
 
+    -- FIXME: try to preserve the currently-selected message?
     modifyRegionSelection regionSelectionRef wi $
         const (regionSelectionNew (rrRegions rr))
 
     layoutSetSize layout (floor width) (floor height)
 
+    -- FIXME: only do this the first time maybe?
     -- Shift to make the timestamp column visible
     hadj <- layoutGetHAdjustment layout
     (windowWidth, _) <- windowGetSize (wiWindow wi)
@@ -447,6 +449,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     shapesRef <- newIORef []
     widthRef <- newIORef 0
     regionSelectionRef <- newIORef $ regionSelectionNew []
+    hiddenRef <- newIORef Set.empty
 
     updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
 
@@ -507,9 +510,10 @@ displayLog wi@(WindowInfo { wiWindow = window
 
     widgetSetSensitivity filterNames True
     onActivateLeaf filterNames $ do
-        -- FIXME: tell it which ones are currently visible
-        ret <- runFilterDialog window (sessionParticipants $ rrApplications rr)
-        let rr' = processWithFilters (sessionMessages, ret) (systemMessages, Set.empty)
+        hidden <- readIORef hiddenRef
+        hidden' <- runFilterDialog window (sessionParticipants $ rrApplications rr) hidden
+        writeIORef hiddenRef hidden'
+        let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
         updateDisplayedLog wi rr' shapesRef widthRef regionSelectionRef
 

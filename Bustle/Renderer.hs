@@ -62,7 +62,7 @@ describeBus SystemBus = "system"
 
 data Participants =
     Participants { sessionParticipants
-                 , systemParticipants :: Map UniqueName (Set OtherName)
+                 , systemParticipants :: [(UniqueName, Set OtherName)]
                  }
 
 data RendererResult apps =
@@ -100,7 +100,11 @@ processFull (sessionBusLog, sessionFilter) (systemBusLog, systemFilter) =
         (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
         regions' = translateRegions y messageRegions
 
-        stripApps = Map.map aiEverNames . Map.filter aiHadAColumn . apps
+        stripApps = map (\(u, ai) -> (u, aiEverNames ai))
+                  . (sortBy (comparing (aiCurrentColumn . snd)))
+                  . Map.assocs
+                  . Map.filter aiHadAColumn
+                  . apps
         sessionApps = stripApps $ sessionBusState rs
         systemApps = stripApps $ systemBusState rs
         participants = Participants sessionApps systemApps
