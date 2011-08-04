@@ -170,7 +170,7 @@ data RendererState =
 
 initialBusState :: Set UniqueName
                 -> Double
-                ->  BusState
+                -> BusState
 initialBusState ignore first =
     BusState { apps = Map.empty
              , firstColumn = first
