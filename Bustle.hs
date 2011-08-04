@@ -32,10 +32,11 @@ import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
 import Data.Version (showVersion)
 import Data.IORef
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Paths_bustle
 import Bustle.Application.Monad
-import Bustle.Renderer (process, RendererResult(..), Participants(..))
+import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
@@ -61,7 +62,6 @@ import qualified DBus.Message
 
 type B a = Bustle BConfig BState a
 
-type Details = (FilePath, String, Diagram)
 data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
@@ -176,7 +176,6 @@ loadLogWith getWindow session maybeSystem = do
         -- FIXME: pass the log file name into the renderer
         let rr = process sessionMessages systemMessages
         forM_ (rrWarnings rr) $ io . warn
-        forM_ (Map.assocs . sessionParticipants $ rrApplications rr) $ io . print
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo
@@ -384,6 +383,37 @@ modifyRegionSelection regionSelectionRef wi f = do
             Nothing -> return ()
             Just (r, _) -> invalidateRect win r width
 
+updateDisplayedLog :: WindowInfo
+                   -> RendererResult a
+                   -> IORef [Shape]
+                   -> IORef Double
+                   -> IORef (RegionSelection DetailedMessage)
+                   -> IO ()
+updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
+    let shapes = rrShapes rr
+        (width, height) = diagramDimensions shapes
+
+        layout = wiLayout wi
+
+    writeIORef shapesRef shapes
+    writeIORef widthRef width
+
+    modifyRegionSelection regionSelectionRef wi $
+        const (regionSelectionNew (rrRegions rr))
+
+    layoutSetSize layout (floor width) (floor height)
+
+    -- Shift to make the timestamp column visible
+    hadj <- layoutGetHAdjustment layout
+    (windowWidth, _) <- windowGetSize (wiWindow wi)
+    -- Roughly centre the timestamp-and-member column
+    adjustmentSetValue hadj
+        ((rrCentreOffset rr) -
+            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
+        )
+
+    return ()
+
 displayLog :: WindowInfo
            -> FilePath
            -> Maybe FilePath
@@ -404,31 +434,34 @@ displayLog wi@(WindowInfo { wiWindow = window
            maybeSystemPath
            sessionMessages
            systemMessages
-           rr@(RendererResult { rrCentreOffset = xTranslation
-                              , rrShapes = shapes
-                              , rrRegions = regions
-                              }) = do
-  let (width, height) = diagramDimensions shapes
-      (directory, sessionName) = splitFileName sessionPath
+           rr = do
+  let (directory, sessionName) = splitFileName sessionPath
       baseName = snd . splitFileName
       title = maybe sessionName
                     ((++ (" + " ++ sessionName)) . baseName)
                     maybeSystemPath
-      details = (directory, title, shapes)
 
   showBounds <- asks debugEnabled
 
   io $ do
+    shapesRef <- newIORef []
+    widthRef <- newIORef 0
+    regionSelectionRef <- newIORef $ regionSelectionNew []
+
+    updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
+
     windowSetTitle window $ title ++ " — Bustle"
     widgetSetSensitivity saveItem True
-    onActivateLeaf saveItem $ saveToPDFDialogue window details
+    onActivateLeaf saveItem $ do
+        shapes <- readIORef shapesRef
+        saveToPDFDialogue window directory title shapes
 
-    layoutSetSize layout (floor width) (floor height)
-    regionSelectionRef <- newIORef $ regionSelectionNew regions
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
     layout `on` exposeEvent $ tryEvent $ io $ do
         rs <- readIORef regionSelectionRef
+        shapes <- readIORef shapesRef
+        width <- readIORef widthRef
         let shapes' =
                 case rsCurrent rs of
                     Nothing     -> shapes
@@ -460,15 +493,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]
 
-    -- Shift to make the timestamp column visible
-    hadj <- layoutGetHAdjustment layout
-    (windowWidth, _) <- windowGetSize window
-    -- Roughly centre the timestamp-and-member column
-    adjustmentSetValue hadj
-        (xTranslation -
-            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
-        )
-
+    -- FIXME: this currently shows stats for all messages, not post-filtered messages
     statsPaneSetMessages statsPane sessionMessages systemMessages
 
     widgetSetSensitivity viewStatistics True
@@ -481,8 +506,13 @@ displayLog wi@(WindowInfo { wiWindow = window
             else widgetHide statsBook
 
     widgetSetSensitivity filterNames True
-    onActivateLeaf filterNames $ runFilterDialog window 
-      (sessionParticipants $ rrApplications rr)
+    onActivateLeaf filterNames $ do
+        -- FIXME: tell it which ones are currently visible
+        ret <- runFilterDialog window (sessionParticipants $ rrApplications rr)
+        let rr' = processWithFilters (sessionMessages, ret) (systemMessages, Set.empty)
+
+        updateDisplayedLog wi rr' shapesRef widthRef regionSelectionRef
+
     -- The stats start off hidden.
     widgetHide statsBook
 
@@ -550,8 +580,12 @@ openDialogue window = embedIO $ \r -> do
 
   widgetShowAll chooser
 
-saveToPDFDialogue :: Window -> Details -> IO ()
-saveToPDFDialogue window (directory, filename, shapes) = do
+saveToPDFDialogue :: Window
+                  -> FilePath
+                  -> String
+                  -> Diagram
+                  -> IO ()
+saveToPDFDialogue window directory filename shapes = do
   chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-save", ResponseAccept)

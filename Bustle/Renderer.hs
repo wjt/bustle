@@ -73,7 +73,7 @@ data RendererResult apps =
                    , rrWarnings :: [String]
                    }
   deriving
-    Functor -- slight hack really
+    (Show, Functor) -- Using Functor is a slight hack really
 
 processWithFilters :: (Log, Set UniqueName)
                    -> (Log, Set UniqueName)

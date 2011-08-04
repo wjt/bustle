@@ -66,6 +66,9 @@ statsPaneSetMessages sp sessionMessages systemMessages = do
     -- but I think that's okay for now.
     let allMessages = sessionMessages ++ systemMessages
 
+    listStoreClear (spCountStore sp)
+    listStoreClear (spTimeStore sp)
+
     forM_ (frequencies allMessages) $ listStoreAppend (spCountStore sp)
     forM_ (methodTimes allMessages) $ listStoreAppend (spTimeStore sp)
 
