@@ -43,15 +43,15 @@ readLog f = do
     -- Surely this function must have a standard name?
     none_ fs x = not $ any ($ x) fs
 
+    none3 = none_ [senderIsBus, destIsBus, isDisconnected]
+
     isRelevant m@(Signal {}) = none_ [ senderIsBus
                                      , isDisconnected
                                      ]
                                      m
-    isRelevant m@(MethodCall {}) = none_ [ senderIsBus
-                                         , destIsBus
-                                         , isDisconnected
-                                         ]
-                                         m
+    isRelevant m@(MethodCall {}) = none3 m
+    isRelevant m@(MethodReturn {}) = none3 m
+    isRelevant m@(Error {}) = none3 m
     isRelevant _ = True
 
 
