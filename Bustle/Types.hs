@@ -91,7 +91,7 @@ data Message = MethodCall { serial :: Serial
 data DetailedMessage =
     DetailedMessage { dmTimestamp :: Microseconds
                     , dmMessage :: Message
-                    , dmDetails :: (Maybe ReceivedMessage)
+                    , dmDetails :: Maybe (Int, ReceivedMessage)
                     }
   deriving (Show, Eq)
 

@@ -116,11 +116,12 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
 
 bustlify :: Monad m
          => B.Microseconds
+         -> Int
          -> ReceivedMessage
          -> StateT PendingMessages m B.DetailedMessage
-bustlify µs m = do
+bustlify µs bytes m = do
     bm <- buildBustledMessage
-    return $ B.DetailedMessage µs bm (Just m)
+    return $ B.DetailedMessage µs bm (Just (bytes, m))
   where
     buildBustledMessage = case m of
         (ReceivedMethodCall serial sender mc) -> do
@@ -133,7 +134,7 @@ bustlify µs m = do
                              }
             -- FIXME: we shouldn't need to construct the same DetailedMessage
             -- both here and 10 lines above.
-            insertPending sender serial mc (B.DetailedMessage µs call (Just m))
+            insertPending sender serial mc (B.DetailedMessage µs call (Just (bytes, m)))
             return call
 
         (ReceivedMethodReturn _serial sender mr) -> do
@@ -197,7 +198,7 @@ convert :: Monad m
 convert hdr body =
     case fromPacket hdr body of
         Left unmarshalError -> return $ Left $ show unmarshalError
-        Right (ms, m)       -> liftM Right $ bustlify ms m
+        Right (ms, m)       -> liftM Right $ bustlify ms (BS.length body) m
 
 data Result e a =
     EOF

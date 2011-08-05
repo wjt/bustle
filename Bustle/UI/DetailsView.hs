@@ -103,7 +103,7 @@ formatMessage :: DetailedMessage -> String
 formatMessage (DetailedMessage _ _ Nothing) =
     "# No message body information is available. Please capture a fresh log\n\
     \# using bustle-pcap if you need it!"
-formatMessage (DetailedMessage _ _ (Just rm)) =
+formatMessage (DetailedMessage _ _ (Just (_size, rm))) =
     formatArgs $ DBus.Message.receivedBody rm
   where
     formatArgs = intercalate "\n\n" . map show
