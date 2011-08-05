@@ -49,6 +49,7 @@ makeView nameStore = do
     cellLayoutSetAttributes tickyColumn tickyCell nameStore $ \(ticked, _) ->
         [ cellToggleActive := ticked ]
 
+    -- This is deprecated but 'on obj cellToggled' needs 0.12.
     onCellToggled tickyCell $ \pathstr -> do
         let [i] = stringToTreePath pathstr
         (v, ns) <- listStoreGetValue nameStore i

@@ -100,6 +100,6 @@ makeCallback :: Bustle config state a -> BustleEnv config state -> IO a
 makeCallback (B act) x = runReaderT act x
 
 runB :: config -> state -> Bustle config state a -> IO a
-runB config state (B act) = do
-    r <- newIORef (config, state)
+runB config s (B act) = do
+    r <- newIORef (config, s)
     runReaderT act $ BustleEnv r
