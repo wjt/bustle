@@ -32,6 +32,7 @@ import Bustle.Stats
 import Bustle.Types (Log)
 import qualified Bustle.Markup as Markup
 import Bustle.Markup (Markup)
+import Data.Monoid
 
 data StatsPane =
     StatsPane { spCountStore :: ListStore FrequencyInfo
@@ -222,6 +223,19 @@ formatSizeInfoMember si =
             SizeError  -> Markup.red
             _          -> id
 
+formatSize :: Int -> Markup
+formatSize s
+    | s < maxB = value 1 `mappend` units "B"
+    | s < maxKB = value 1024 `mappend` units "KB"
+    | otherwise = value (1024 * 1024) `mappend` units "MB"
+  where
+    maxB = 10000
+    maxKB = 10000 * 1024
+
+    units = Markup.escape . (' ':)
+
+    value factor = Markup.escape (show (s `div` factor))
+
 newSizeView :: Maybe Pixbuf
             -> Maybe Pixbuf
             -> IO (ListStore SizeInfo, TreeView)
@@ -245,8 +259,8 @@ newSizeView methodIcon_ signalIcon_ = do
   addMemberRenderer nameColumn sizeStore True formatSizeInfoMember
   treeViewAppendColumn sizeView nameColumn
 
-  addTextStatColumn sizeView sizeStore "Smallest" (show . siMinSize)
-  addTextStatColumn sizeView sizeStore "Mean" (show . siMeanSize)
-  addTextStatColumn sizeView sizeStore "Largest" (show . siMaxSize)
+  addStatColumn sizeView sizeStore "Smallest" (formatSize . siMinSize)
+  addStatColumn sizeView sizeStore "Mean" (formatSize . siMeanSize)
+  addStatColumn sizeView sizeStore "Largest" (formatSize . siMaxSize)
 
   return (sizeStore, sizeView)

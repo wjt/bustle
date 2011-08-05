@@ -23,6 +23,7 @@ module Bustle.Markup
   , tag
   , b
   , i
+  , light
   , red
   , a
   , escape
