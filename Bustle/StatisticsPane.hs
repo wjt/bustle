@@ -36,6 +36,7 @@ import Bustle.Markup (Markup)
 data StatsPane =
     StatsPane { spCountStore :: ListStore FrequencyInfo
               , spTimeStore :: ListStore TimeInfo
+              , spSizeStore :: ListStore SizeInfo
               }
 
 statsPaneNew :: GladeXML
@@ -43,8 +44,8 @@ statsPaneNew :: GladeXML
              -> Maybe Pixbuf
              -> IO StatsPane
 statsPaneNew xml methodIcon signalIcon = do
-  [frequencySW, durationSW] <- mapM (xmlGetWidget xml castToScrolledWindow)
-      ["frequencySW", "durationSW"]
+  [frequencySW, durationSW, sizeSW] <- mapM (xmlGetWidget xml castToScrolledWindow)
+      ["frequencySW", "durationSW", "sizeSW"]
 
   (countStore, countView) <- newCountView methodIcon signalIcon
   containerAdd frequencySW countView
@@ -52,10 +53,14 @@ statsPaneNew xml methodIcon signalIcon = do
   (timeStore, timeView) <- newTimeView
   containerAdd durationSW timeView
 
+  (sizeStore, sizeView) <- newSizeView methodIcon signalIcon
+  containerAdd sizeSW sizeView
+
   widgetShow countView
   widgetShow timeView
+  widgetShow sizeView
 
-  return $ StatsPane countStore timeStore
+  return $ StatsPane countStore timeStore sizeStore
 
 statsPaneSetMessages :: StatsPane
                      -> Log -- ^ session bus messages
@@ -68,9 +73,11 @@ statsPaneSetMessages sp sessionMessages systemMessages = do
 
     listStoreClear (spCountStore sp)
     listStoreClear (spTimeStore sp)
+    listStoreClear (spSizeStore sp)
 
     forM_ (frequencies allMessages) $ listStoreAppend (spCountStore sp)
     forM_ (methodTimes allMessages) $ listStoreAppend (spTimeStore sp)
+    forM_ (messageSizes allMessages) $ listStoreAppend (spSizeStore sp)
 
 addTextRenderer :: TreeViewColumn
                 -> ListStore a
@@ -120,6 +127,21 @@ addTextStatColumn :: TreeView
 addTextStatColumn view store title f =
     addStatColumn view store title (Markup.escape . f)
 
+-- If we managed to load the method and signal icons...
+maybeAddTypeIconColumn :: CellLayoutClass layout
+                       => layout
+                       -> ListStore a
+                       -> Maybe Pixbuf
+                       -> Maybe Pixbuf
+                       -> (a -> Bool)
+                       -> IO ()
+maybeAddTypeIconColumn nameColumn store (Just m) (Just s) isMethod = do
+    typeRenderer <- cellRendererPixbufNew
+    cellLayoutPackStart nameColumn typeRenderer False
+    cellLayoutSetAttributes nameColumn typeRenderer store $ \row ->
+            [ cellPixbuf := if isMethod row then m else s ]
+maybeAddTypeIconColumn _ _ _ _ _ = return ()
+
 newCountView :: Maybe Pixbuf
              -> Maybe Pixbuf
              -> IO (ListStore FrequencyInfo, TreeView)
@@ -135,18 +157,10 @@ newCountView method signal = do
                  , treeViewColumnExpand := True
                  ]
 
-  -- If we managed to load the method and signal icons...
-  case (method, signal) of
-      (Just m, Just s) -> do
-          typeRenderer <- cellRendererPixbufNew
-          cellLayoutPackStart nameColumn typeRenderer False
-          cellLayoutSetAttributes nameColumn typeRenderer countStore $
-              \fi ->
-                  [ cellPixbuf := case fiType fi of
-                                      TallyMethod -> m
-                                      TallySignal -> s
-                  ]
-      _ -> return ()
+  maybeAddTypeIconColumn nameColumn countStore method signal $ \fi ->
+      case fiType fi of
+          TallyMethod -> True
+          TallySignal -> False
 
   addMemberRenderer nameColumn countStore True $ \fi ->
       Markup.formatMember (fiInterface fi) (fiMember fi)
@@ -198,3 +212,41 @@ newTimeView = do
                 (printf "%.1f ms" . tiMeanCallTime)
 
   return (timeStore, timeView)
+
+formatSizeInfoMember :: SizeInfo -> Markup
+formatSizeInfoMember si =
+    f (Markup.formatMember (siInterface si) (siName si))
+  where
+    f = case siType si of
+            SizeReturn -> Markup.i
+            SizeError  -> Markup.red
+            _          -> id
+
+newSizeView :: Maybe Pixbuf
+            -> Maybe Pixbuf
+            -> IO (ListStore SizeInfo, TreeView)
+newSizeView methodIcon_ signalIcon_ = do
+  sizeStore <- listStoreNew []
+  sizeView <- treeViewNewWithModel sizeStore
+
+  set sizeView [ treeViewHeadersVisible := True ]
+
+  nameColumn <- treeViewColumnNew
+  treeViewColumnSetTitle nameColumn "Member"
+  set nameColumn [ treeViewColumnResizable := True
+                 , treeViewColumnExpand := True
+                 ]
+
+  maybeAddTypeIconColumn nameColumn sizeStore methodIcon_ signalIcon_ $ \si ->
+      case siType si of
+          SizeSignal -> False
+          -- We distinguish between call, return and error by <i> and red.
+          _          -> True
+  addMemberRenderer nameColumn sizeStore True formatSizeInfoMember
+  treeViewAppendColumn sizeView nameColumn
+
+  addTextStatColumn sizeView sizeStore "Smallest" (show . siMinSize)
+  addTextStatColumn sizeView sizeStore "Mean" (show . siMeanSize)
+  addTextStatColumn sizeView sizeStore "Largest" (show . siMaxSize)
+
+  return (sizeStore, sizeView)

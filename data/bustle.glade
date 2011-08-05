@@ -198,6 +198,31 @@ then open &lt;i&gt;foo.bustle&lt;/i&gt; to view the log.</property>
                         <property name="type">tab</property>
                       </packing>
                     </child>
+                    <child>
+                      <widget class="GtkScrolledWindow" id="sizeSW">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="hscrollbar_policy">never</property>
+                        <property name="vscrollbar_policy">automatic</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="sizeTabLabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Message sizes</property>
+                      </widget>
+                      <packing>
+                        <property name="position">2</property>
+                        <property name="tab_fill">False</property>
+                        <property name="type">tab</property>
+                      </packing>
+                    </child>
                   </widget>
                   <packing>
                     <property name="resize">True</property>

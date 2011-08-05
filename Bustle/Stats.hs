@@ -2,8 +2,13 @@ module Bustle.Stats
   ( TallyType(..)
   , FrequencyInfo(..)
   , frequencies
+
   , methodTimes
   , TimeInfo(..)
+
+  , messageSizes
+  , SizeType(..)
+  , SizeInfo(..)
   )
 where
 
@@ -90,3 +95,54 @@ methodTimes = reverse
                        , tiCallFrequency = length times
                        , tiMeanCallTime = (mean $ map fromIntegral times) / 1000
                        }
+
+-- FIXME: really? again?
+data SizeType = SizeCall
+              | SizeReturn
+              | SizeError
+              | SizeSignal
+  deriving
+    (Show, Ord, Eq)
+
+-- The fields are in this ideosyncratic order to make the derived Ord instance
+-- do what we want
+data SizeInfo =
+    SizeInfo { siMeanSize, siMaxSize, siMinSize :: Int
+             , siType :: SizeType
+             , siInterface :: Maybe Interface
+             , siName :: MemberName
+             }
+  deriving
+    (Show, Ord, Eq)
+
+messageSizes :: Log
+             -> [SizeInfo]
+messageSizes messages =
+    reverse . sort . map summarize $ Map.assocs sizeTable
+  where
+    summarize :: ((SizeType, Maybe Interface, MemberName), [Int]) -> SizeInfo
+    summarize ((t, i, m), sizes) =
+        SizeInfo (intMean sizes) (maximum sizes) (minimum sizes) t i m
+
+    intMean :: [Int] -> Int
+    intMean = ceiling . (mean :: [Double] -> Double) . map fromIntegral
+
+    sizeTable = foldr f Map.empty messages
+
+    f :: DetailedMessage -> Map (SizeType, Maybe Interface, MemberName) [Int]
+                         -> Map (SizeType, Maybe Interface, MemberName) [Int]
+    f dm = case (sizeKeyRepr dm, dmDetails dm) of
+        (Just key, Just (size, _)) -> Map.insertWith' (++) key [size]
+        _                          -> id
+
+    sizeKeyRepr :: DetailedMessage
+                -> Maybe (SizeType, Maybe Interface, MemberName)
+    sizeKeyRepr (DetailedMessage _ msg _) =
+        case msg of
+            MethodCall { member = m } -> Just (SizeCall, iface m, membername m)
+            Signal     { member = m } -> Just (SizeSignal, iface m, membername m)
+            MethodReturn { inReplyTo = (Just (DetailedMessage _ msg' _)) } ->
+                Just (SizeReturn, iface (member msg'), membername (member msg'))
+            Error { inReplyTo = (Just (DetailedMessage _ msg' _)) } ->
+                Just (SizeError, iface (member msg'), membername (member msg'))
+            _                         -> Nothing
