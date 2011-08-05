@@ -11,7 +11,8 @@ import Data.List (sort, sortBy)
 import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
+import Data.Map (Map)
 
 import Bustle.Types
 
@@ -38,8 +39,8 @@ frequencies :: Log -> [FrequencyInfo]
 frequencies = reverse
             . sort
             . map (\((t, i, m), c) -> FrequencyInfo c t i m)
-            . M.toList
-            . foldr (M.alter alt) M.empty
+            . Map.toList
+            . foldr (Map.alter alt) Map.empty
             . mapMaybe repr
     where alt Nothing  = Just 1
           alt (Just n) = Just (n + 1)
@@ -63,9 +64,9 @@ methodTimes :: Log
 methodTimes = reverse
             . sortBy (comparing tiTotalTime)
             . map summarize
-            . M.toList
+            . Map.toList
             . foldr (\(i, method, time) ->
-                        M.alter (alt time) (i, method)) M.empty
+                        Map.alter (alt time) (i, method)) Map.empty
             . mapMaybe methodReturn
     where alt newtime Nothing = Just (newtime, [newtime])
           alt newtime (Just (total, times)) =
