@@ -23,6 +23,7 @@ module Bustle.Markup
   , tag
   , b
   , i
+  , red
   , a
   , escape
 
@@ -78,6 +79,9 @@ span_ attrs = Markup . markSpan attrs . unMarkup
 
 light :: Markup -> Markup
 light = span_ [FontWeight WeightLight]
+
+red :: Markup -> Markup
+red = span_ [FontForeground "#ff0000"]
 
 escape :: String -> Markup
 escape = Markup . escapeMarkup
