@@ -38,6 +38,7 @@ Executable bustle
                   Bustle.StatisticsPane, Bustle.Markup,
                   Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool,
                   Bustle.UI.DetailsView, Bustle.UI.FilterDialog,
+                  Bustle.VariantFormatter,
                   Bustle.Regions
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 

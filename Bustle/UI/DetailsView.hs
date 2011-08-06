@@ -7,12 +7,15 @@ module Bustle.UI.DetailsView
 where
 
 import Data.List (intercalate)
-import Data.Maybe (maybe)
+import Data.Maybe (maybe, fromJust)
 import Graphics.UI.Gtk hiding (Signal, Markup)
 import qualified DBus.Message
 
+import qualified DBus.Types as D
+
 import Bustle.Types
 import Bustle.Markup
+import Bustle.VariantFormatter
 
 data DetailsView =
     DetailsView { detailsTable :: Table
@@ -106,7 +109,7 @@ formatMessage (DetailedMessage _ _ Nothing) =
 formatMessage (DetailedMessage _ _ (Just (_size, rm))) =
     formatArgs $ DBus.Message.receivedBody rm
   where
-    formatArgs = intercalate "\n\n" . map show
+    formatArgs = intercalate "\n" . map (format_Variant VariantStyleSignature)
 
 detailsViewGetTop :: DetailsView -> Widget
 detailsViewGetTop = toWidget . detailsTable
