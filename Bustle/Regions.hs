@@ -11,6 +11,7 @@ module Bustle.Regions
   , RegionSelection (..)
   , regionSelectionNew
   , regionSelectionUpdate
+  , regionSelectionSelect
   , regionSelectionUp
   , regionSelectionDown
   , regionSelectionFirst
@@ -152,3 +153,23 @@ searchy y worthContinuing = go
         | y `hits` fst a            = (befores, Just a, as)
         | worthContinuing y (fst a) = go (a:befores) as
         | otherwise                 = (befores, Nothing, afters)
+
+regionSelectionSelect :: Eq a
+                      => a
+                      -> RegionSelection a
+                      -> RegionSelection a
+regionSelectionSelect x rs
+    | fmap snd (rsCurrent rs) == Just x = rs
+    | otherwise = case break ((== x) . snd) (rsBefore rs) of
+        (ys, z:zs) -> RegionSelection { rsBefore = zs
+                                      , rsCurrent = Just z
+                                      , rsLastClick = midpoint (fst z)
+                                      , rsAfter = reverse ys ++ rsAfter rs
+                                      }
+        (_, [])    -> case break ((== x) . snd) (rsAfter rs) of
+            (ys, z:zs) -> RegionSelection { rsBefore = rsBefore rs ++ reverse ys
+                                          , rsCurrent = Just z
+                                          , rsLastClick = midpoint (fst z)
+                                          , rsAfter = zs
+                                          }
+            (_, [])    -> rs

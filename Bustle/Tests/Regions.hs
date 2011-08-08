@@ -2,7 +2,7 @@
 import Test.QuickCheck
 import Test.QuickCheck.All
 
-import Data.List (sort)
+import Data.List (sort, group)
 import Data.Maybe (isNothing, isJust)
 
 import Bustle.Regions
@@ -27,13 +27,15 @@ newtype ValidRegions a = ValidRegions (Regions a)
   deriving
     (Show, Eq, Ord)
 
-instance Arbitrary a => Arbitrary (ValidRegions a) where
+instance (Eq a, Arbitrary a) => Arbitrary (ValidRegions a) where
     arbitrary = do
         NonOverlappingStripes stripes <- arbitrary
-        values <- vector (length stripes)
+        values <- vector (length stripes) `suchThat` unique
         return $ ValidRegions (zip stripes values)
+      where
+        unique xs = all (== 1) . map length . group $ xs
 
-instance Arbitrary a => Arbitrary (RegionSelection a) where
+instance (Eq a, Arbitrary a) => Arbitrary (RegionSelection a) where
     arbitrary = do
         ValidRegions rs <- arbitrary
         return $ regionSelectionNew rs
@@ -137,6 +139,14 @@ prop_ClickAlwaysInSelection = \rs ->
             y = rsLastClick rs'
           in
             top <= y && y <= bottom
+
+prop_SelectWorks :: (Eq a, Show a)
+                 => ValidRegions a
+                 -> Property
+prop_SelectWorks vr@(ValidRegions regions) =
+    withRegions vr $ \rs ->
+    forAll (elements regions) $ \ r@(s, x) ->
+      Just r == rsCurrent (regionSelectionSelect x rs)
 
 runTests = $quickCheckAll
 

@@ -398,9 +398,13 @@ updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
     writeIORef shapesRef shapes
     writeIORef widthRef width
 
-    -- FIXME: try to preserve the currently-selected message?
-    modifyRegionSelection regionSelectionRef wi $
-        const (regionSelectionNew (rrRegions rr))
+    modifyRegionSelection regionSelectionRef wi $ \rs ->
+      let
+        rs' = regionSelectionNew (rrRegions rr)
+      in
+        case rsCurrent rs of
+            Just (_, x) -> regionSelectionSelect x rs'
+            Nothing     -> rs'
 
     layoutSetSize layout (floor width) (floor height)
 
