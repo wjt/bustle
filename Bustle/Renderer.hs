@@ -359,7 +359,13 @@ updateApps bus n c = case c of
 addUnique :: Bus -> UniqueName -> Renderer ApplicationInfo
 addUnique bus n = do
     let ai = ApplicationInfo NoColumn Set.empty Set.empty
-    -- FIXME: this could trample on names that erroneously already exist...
+    existing <- getsApps (Map.lookup n) bus
+    case existing of
+        Nothing -> return ()
+        Just _  -> warn $ concat [ "Unique name '"
+                                 , unUniqueName n
+                                 , "' apparently connected to the bus twice"
+                                 ]
     modifyApps bus $ Map.insert n ai
     return ai
 
