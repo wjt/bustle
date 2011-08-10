@@ -55,7 +55,6 @@ import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
-import System.Environment (getArgs)
 import System.FilePath (splitFileName, dropExtension)
 
 import qualified DBus.Message
@@ -98,10 +97,9 @@ decWindows = modifyWindows (subtract 1) >> gets windows
 
 main :: IO ()
 main = do
-    initGUI
+    args <- initGUI
 
     -- FIXME: get a real option parser
-    args <- getArgs
     let debug = any isDebug args
 
     [bustle, method, signal] <- mapM loadPixbuf
