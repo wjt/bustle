@@ -8,5 +8,5 @@ export bustle_datadir
 
 bustle="${root}"/dist/build/bustle/bustle
 
-cabal build
+cabal build 1>&2
 exec $bustle "${@}"
