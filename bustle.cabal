@@ -47,9 +47,13 @@ Executable bustle
     -- Since gtk2hs 0.11, pango is a separate package, and its module names
     -- have changed.
     Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process, binary, bytestring, text, dbus-core, pcap,
+                    filepath, process, binary, bytestring, text,
+                    dbus-core == 0.9.*,
+                    pcap,
                     gtk > 0.11, glade, pango, glib, cairo
   else
     Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process, binary, bytestring, text, dbus-core, pcap,
+                    filepath, process, binary, bytestring, text,
+                    dbus-core == 0.9.*,
+                    pcap,
                     gtk > 0.10 && < 0.11, glade, pango, glib, cairo

@@ -58,10 +58,10 @@ format_String :: String -> String
 format_String = show
 
 format_Signature :: Signature -> String
-format_Signature = show . strSignature
+format_Signature = show . signatureText
 
 format_ObjectPath :: ObjectPath -> String
-format_ObjectPath = show . strObjectPath
+format_ObjectPath = show . objectPathText
 
 format_Array :: Array -> String
 format_Array a = "[" ++ intercalate ", " items ++ "]"
@@ -73,18 +73,38 @@ format_Dictionary d = "{" ++ intercalate ", " items ++ "}"
   where
     items = map (\(k, v) -> format_Variant VariantStyleBare k ++ ": " ++ format_Variant VariantStyleBare v) $ dictionaryItems d
 
-
+-- FIXME…
 format_Structure :: Structure -> String
-format_Structure (Structure []) = "()"
-format_Structure (Structure [v]) = "(" ++ format_Variant VariantStyleBare v ++ ",)"
-format_Structure (Structure vs) = "(" ++ intercalate ", " items ++ ")"
-  where
-    items = map (format_Variant VariantStyleBare) vs
+format_Structure s = case structureItems s of
+    []  -> "()"
+    [v] -> "(" ++ format_Variant VariantStyleBare v ++ ",)"
+    vs  -> "(" ++ intercalate ", " items ++ ")"
+      where
+        items = map (format_Variant VariantStyleBare) vs
 
 data VariantStyle =
     VariantStyleBare
   | VariantStyleSignature
   | VariantStyleAngleBrackets
+
+-- why did you remove typeCode from the public API, John…
+typeCode :: Type -> String
+typeCode TypeBoolean    = "b"
+typeCode TypeWord8      = "y"
+typeCode TypeWord16     = "q"
+typeCode TypeWord32     = "u"
+typeCode TypeWord64     = "t"
+typeCode TypeInt16      = "n"
+typeCode TypeInt32      = "i"
+typeCode TypeInt64      = "x"
+typeCode TypeDouble     = "d"
+typeCode TypeString     = "s"
+typeCode TypeSignature  = "g"
+typeCode TypeObjectPath = "o"
+typeCode TypeVariant    = "v"
+typeCode (TypeArray t)  = 'a':typeCode t
+typeCode (TypeDictionary kt vt) = concat [ "a{", typeCode kt , typeCode vt, "}"]
+typeCode (TypeStructure ts) = concat ["(", concatMap typeCode ts, ")"]
 
 format_Variant :: VariantStyle -> Variant -> String
 format_Variant style v =
@@ -94,22 +114,22 @@ format_Variant style v =
       VariantStyleAngleBrackets -> "<" ++ typeSignature ++ " " ++ formatted ++ ">"
   where
     ty = variantType v
-    typeSignature = ('@':) . Text.unpack . typeCode $ ty
+    typeSignature = ('@':) . typeCode $ ty
     format = case ty of
-        DBusBoolean -> format_Bool . fromJust . fromVariant
-        DBusByte -> format_Word8 . fromJust . fromVariant
-        DBusInt16 -> format_Int16 . fromJust . fromVariant
-        DBusInt32 -> format_Int32 . fromJust . fromVariant
-        DBusInt64 -> format_Int64 . fromJust . fromVariant
-        DBusWord16 -> format_Word16 . fromJust . fromVariant
-        DBusWord32 -> format_Word32 . fromJust . fromVariant
-        DBusWord64 -> format_Word64 . fromJust . fromVariant
-        DBusDouble -> format_Double . fromJust . fromVariant
-        DBusString -> format_String . fromJust . fromVariant
-        DBusSignature -> format_Signature . fromJust . fromVariant
-        DBusObjectPath -> format_ObjectPath . fromJust . fromVariant
-        DBusVariant -> format_Variant VariantStyleAngleBrackets . fromJust . fromVariant
-        DBusArray _ -> format_Array . fromJust . fromVariant
-        DBusDictionary _ _ -> format_Dictionary . fromJust . fromVariant
-        DBusStructure _ -> format_Structure . fromJust . fromVariant
+        TypeBoolean -> format_Bool . fromJust . fromVariant
+        TypeInt16 -> format_Int16 . fromJust . fromVariant
+        TypeInt32 -> format_Int32 . fromJust . fromVariant
+        TypeInt64 -> format_Int64 . fromJust . fromVariant
+        TypeWord8 -> format_Word8 . fromJust . fromVariant
+        TypeWord16 -> format_Word16 . fromJust . fromVariant
+        TypeWord32 -> format_Word32 . fromJust . fromVariant
+        TypeWord64 -> format_Word64 . fromJust . fromVariant
+        TypeDouble -> format_Double . fromJust . fromVariant
+        TypeString -> format_String . fromJust . fromVariant
+        TypeSignature -> format_Signature . fromJust . fromVariant
+        TypeObjectPath -> format_ObjectPath . fromJust . fromVariant
+        TypeVariant -> format_Variant VariantStyleAngleBrackets . fromJust . fromVariant
+        TypeArray _ -> format_Array . fromJust . fromVariant
+        TypeDictionary _ _ -> format_Dictionary . fromJust . fromVariant
+        TypeStructure _ -> format_Structure . fromJust . fromVariant
     formatted = format v

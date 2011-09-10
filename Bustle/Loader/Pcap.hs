@@ -16,7 +16,7 @@ import DBus.Constants (dbusName, dbusInterface)
 import DBus.Wire
 import DBus.Message
 import DBus.Types
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import qualified Data.ByteString as BS
 import Data.ByteString.Lazy (fromChunks)
@@ -34,7 +34,7 @@ convertBusName context n =
         (':':_) -> B.U $ B.UniqueName rawName
         _       -> B.O $ B.OtherName rawName
   where
-    rawName = maybe context (T.unpack . strBusName) n
+    rawName = maybe context (T.unpack . busNameText) n
 
 convertMember :: (a -> ObjectPath)
               -> (a -> Maybe InterfaceName)
@@ -42,9 +42,9 @@ convertMember :: (a -> ObjectPath)
               -> a
               -> B.Member
 convertMember getObjectPath getInterfaceName getMemberName m =
-    B.Member (T.unpack . strObjectPath . getObjectPath $ m)
-             (fmap (T.unpack . strInterfaceName) . getInterfaceName $ m)
-             (T.unpack . strMemberName . getMemberName $ m)
+    B.Member (T.unpack . objectPathText . getObjectPath $ m)
+             (fmap (T.unpack . interfaceNameText) . getInterfaceName $ m)
+             (T.unpack . memberNameText . getMemberName $ m)
 
 type PendingMessages = Map (Maybe BusName, Serial)
                            (MethodCall, B.DetailedMessage)
@@ -88,7 +88,7 @@ isNOC (Just sender) s | looksLikeNOC =
     looksLikeNOC =
         and [ sender == dbusName
             , signalInterface s == dbusInterface
-            , strMemberName (signalMember s) == T.pack "NameOwnerChanged"
+            , memberNameText (signalMember s) == T.pack "NameOwnerChanged"
             ]
 isNOC _ _ = Nothing
 
@@ -109,10 +109,10 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
               (Nothing, Nothing)   -> error $ "wtf: NOC" ++ show ns
   where
     isUnique :: BusName -> Bool
-    isUnique n = T.head (strBusName n) == ':'
+    isUnique n = T.head (busNameText n) == ':'
 
-    uniquify = B.UniqueName . T.unpack . strBusName
-    otherify = B.OtherName . T.unpack . strBusName
+    uniquify = B.UniqueName . T.unpack . busNameText
+    otherify = B.OtherName . T.unpack . busNameText
 
 bustlify :: Monad m
          => B.Microseconds
@@ -173,19 +173,11 @@ bustlify µs bytes m = do
 
         (ReceivedUnknown _ _ _) -> error "wtf"
 
--- This is stolen essentially verbatim from benchUnmarshal in dbus-core's
--- benchmark.hs
-unmarshalFromBS :: BS.ByteString -> Either UnmarshalError ReceivedMessage
-unmarshalFromBS bs = G.runGet getter $ fromChunks [bs]
-  where
-    getter = unmarshalMessage getBytes
-    getBytes = G.getLazyByteString . fromIntegral
-
 fromPacket :: PktHdr
            -> BS.ByteString
            -> Either UnmarshalError (B.Microseconds, ReceivedMessage)
 fromPacket hdr body =
-    case unmarshalFromBS body of
+    case unmarshalMessage body of
         Left e  -> Left e
         Right m -> Right (µs, m)
   where
