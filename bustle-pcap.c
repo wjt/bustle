@@ -207,12 +207,83 @@ list_all_names (
   g_variant_unref (ret);
 }
 
+static gboolean session_specified = FALSE;
+static gboolean system_specified = FALSE;
+static gchar **filenames = NULL;
+
+static GOptionEntry entries[] = {
+    { "session", 'e', 0, G_OPTION_ARG_NONE, &session_specified,
+      "Monitor session bus (default)", NULL
+    },
+    { "system", 'y', 0, G_OPTION_ARG_NONE, &system_specified,
+      "Monitor system bus", NULL
+    },
+    { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &filenames,
+      "blah blah", NULL
+    },
+    { NULL }
+};
+
+static void
+parse_arguments (
+    int *argc,
+    char ***argv,
+    GBusType *bus_type,
+    gchar **filename)
+{
+  GOptionContext *context;
+  gchar *usage;
+  GError *error = NULL;
+  gboolean ret;
+
+  context = g_option_context_new ("FILENAME - logs D-Bus traffic to FILENAME");
+  g_option_context_add_main_entries (context, entries, NULL);
+
+  ret = g_option_context_parse (context, argc, argv, &error);
+  usage = g_option_context_get_help (context, TRUE, NULL);
+
+  if (!ret)
+    {
+      fprintf (stderr, "%s\n", error->message);
+      fprintf (stderr, "%s", usage);
+      exit (2);
+    }
+
+  if (session_specified && system_specified)
+    {
+      fprintf (stderr, "You may only specify one of --session and --system\n");
+      fprintf (stderr, "%s", usage);
+      exit (2);
+    }
+  else if (system_specified)
+    {
+      *bus_type = G_BUS_TYPE_SYSTEM;
+    }
+  else
+    {
+      *bus_type = G_BUS_TYPE_SESSION;
+    }
+
+  if (filenames == NULL ||
+      filenames[0] == NULL ||
+      filenames[1] != NULL)
+    {
+      fprintf (stderr, "You must specify exactly one output filename\n");
+      fprintf (stderr, "%s", usage);
+      exit (2);
+    }
+
+  *filename = filenames[0];
+}
+
 int
 main (
     int argc,
     char **argv)
 {
   GMainLoop *loop;
+  GBusType bus_type;
+  gchar *filename;
   GDBusConnection *connection;
   GDBusProxy *bus;
   GThread *thread;
@@ -222,18 +293,13 @@ main (
   GError *error = NULL;
 
   g_type_init ();
-
-  if (argc != 2)
-    {
-      fprintf (stderr, "Usage: bustle-pcap OUTPUT-FILE");
-      return 2;
-    }
+  parse_arguments (&argc, &argv, &bus_type, &filename);
 
   /* FIXME: use DLT_DBUS when it makes it into libpcap. */
   p = pcap_open_dead (DLT_NULL, 1 << 27);
   DIE_IF_NULL (p, "pcap_open_dead failed. wtf");
 
-  td.dumper = pcap_dump_open (p, argv[1]);
+  td.dumper = pcap_dump_open (p, filename);
   DIE_IF_NULL (td.dumper, "Couldn't open pcap dump: %s", pcap_geterr (p));
 
   td.message_queue = g_async_queue_new ();
@@ -241,8 +307,9 @@ main (
   thread = g_thread_create (log_thread, &td, TRUE, &error);
   DIE_IF_NULL (thread, "Couldn't spawn logging thread: %s", error->message);
 
-  connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
-  DIE_IF_NULL (connection, "Couldn't connect to session bus: %s",
+  connection = g_bus_get_sync (bus_type, NULL, &error);
+  DIE_IF_NULL (connection, "Couldn't connect to %s bus: %s",
+      bus_type == G_BUS_TYPE_SESSION ? "session" : "system",
       error->message);
 
   caps = g_dbus_connection_get_capabilities (connection);
