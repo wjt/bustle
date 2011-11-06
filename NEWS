@@ -1,3 +1,17 @@
+Bustle 0.3.0 (2011-11-06)
+=========================
+
+The “How do I dress up as shared global mutable state?” release.
+
+This release finally allows you to record complete D-Bus sessions,
+including message bodies, and browse them in the user interface!
+
+As a result, there is a new logger, 'bustle-pcap', which logs D-Bus
+traffic to Pcap files; and Bustle itself now depends on the 'pcap' and
+'dbus-core' packages. Your old logs should still be loaded just fine,
+but since they don't contain message body data, you won't be able to see
+it in the UI.
+
 Bustle 0.2.5 (2011-06-25)
 =========================
 
