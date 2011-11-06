@@ -197,7 +197,7 @@ maybeQuit = do
 
 emptyWindow :: B WindowInfo
 emptyWindow = do
-  Just xml <- io $ xmlNew =<< getDataFileName "bustle.glade"
+  Just xml <- io $ xmlNew =<< getDataFileName "data/bustle.glade"
 
   -- Grab a bunch of widgets. Surely there must be a better way to do this?
   let getW cast name = io $ xmlGetWidget xml cast name
@@ -566,7 +566,7 @@ withProgramIcon f = asks bustleIcon >>= io . f
 
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
-  iconName <- getDataFileName filename
+  iconName <- getDataFileName $ "data/" ++ filename
   (fmap Just (pixbufNewFromFile iconName)) `catchGError`
     \(GError _ _ msg) -> warn msg >> return Nothing
 
