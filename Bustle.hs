@@ -35,6 +35,7 @@ usage fatal = do
         \  bustle [LOGFILE [...]]\n\
         \  bustle --pair SESSION_LOGFILE SYSTEM_LOGFILE\n\
         \\n\
+        \Or for batch-processing:\n\
         \  bustle --count LOGFILE\n\
         \  bustle --time LOGFILE\n\
         \  bustle --dot LOGFILE"
