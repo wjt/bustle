@@ -34,6 +34,9 @@ maintainer-binary-tarball: all
 		--datadir=$(TOP)/$(TARBALL_DIR) --datasubdir=.
 	cabal-dev build
 	cabal-dev copy
-	cp bustle.sh $(TARBALL_DIR)
+	cp bustle.sh README $(TARBALL_DIR)
+	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
+		-e  's{^    bustle}     {    ./bustle.sh};' \
+		$(TARBALL_DIR)/README
 	cp bustle-dbus-monitor bustle-pcap $(TARBALL_DIR)
 	tar cjf $(TARBALL_DIR).tar.bz2 $(TARBALL_DIR)
