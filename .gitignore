@@ -3,7 +3,5 @@ dist
 Setup
 *.hi
 *.o
-bustle-dbus-monitor
-bustle-pcap
 tags
 cabal-dev/
