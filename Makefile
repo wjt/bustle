@@ -13,9 +13,11 @@ BINARIES = \
 all: $(BINARIES)
 
 dist/build/bustle-dbus-monitor: c-sources/bustle-dbus-monitor.c
+	@mkdir -p dist/build
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(DBUS_FLAGS)
 
 dist/build/bustle-pcap: c-sources/bustle-pcap.c
+	@mkdir -p dist/build
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< \
 	$(GIO_FLAGS) $(PCAP_FLAGS)
 
@@ -33,17 +35,19 @@ clean:
 
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
-TARBALL_DIR := dist/$(shell git describe --tags)-$(shell uname -m)
+TARBALL_PARENT_DIR := dist
+TARBALL_DIR := $(shell git describe --tags)-$(shell uname -m)
+TARBALL_FULL_DIR := $(TARBALL_PARENT_DIR)/$(TARBALL_DIR)
 TARBALL := $(TARBALL_DIR).tar.bz2
 maintainer-binary-tarball: all
-	mkdir -p $(TARBALL_DIR)
-	cabal-dev configure --prefix=$(TOP)/$(TARBALL_DIR) \
-		--datadir=$(TOP)/$(TARBALL_DIR) --datasubdir=.
+	mkdir -p $(TARBALL_FULL_DIR)
+	cabal-dev configure --prefix=$(TOP)/$(TARBALL_FULL_DIR) \
+		--datadir=$(TOP)/$(TARBALL_FULL_DIR) --datasubdir=.
 	cabal-dev build
 	cabal-dev copy
-	cp bustle.sh README $(TARBALL_DIR)
+	cp bustle.sh README $(TARBALL_FULL_DIR)
 	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
 		-e  's{^    bustle}     {    ./bustle.sh};' \
-		$(TARBALL_DIR)/README
-	cp $(BINARIES) $(TARBALL_DIR)
-	tar cjf $(TARBALL) $(TARBALL_DIR)
+		$(TARBALL_FULL_DIR)/README
+	cp $(BINARIES) $(TARBALL_FULL_DIR)
+	cd $(TARBALL_PARENT_DIR) && tar cjf $(TARBALL) $(TARBALL_DIR)
