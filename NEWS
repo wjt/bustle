@@ -45,13 +45,13 @@ and it now has a bug tracker there too. Browse the source at
 <http://wjt.me.uk/bustle/bugs>; file new ones at
 <http://wjt.me.uk/bustle/new-bug>. Astonishing!
 
-Fixes:
-
 * The viewer is now much more tolerant of inconsistencies in log files.
-  (fd.o#35297; thanks to Marco Barisione for the report)
+  (Thanks to Marco Barisione for the [bug report][fdo35297].)
+* The linking order for bustle-dbus-monitor is fixed. (Thanks to Sergei
+  Trofimovich.)
+* Miscellaneous clean-up.
 
-* The linking order for bustle-dbus-monitor is fixed. (Sergei
-  Trofimovich)
+[fdo35297]: https://bugs.freedesktop.org/show_bug.cgi?id=35297
 
 
 Bustle 0.2.3 (2010-10-29)
@@ -60,11 +60,21 @@ Bustle 0.2.3 (2010-10-29)
 The “Will it be a scone? Or will it be a lecture in category theory?”
 release.
 
-Enhancements:
+<div>[[!img bustle-0.2.3.png size="200x143" alt="screenshot of side-by-side session and system bus logs" class="floated screenshot"]]</div>
 
-*  You can now display two logs (for the session bus and the system bus)
-   side by side. This is handy if you want to match up timestamps
-   between the two logs.
+You can now show a session bus log and a system bus log side-by-side, with the
+same time scale and with events interleaved as they happened. This might come
+in useful for full-system profiling, or for frameworks where actions on one bus
+lead to reactions on another.
+
+Record the two logs as normal, by running something like:
+
+> <kbd>% bustle-dbus-monitor --session \> session.bustle &<br/>
+> % bustle-dbus-monitor --system \> system.bustle &</kbd>
+
+Then go do whatever you want to profile. When you're done, kill the two
+loggers. In Bustle, choose **File → Open a pair of logs…** to show them
+side-by-side. You can save the diagram to a PDF as normal.
 
 
 Bustle 0.2.2 (2010-06-29)
