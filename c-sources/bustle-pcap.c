@@ -21,6 +21,8 @@
 #include <string.h>
 #include <pcap/pcap.h>
 #include <glib.h>
+#include <glib-unix.h>
+#include <glib/gprintf.h>
 #include <gio/gio.h>
 #include <gio/gunixinputstream.h>
 
@@ -115,6 +117,14 @@ filter (
   return NULL;
 }
 
+#if GLIB_CHECK_VERSION (2, 30, 0)
+static void
+let_me_quit (GMainLoop *loop)
+{
+  g_unix_signal_add (SIGINT, (GSourceFunc) g_main_loop_quit, loop);
+  g_printf ("Hit Control-C to stop logging.\n");
+}
+#else
 static gboolean
 stdin_func (
     GPollableInputStream *g_stdin,
@@ -135,14 +145,15 @@ stdin_func (
 static void
 let_me_quit (GMainLoop *loop)
 {
-  /* FIXME: also handle ^C. glib 2.29 makes this easy. */
   GInputStream *g_stdin = g_unix_input_stream_new (0, FALSE);
   GSource *source = g_pollable_input_stream_create_source (
       G_POLLABLE_INPUT_STREAM (g_stdin), NULL);
 
   g_source_set_callback (source, (GSourceFunc) stdin_func, loop, NULL);
   g_source_attach (source, NULL);
+  g_printf ("Hit Enter to stop logging. (Do not hit Control-C.)\n");
 }
+#endif
 
 static void
 match_everything (GDBusProxy *bus)
@@ -338,6 +349,7 @@ main (
   g_object_unref (bus);
 
   loop = g_main_loop_new (NULL, FALSE);
+  g_printf ("Logging D-Bus traffic to '%s'...\n", filename);
   let_me_quit (loop);
   g_main_loop_run (loop);
   g_main_loop_unref (loop);
