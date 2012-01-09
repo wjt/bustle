@@ -27,7 +27,7 @@ clean:
 
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
-TARBALL_DIR := $(shell git describe --tags)-$(shell uname -m)
+TARBALL_DIR := dist/$(shell git describe --tags)-$(shell uname -m)
 maintainer-binary-tarball: all
 	mkdir -p $(TARBALL_DIR)
 	cabal-dev configure --prefix=$(TOP)/$(TARBALL_DIR) \
