@@ -6,3 +6,4 @@ Setup
 bustle-dbus-monitor
 bustle-pcap
 tags
+cabal-dev/
