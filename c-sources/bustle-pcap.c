@@ -36,6 +36,8 @@
   } G_STMT_END
 
 GDBusCapabilityFlags caps;
+static gboolean verbose = FALSE;
+static gboolean quiet = FALSE;
 
 /* Not using GString because it holds signed chars but we both receive and
  * provide unsigned chars. C!
@@ -95,12 +97,13 @@ filter (
 
   dest = g_dbus_message_get_destination (message);
 
-  g_print ("(%s) %s -> %s: %u %s\n",
-      is_incoming ? "incoming" : "outgoing",
-      g_dbus_message_get_sender (message),
-      dest,
-      g_dbus_message_get_message_type (message),
-      g_dbus_message_get_member (message));
+  if (verbose)
+    g_print ("(%s) %s -> %s: %u %s\n",
+        is_incoming ? "incoming" : "outgoing",
+        g_dbus_message_get_sender (message),
+        dest,
+        g_dbus_message_get_message_type (message),
+        g_dbus_message_get_member (message));
 
   if (!is_incoming ||
       g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
@@ -122,7 +125,9 @@ static void
 let_me_quit (GMainLoop *loop)
 {
   g_unix_signal_add (SIGINT, (GSourceFunc) g_main_loop_quit, loop);
-  g_printf ("Hit Control-C to stop logging.\n");
+
+  if (!quiet)
+    g_printf ("Hit Control-C to stop logging.\n");
 }
 #else
 static gboolean
@@ -228,6 +233,12 @@ static GOptionEntry entries[] = {
     },
     { "system", 'y', 0, G_OPTION_ARG_NONE, &system_specified,
       "Monitor system bus", NULL
+    },
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
+      "Print brief summaries of captured messages to stdout", NULL
+    },
+    { "quiet", 'q', 0, G_OPTION_ARG_NONE, &quiet,
+      "Don't print out instructions", NULL
     },
     { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &filenames,
       "blah blah", NULL
@@ -349,7 +360,10 @@ main (
   g_object_unref (bus);
 
   loop = g_main_loop_new (NULL, FALSE);
-  g_printf ("Logging D-Bus traffic to '%s'...\n", filename);
+
+  if (!quiet)
+    g_printf ("Logging D-Bus traffic to '%s'...\n", filename);
+
   let_me_quit (loop);
   g_main_loop_run (loop);
   g_main_loop_unref (loop);
