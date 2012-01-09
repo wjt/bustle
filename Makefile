@@ -23,3 +23,17 @@ uninstall:
 
 clean:
 	rm -f bustle-dbus-monitor bustle-pcap
+	if test -d $(TARBALL_DIR); then rm -r $(TARBALL_DIR); fi
+
+# Binary tarball stuff. Please ignore this unless you're making a release.
+TOP := $(shell pwd)
+TARBALL_DIR := $(shell git describe --tags)-$(shell uname -m)
+maintainer-binary-tarball: all
+	mkdir -p $(TARBALL_DIR)
+	cabal-dev configure --prefix=$(TOP)/$(TARBALL_DIR) \
+		--datadir=$(TOP)/$(TARBALL_DIR) --datasubdir=.
+	cabal-dev build
+	cabal-dev copy
+	cp bustle.sh $(TARBALL_DIR)
+	cp bustle-dbus-monitor bustle-pcap $(TARBALL_DIR)/bin
+	tar cjf $(TARBALL_DIR).tar.bz2 $(TARBALL_DIR)
