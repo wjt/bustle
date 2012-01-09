@@ -1,5 +1,5 @@
 Bustle 0.3.1 (2012-01-09)
-=========================
+-------------------------
 
 The “How do I dress up as shared global mutable state?” release.
 
@@ -7,17 +7,20 @@ This release finally allows you to record complete D-Bus sessions,
 including message bodies, and browse them in the user interface!
 
 As a result, there is a new logger, `bustle-pcap`, which logs D-Bus
-traffic to Pcap files; and Bustle itself now depends on the `pcap` and
-`dbus-core` packages. Your old logs should still be loaded just fine,
+traffic to Pcap files; and Bustle itself now depends on the [pcap][] and
+[dbus-core][] packages. Your old logs should still be loaded just fine,
 but since they don't contain message body data, you won't be able to see
 it in the UI.
 
-Also, as of this release we'll start providing binary tarballs for
-those not interested in compiling Bustle themselves.
+Also, as of this release binary tarballs will be provided for those not
+interested in compiling Bustle themselves.
+
+[pcap]: http://hackage.haskell.org/package/pcap
+[dbus-core]: http://hackage.haskell.org/package/dbus-core
 
 
 Bustle 0.2.5 (2011-06-25)
-=========================
+-------------------------
 
 The “Why go all the way to Glastonbury to not watch U2 when you can just
 not turn on the BBC at any point this weekend to not watch them?”
@@ -28,8 +31,9 @@ and signal emission frequency, and total/mean times spent in method
 calls. This code has mostly been sitting around unreleased since
 November. Sorry, dear users!
 
+
 Bustle 0.2.4 (2011-06-06)
-=========================
+-------------------------
 
 The “I think I'm a panda” release. There's just a few bits and pieces of
 clean-up along with a couple of bug fixes in this release. Hopefully
@@ -43,106 +47,111 @@ and it now has a bug tracker there too. Browse the source at
 
 Fixes:
 
-• The viewer is now much more tolerant of inconsistencies in log files.
+* The viewer is now much more tolerant of inconsistencies in log files.
   (fd.o#35297; thanks to Marco Barisione for the report)
 
-• The linking order for bustle-dbus-monitor is fixed. (Sergei
+* The linking order for bustle-dbus-monitor is fixed. (Sergei
   Trofimovich)
 
+
 Bustle 0.2.3 (2010-10-29)
-=========================
+-------------------------
 
 The “Will it be a scone? Or will it be a lecture in category theory?”
 release.
 
 Enhancements:
 
- • You can now display two logs (for the session bus and the system bus)
+*  You can now display two logs (for the session bus and the system bus)
    side by side. This is handy if you want to match up timestamps
    between the two logs.
 
+
 Bustle 0.2.2 (2010-06-29)
-=========================
+-------------------------
 
 The “Shepherded” release.
 
 Fixes:
 
- • Suppress messages sent to the bus by bus name, rather than object
+*  Suppress messages sent to the bus by bus name, rather than object
    path. This prevents Bustle blowing up when (buggy) clients call
    methods on / rather than on /org/freedesktop/DBus. (Thanks to
    Guillaume Desmottes for reporting the issue.)
 
- • Build against the re-namespaced Pango in Gtk2HS 0.11, and clean up a
+*  Build against the re-namespaced Pango in Gtk2HS 0.11, and clean up a
    tonne of warnings. I think I've kept backwards compatibility with old
    enough Gtk2HSes and GHCs for this to work with the versions in Ubuntu
    10.04 and other recent-but-not-futuristic distros, but haven't
    actually tried it. Drop me a mail in the event of landing on water.
    (Thanks to Chris Lamb for upstreaming this from Debian bug #587132.)
 
+
 Bustle 0.2.1 (2009-12-02)
-=========================
+-------------------------
 
 The “Going down where the Firefly goes” release.
 
 Enhancements:
 
- • The handling of services with multiple well-known names has improved.
+*  The handling of services with multiple well-known names has improved.
    Whereas previously one name was (essentially) randomly-chosen, now
    all names owned by a service are shown in the diagram.
 
- • When a service falls off the bus, its column goes away to indicate
+*  When a service falls off the bus, its column goes away to indicate
    that.
 
- • Strings are now ellipsized if necessary.
+*  Strings are now ellipsized if necessary.
 
- • Method returns now include the object path and method name so you
+*  Method returns now include the object path and method name so you
    don't have to look it up yourself.
 
- • The UI is less spartan: you can open files, and launch it without
+*  The UI is less spartan: you can open files, and launch it without
    passing at least one filename as a command-line argument.
 
 Fixes:
 
- • The UI handles parse errors gracefully rather than, uhm, throwing an
+*  The UI handles parse errors gracefully rather than, uhm, throwing an
    exception and dying.
 
- • bustle-dbus-monitor now has rudimentary cross-compilation support, by
+*  bustle-dbus-monitor now has rudimentary cross-compilation support, by
    respecting $CC and friends. (Marc Kleine-Budde)
 
- • You can now kill the monitor immediately with ^C, rather than waiting
+*  You can now kill the monitor immediately with ^C, rather than waiting
    for another message to arrive. (Lennart Poettering, from a patch for
    dbus-monitor)
 
 Notes:
 
- • While your old logs should continue to work with the new viewer, the
+*  While your old logs should continue to work with the new viewer, the
    reverse is not true: the changes to name handling required modifying
    the log format.
 
+
 Bustle 0.2.0 (2009-04-03)
-=========================
+-------------------------
 
 The "new monkey makes me sad :-(" release.
 
 Enhancements:
 
- * Add a menu item to save a PDF of the diagram.
+*  Add a menu item to save a PDF of the diagram.
 
- * Show the elapsed time between a method call and its return.
+*  Show the elapsed time between a method call and its return.
 
- * Add new tools to count method calls and signals, sum the total time
+*  Add new tools to count method calls and signals, sum the total time
    spent per method call, and generate .dot graphs (Dafydd Harries).
 
 Fixes:
 
- * Don't crash on empty logs, or logs containing calls on interface
+*  Don't crash on empty logs, or logs containing calls on interface
    "<none>".
 
- * Compile with new Gtk2HS and GHC 6.10 (Chris Lamb).
+*  Compile with new Gtk2HS and GHC 6.10 (Chris Lamb).
+
 
 Bustle 0.1 (2008-11-13)
-=======================
+-----------------------
 
 Initial release.
 
