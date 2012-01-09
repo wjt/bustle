@@ -321,15 +321,15 @@ emptyWindow = do
   io $ widgetShow window
   return windowInfo
 
-invalidateRect :: DrawWindowClass drawWindow
-               => drawWindow
+invalidateRect :: Layout
                -> Stripe
-               -> Double
                -> IO ()
-invalidateRect win (Stripe y1 y2) width =
+invalidateRect layout (Stripe y1 y2) = do
+    win <- layoutGetDrawWindow layout
+    (width, _height) <- layoutGetSize layout
+    let pangoRectangle = Rectangle 0 (floor y1) width (ceiling y2)
+
     drawWindowInvalidateRect win pangoRectangle False
-  where
-    pangoRectangle = Rectangle 0 (floor y1) (ceiling width) (ceiling y2)
 
 type RSDM = RegionSelection DetailedMessage
 queueClampAroundSelection :: IORef RSDM
@@ -368,20 +368,18 @@ modifyRegionSelection regionSelectionRef wi f = do
     writeIORef regionSelectionRef rs'
 
     when (newMessage /= currentMessage) $ do
-        win <- layoutGetDrawWindow layout
-        width <- liftM (fromIntegral . snd) (layoutGetSize layout)
         case newMessage of
             Nothing     -> do
                 widgetHide $ detailsViewGetTop detailsView
             Just (r, m) -> do
                 detailsViewUpdate detailsView m
-                invalidateRect win r width
+                invalidateRect layout r
                 widgetShow $ detailsViewGetTop detailsView
                 queueClampAroundSelection regionSelectionRef wi
 
         case currentMessage of
             Nothing -> return ()
-            Just (r, _) -> invalidateRect win r width
+            Just (r, _) -> invalidateRect layout r
 
 updateDisplayedLog :: WindowInfo
                    -> RendererResult a
