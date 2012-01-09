@@ -34,28 +34,62 @@ Flag PostCabalizedGtk2HS
   Default:        True
 
 Executable bustle
-  Main-is:        Bustle.hs
-  Other-modules:  Bustle.Types, Bustle.Diagram, Bustle.Renderer,
-                  Bustle.Upgrade, Bustle.Application.Monad, Bustle.Util,
-                  Bustle.StatisticsPane, Bustle.Markup,
-                  Bustle.Loader, Bustle.Loader.Pcap, Bustle.Loader.OldSkool,
-                  Bustle.UI.DetailsView, Bustle.UI.FilterDialog,
-                  Bustle.VariantFormatter,
-                  Bustle.Regions, Bustle.Noninteractive,
-                  Bustle.UI
+  Main-is:       Bustle.hs
+  Other-modules: Bustle.Application.Monad
+               , Bustle.Diagram
+               , Bustle.Loader
+               , Bustle.Loader.OldSkool
+               , Bustle.Loader.Pcap
+               , Bustle.Markup
+               , Bustle.Noninteractive
+               , Bustle.Regions
+               , Bustle.Renderer
+               , Bustle.StatisticsPane
+               , Bustle.Stats
+               , Bustle.Types
+               , Bustle.UI
+               , Bustle.UI.DetailsView
+               , Bustle.UI.FilterDialog
+               , Bustle.Upgrade
+               , Bustle.Util
+               , Bustle.VariantFormatter
   Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
 
   if flag(PostCabalizedGtk2HS)
     -- Since gtk2hs 0.11, pango is a separate package, and its module names
     -- have changed.
-    Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process, binary, bytestring, text,
-                    dbus-core == 0.9.*,
-                    pcap,
-                    gtk > 0.11, glade, pango, glib, cairo
+    Build-Depends: base >= 4 && < 5
+                 , binary
+                 , bytestring
+                 , cairo
+                 , containers
+                 , dbus-core == 0.9.*
+                 , filepath
+                 , glade
+                 , glib
+                 , gtk > 0.11
+                 , haskell98
+                 , mtl
+                 , pango
+                 , parsec
+                 , pcap
+                 , process
+                 , text
   else
-    Build-Depends:  haskell98, mtl, base >= 4 && < 5, containers, parsec,
-                    filepath, process, binary, bytestring, text,
-                    dbus-core == 0.9.*,
-                    pcap,
-                    gtk > 0.10 && < 0.11, glade, pango, glib, cairo
+    Build-Depends: base >= 4 && < 5
+                 , binary
+                 , bytestring
+                 , cairo
+                 , containers
+                 , dbus-core == 0.9.*
+                 , filepath
+                 , glade
+                 , glib
+                 , gtk > 0.10 && < 0.11
+                 , haskell98
+                 , mtl
+                 , pango
+                 , parsec
+                 , pcap
+                 , process
+                 , text
