@@ -35,5 +35,5 @@ maintainer-binary-tarball: all
 	cabal-dev build
 	cabal-dev copy
 	cp bustle.sh $(TARBALL_DIR)
-	cp bustle-dbus-monitor bustle-pcap $(TARBALL_DIR)/bin
+	cp bustle-dbus-monitor bustle-pcap $(TARBALL_DIR)
 	tar cjf $(TARBALL_DIR).tar.bz2 $(TARBALL_DIR)

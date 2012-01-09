@@ -1,15 +1,11 @@
+Want to get involved? Great!
+============================
+
 Grab the latest code from git:
 
-  git clone git://anongit.freedesktop.org/bustle
+    git clone git://anongit.freedesktop.org/bustle
 
 and get stuck in! Please submit patches, or links to git branches, as
-bugs on:
+bugs on <https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle>.
 
-  https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle
-
-Coding style: Haskell code must be '-Wall
--fno-warn-unused-imports'-clean, and have pleasing layout.
-
-Hacking bustle-dbus-monitor.c is not advised. :)
-
-vim: tw=72
+Hacking bustle-dbus-monitor.c is not advised.

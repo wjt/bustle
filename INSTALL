@@ -1,0 +1,24 @@
+Building from source
+====================
+
+    export PREFIX=/opt/hi-mum
+    cabal install --prefix=$PREFIX
+    make install PREFIX=$PREFIX
+
+Building Bustle itself requires the Haskell Platform (plus additional
+dependencies which will be fetched by the `cabal install` command). On
+Debian-flavoured systems:
+
+    sudo apt-get install haskell-platform
+
+Elsewhere, see <http://hackage.haskell.org/platform/> or your distro's
+package manager.
+
+If the Haskell Platform is not available on the platform you want to do
+some D-Bus profiling on, that's fine: the logger is written in C, and
+you can view logs generated on your fancy embedded hardware on your more
+pedestrian Linux laptop.
+
+The C bits compiled with `make` depend on a few things:
+
+    sudo apt-get install libdbus-1-dev libglib2.0-dev libpcap-dev
