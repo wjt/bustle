@@ -626,7 +626,7 @@ showAbout window = withProgramIcon $ \icon -> io $ do
                  , aboutDialogComments := "Someone's favourite D-Bus profiler"
                  , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
                  , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2011 Collabora Ltd."
+                 , aboutDialogCopyright := "© 2008–2012 Collabora Ltd."
                  , aboutDialogLicense := license
                  ]
     dialog `afterResponse` \resp ->
