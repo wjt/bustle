@@ -36,7 +36,7 @@ clean:
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
 TARBALL_PARENT_DIR := dist
-TARBALL_DIR := $(shell git describe --tags)-$(shell uname -m)
+TARBALL_DIR := $(shell git describe --tags)-$(shell gcc -dumpmachine | perl -pe 's/-.*//')
 TARBALL_FULL_DIR := $(TARBALL_PARENT_DIR)/$(TARBALL_DIR)
 TARBALL := $(TARBALL_DIR).tar.bz2
 maintainer-binary-tarball: all
