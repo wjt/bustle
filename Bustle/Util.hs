@@ -24,6 +24,8 @@ module Bustle.Util
   , toErrorT
   , handleIOExceptions
 
+  , maybeM
+
   -- You probably don't actually want to use this function.
   , traceM
   )
@@ -65,3 +67,9 @@ handleIOExceptions :: (Error e', MonadIO io)
 handleIOExceptions f act = do
     result <- io $ try act
     toErrorT f result
+
+maybeM :: Maybe a
+       -> (a -> IO ())
+       -> IO ()
+maybeM Nothing _ = return ()
+maybeM (Just x) act = act x

@@ -12,6 +12,7 @@ import System.Glib.GError
 import Graphics.UI.Gtk
 
 import Bustle.Monitor
+import Bustle.UI.Util (displayError)
 
 type RecorderCallback = (FilePath -> IO ())
 
@@ -56,14 +57,7 @@ recorderRun filename mwindow callback = handleGError newFailed $ do
     widgetShowAll dialog
   where
     newFailed (GError _ _ message) = do
-        dialog <- messageDialogNew mwindow
-                                   []
-                                   MessageError
-                                   ButtonsClose
-                                   message
-        windowSetModal dialog True
-        dialog `afterResponse` \_ -> widgetDestroy dialog
-        widgetShowAll dialog
+        displayError mwindow message Nothing
 
 recorderNew :: Maybe Window
             -> RecorderCallback

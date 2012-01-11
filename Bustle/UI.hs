@@ -46,6 +46,7 @@ import Bustle.Util
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
 import Bustle.UI.Recorder
+import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Loader
 
@@ -153,15 +154,6 @@ loadInInitialWindow = loadLogWith consumeInitialWindow
 loadLog :: FilePath -> Maybe FilePath -> B ()
 loadLog = loadLogWith emptyWindow
 
--- Displays a modal error dialog, with the given strings as title and body
--- respectively.
-displayError :: String -> String -> IO ()
-displayError title body = do
-  dialog <- messageDialogNew Nothing [DialogModal] MessageError ButtonsClose title
-  messageDialogSetSecondaryText dialog body
-  dialog `afterResponse` \_ -> widgetDestroy dialog
-  widgetShowAll dialog
-
 loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
             -> FilePath       -- ^ a log file to load and display
             -> Maybe FilePath -- ^ an optional second log to show alongside the
@@ -188,7 +180,7 @@ loadLogWith getWindow session maybeSystem = do
 
     case ret of
       Left (LoadError f e) -> io $
-          displayError ("Could not read '" ++ f ++ "'") e
+          displayError Nothing ("Could not read '" ++ f ++ "'") (Just e)
       Right () -> return ()
 
 maybeQuit :: B ()

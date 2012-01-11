@@ -57,6 +57,7 @@ Executable bustle
                , Bustle.UI.DetailsView
                , Bustle.UI.FilterDialog
                , Bustle.UI.Recorder
+               , Bustle.UI.Util
                , Bustle.Upgrade
                , Bustle.Util
                , Bustle.VariantFormatter
