@@ -1,6 +1,6 @@
 module Bustle.UI.Recorder
   (
-    recorderNew
+    recorderChooseFile
   , recorderRun
   )
 where
@@ -14,7 +14,7 @@ import Graphics.UI.Gtk
 import Bustle.Monitor
 import Bustle.UI.Util (displayError)
 
-type RecorderCallback = (FilePath -> IO ())
+type RecorderCallback = IO ()
 
 recorderRun :: FilePath
             -> Maybe Window
@@ -33,7 +33,7 @@ recorderRun filename mwindow callback = handleGError newFailed $ do
         i <- takeMVar n
         let j = i + 1
         labelSetMarkup label $
-            "Logged <b>" ++ show i ++ "</b> messages to <i>" ++ filename ++ "</i>…"
+            "Logged <b>" ++ show i ++ "</b> messages…"
         putMVar n j
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
     updateLabel
@@ -52,21 +52,23 @@ recorderRun filename mwindow callback = handleGError newFailed $ do
         signalDisconnect handlerId
         timeoutRemove pulseId
         widgetDestroy dialog
-        callback filename
+        callback
 
     widgetShowAll dialog
   where
     newFailed (GError _ _ message) = do
         displayError mwindow message Nothing
 
-recorderNew :: Maybe Window
-            -> RecorderCallback
-            -> IO ()
-recorderNew mwindow callback = do
+recorderChooseFile :: FilePath
+                   -> Maybe Window
+                   -> (FilePath -> IO ())
+                   -> IO ()
+recorderChooseFile name mwindow callback = do
     chooser <- fileChooserDialogNew Nothing mwindow FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-new", ResponseAccept)
              ]
+    fileChooserSetCurrentName chooser name
     chooser `set` [ windowModal := True
                   , fileChooserLocalOnly := True
                   , fileChooserDoOverwriteConfirmation := True
@@ -75,7 +77,7 @@ recorderNew mwindow callback = do
     chooser `afterResponse` \resp -> do
         when (resp == ResponseAccept) $ do
             Just fn <- fileChooserGetFilename chooser
-            recorderRun fn mwindow callback
+            callback fn
         widgetDestroy chooser
 
     widgetShowAll chooser

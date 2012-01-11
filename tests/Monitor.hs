@@ -12,5 +12,5 @@ main = do
     let filename = case args of
             x:xs -> x
             _    -> error "gimme a filename"
-    recorderRun filename Nothing $ \_ -> mainQuit
+    recorderRun filename Nothing mainQuit
     mainGUI

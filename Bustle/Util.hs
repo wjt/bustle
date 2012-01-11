@@ -41,6 +41,7 @@ import Debug.Trace (trace)
 import System.IO (hPutStrLn, stderr)
 import Foreign.C.String
 import System.Directory
+import System.FilePath ((</>))
 
 -- Escape hatch to log a value from a non-IO monadic context.
 traceM :: (Show a, Monad m) => a -> m ()
@@ -85,6 +86,6 @@ foreign import ccall "g_get_user_cache_dir"
 getCacheDir :: IO FilePath
 getCacheDir = do
     dotCache <- peekCString =<< g_get_user_cache_dir
-    let dir = dotCache ++ "/bustle"
+    let dir = dotCache </> "bustle"
     createDirectoryIfMissing True dir
     return dir

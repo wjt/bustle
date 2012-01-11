@@ -35,6 +35,7 @@ import Data.Version (showVersion)
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Time
 
 import Paths_bustle
 import Bustle.Application.Monad
@@ -59,7 +60,8 @@ import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
-import System.FilePath (splitFileName, dropExtension)
+import System.FilePath (splitFileName, takeFileName, replaceExtension, (</>), (<.>))
+import System.Directory (renameFile)
 
 import qualified DBus.Message
 
@@ -67,6 +69,7 @@ type B a = Bustle BConfig BState a
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
+               , wiSave :: ImageMenuItem
                , wiExport :: ImageMenuItem
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
@@ -141,15 +144,17 @@ createInitialWindow = do
   misc <- emptyWindow
   modify $ \s -> s { initialWindow = Just misc }
 
+consumeInitialWindow :: B WindowInfo
+consumeInitialWindow = do
+    x <- gets initialWindow
+    case x of
+        Nothing   -> emptyWindow
+        Just windowInfo -> do
+            modify $ \s -> s { initialWindow = Nothing }
+            return windowInfo
+
 loadInInitialWindow :: FilePath -> Maybe FilePath -> B ()
 loadInInitialWindow = loadLogWith consumeInitialWindow
-  where consumeInitialWindow = do
-          x <- gets initialWindow
-          case x of
-            Nothing   -> emptyWindow
-            Just misc -> do
-              modify $ \s -> s { initialWindow = Nothing }
-              return misc
 
 loadLog :: FilePath -> Maybe FilePath -> B ()
 loadLog = loadLogWith emptyWindow
@@ -183,6 +188,38 @@ loadLogWith getWindow session maybeSystem = do
           displayError Nothing ("Could not read '" ++ f ++ "'") (Just e)
       Right () -> return ()
 
+startRecording :: B ()
+startRecording = do
+    wi <- consumeInitialWindow
+
+    zt <- io $ getZonedTime
+    -- I hate time manipulation
+    let yyyy_mm_dd_hh_mm_ss = takeWhile (/= '.') (show zt)
+
+    cacheDir <- io $ getCacheDir
+    let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
+
+    embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) $
+          makeCallback (finishedRecording wi filename) r
+
+finishedRecording :: WindowInfo
+                  -> FilePath
+                  -> B ()
+finishedRecording wi tempFilePath = do
+    loadLogWith (return wi) tempFilePath Nothing
+
+    let saveItem     = wiSave wi
+        mwindow      = Just (wiWindow wi)
+        tempFileName = takeFileName tempFilePath
+
+    io $ do
+        widgetSetSensitivity saveItem True
+        onActivateLeaf saveItem $ do
+            recorderChooseFile tempFileName mwindow $ \newFilePath -> do
+                renameFile tempFilePath newFilePath
+                widgetSetSensitivity saveItem False
+    return ()
+
 maybeQuit :: B ()
 maybeQuit = do
   n <- decWindows
@@ -196,8 +233,9 @@ emptyWindow = do
   let getW cast name = io $ xmlGetWidget xml cast name
 
   window <- getW castToWindow "diagramWindow"
-  [newItem, openItem, exportItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
-       ["new", "open", "export", "close", "about"]
+  [newItem, openItem, saveItem, exportItem, closeItem, aboutItem] <-
+      mapM (getW castToImageMenuItem)
+          ["new", "open", "save", "export", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -216,9 +254,7 @@ emptyWindow = do
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu
-  embedIO $ \r -> onActivateLeaf newItem $
-      recorderNew (Just window) $ \filename ->
-          makeCallback (loadInInitialWindow filename Nothing) r
+  embedIO $ onActivateLeaf newItem . makeCallback startRecording
   embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
   io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
   io $ closeItem `onActivateLeaf` widgetDestroy window
@@ -301,6 +337,7 @@ emptyWindow = do
 
   clampIdleId <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
+                              , wiSave = saveItem
                               , wiExport = exportItem
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
@@ -436,10 +473,9 @@ displayLog wi@(WindowInfo { wiWindow = window
            systemMessages
            rr = do
   let (directory, sessionName) = splitFileName sessionPath
-      baseName = snd . splitFileName
-      title = maybe sessionName
-                    ((++ (" + " ++ sessionName)) . baseName)
-                    maybeSystemPath
+      title = case maybeSystemPath of
+          Nothing -> sessionName
+          Just systemPath -> takeFileName systemPath ++ " & " ++ sessionName
 
   showBounds <- asks debugEnabled
 
@@ -598,7 +634,7 @@ saveToPDFDialogue window directory filename shapes = do
                 ]
 
   fileChooserSetCurrentFolder chooser directory
-  fileChooserSetCurrentName chooser $ filename ++ ".pdf"
+  fileChooserSetCurrentName chooser $ replaceExtension filename "pdf"
 
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do

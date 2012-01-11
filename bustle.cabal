@@ -77,6 +77,7 @@ Executable bustle
                  , cairo
                  , containers
                  , dbus-core == 0.9.*
+                 , directory
                  , filepath
                  , glade
                  , glib
@@ -88,6 +89,7 @@ Executable bustle
                  , pcap
                  , process
                  , text
+                 , time
   else
     Build-Depends: base >= 4 && < 5
                  , binary
@@ -95,6 +97,7 @@ Executable bustle
                  , cairo
                  , containers
                  , dbus-core == 0.9.*
+                 , directory
                  , filepath
                  , glade
                  , glib
@@ -106,6 +109,7 @@ Executable bustle
                  , pcap
                  , process
                  , text
+                 , time
 
 Executable test-monitor
   if flag(InteractiveTests) && flag(PostCabalizedGtk2HS)
