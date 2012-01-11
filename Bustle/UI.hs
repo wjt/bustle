@@ -45,6 +45,7 @@ import Bustle.Regions
 import Bustle.Util
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
+import Bustle.UI.Recorder
 import Bustle.StatisticsPane
 import Bustle.Loader
 
@@ -203,8 +204,8 @@ emptyWindow = do
   let getW cast name = io $ xmlGetWidget xml cast name
 
   window <- getW castToWindow "diagramWindow"
-  [openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
-       ["open", "saveAs", "close", "about"]
+  [newItem, openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
+       ["new", "open", "saveAs", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -223,6 +224,9 @@ emptyWindow = do
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu
+  embedIO $ \r -> onActivateLeaf newItem $
+      recorderNew (Just window) $ \filename ->
+          makeCallback (loadInInitialWindow filename Nothing) r
   embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
   io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
   io $ closeItem `onActivateLeaf` widgetDestroy window
