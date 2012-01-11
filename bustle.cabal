@@ -54,6 +54,7 @@ Executable bustle
                , Bustle.Stats
                , Bustle.Types
                , Bustle.UI
+               , Bustle.UI.AboutDialog
                , Bustle.UI.DetailsView
                , Bustle.UI.FilterDialog
                , Bustle.UI.Recorder

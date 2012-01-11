@@ -22,16 +22,12 @@ module Bustle.UI
   )
 where
 
-import Prelude hiding (catch)
-
-import Control.Exception
 import Control.Monad (when)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
 import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
-import Data.Version (showVersion)
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -44,6 +40,7 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
 import Bustle.Util
+import Bustle.UI.AboutDialog
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
 import Bustle.UI.Recorder
@@ -260,7 +257,8 @@ emptyWindow = do
   io $ closeItem `onActivateLeaf` widgetDestroy window
 
   -- Help menu
-  embedIO $ onActivateLeaf aboutItem . makeCallback (showAbout window)
+  withProgramIcon $ \icon -> io $
+      onActivateLeaf aboutItem $ showAboutDialog window icon
 
   -- Diagram area panning
   io $ do
@@ -591,7 +589,7 @@ incdec (+-) f adj = do
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
 
-withProgramIcon :: (Maybe Pixbuf -> IO ()) -> B ()
+withProgramIcon :: (Maybe Pixbuf -> IO a) -> B a
 withProgramIcon f = asks bustleIcon >>= io . f
 
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
@@ -645,35 +643,5 @@ saveToPDFDialogue window directory filename shapes = do
       widgetDestroy chooser
 
   widgetShowAll chooser
-
-showAbout :: Window -> B ()
-showAbout window = withProgramIcon $ \icon -> io $ do
-    dialog <- aboutDialogNew
-
-    license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
-               `catch` (\e -> warn (show (e :: IOException)) >> return Nothing)
-
-    dialog `set` [ aboutDialogName := "Bustle"
-                 , aboutDialogVersion := showVersion version
-                 , aboutDialogComments := "Someone's favourite D-Bus profiler"
-                 , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
-                 , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2012 Collabora Ltd."
-                 , aboutDialogLicense := license
-                 ]
-    dialog `afterResponse` \resp ->
-        when (resp == ResponseCancel) (widgetDestroy dialog)
-    windowSetTransientFor dialog window
-    windowSetModal dialog True
-    aboutDialogSetLogo dialog icon
-
-    widgetShowAll dialog
-
-authors :: [String]
-authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
-          , "Dafydd Harries"
-          , "Chris Lamb"
-          , "Marc Kleine-Budde"
-          ]
 
 -- vim: sw=2 sts=2
