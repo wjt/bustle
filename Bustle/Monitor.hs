@@ -62,21 +62,19 @@ data DebugOutput = NoDebugOutput
   deriving
     Enum
 
+-- Throws a GError if the file can't be opened, we can't get on the bus, or whatever.
 monitorNew :: BusType
            -> FilePath
            -> DebugOutput
-           -> IO (Either GError Monitor)
+           -> IO Monitor
 monitorNew busType filename debugOutput =
-    checkGError
-        (\gerrorPtr ->
-            liftM Right $
-            wrapNewGObject mkMonitor $
-            withCString filename $ \c_filename ->
-            bustle_pcap_new (fromIntegral $ fromEnum busType)
-                            c_filename
-                            (fromIntegral $ fromEnum debugOutput)
-                            gerrorPtr)
-        (return . Left)
+    wrapNewGObject mkMonitor $
+      propagateGError $ \gerrorPtr ->
+        withCString filename $ \c_filename ->
+          bustle_pcap_new (fromIntegral $ fromEnum busType)
+                          c_filename
+                          (fromIntegral $ fromEnum debugOutput)
+                          gerrorPtr
 
 monitorStop :: Monitor
             -> IO ()
