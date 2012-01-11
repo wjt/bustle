@@ -1,12 +1,17 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Bustle.Monitor
   (
+-- * Types
     Monitor
   , BusType(..)
   , DebugOutput(..)
 
+-- * Methods
   , monitorNew
   , monitorStop
+
+-- * Signals
+  , monitorMessageLogged
   )
 where
 
@@ -19,6 +24,7 @@ import Foreign.C
 
 import System.Glib.GObject
 import System.Glib.GError
+import System.Glib.Signals
 
 -- Gtk2HS boilerplate
 newtype Monitor = Monitor { unMonitor :: ForeignPtr Monitor }
@@ -76,3 +82,9 @@ monitorStop :: Monitor
             -> IO ()
 monitorStop monitor = do
     withForeignPtr (unMonitor monitor) bustle_pcap_stop
+
+monitorMessageLogged :: Signal Monitor (IO ())
+monitorMessageLogged =
+    Signal $ \after obj user ->
+        connectGeneric "message-logged" after obj $ \_obj ->
+            failOnGError user

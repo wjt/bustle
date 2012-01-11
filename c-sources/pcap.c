@@ -51,7 +51,8 @@ struct _BustlePcapPrivate {
     GThread *thread;
     ThreadData td;
 
-    /* FIXME: this does not really belong here. */
+    /* FIXME: this does not really belong here. main() should connect to
+     * ::message-logged when it provides enough details. */
     gboolean verbose;
 };
 
@@ -60,6 +61,13 @@ enum {
     PROP_FILENAME,
     PROP_VERBOSE,
 };
+
+enum {
+    SIG_MESSAGE_LOGGED,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
 
 static void initable_iface_init (
     gpointer g_class,
@@ -190,6 +198,11 @@ bustle_pcap_class_init (BustlePcapClass *klass)
   param_spec = g_param_spec_boolean (THRICE ("verbose"), FALSE,
       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_VERBOSE, param_spec);
+
+  signals[SIG_MESSAGE_LOGGED] = g_signal_new ("message-logged",
+      BUSTLE_TYPE_PCAP, G_SIGNAL_RUN_FIRST,
+      0, NULL, NULL,
+      NULL, G_TYPE_NONE, 0);
 }
 
 static gpointer
@@ -215,6 +228,16 @@ log_thread (gpointer data)
   return NULL;
 }
 
+static gboolean
+emit_me (gpointer data)
+{
+  BustlePcap *self = BUSTLE_PCAP (data);
+
+  g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0);
+  g_object_unref (self);
+  return FALSE;
+}
+
 GDBusMessage *
 filter (
     GDBusConnection *connection,
@@ -234,6 +257,8 @@ filter (
       g_critical ("Couldn't marshal message: %s", error->message);
       g_return_val_if_reached (NULL);
     }
+  /* An ugly hack to push the signal into the UI thread. */
+  g_idle_add (emit_me, g_object_ref (self));
   g_async_queue_push (self->priv->td.message_queue, g_slice_dup (Message, &m));
 
   dest = g_dbus_message_get_destination (message);
