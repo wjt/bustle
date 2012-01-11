@@ -34,6 +34,10 @@ Flag PostCabalizedGtk2HS
                   module names
   Default:        True
 
+Flag InteractiveTests
+  Description:    Build interactive test programs
+  Default:        False
+
 Executable bustle
   Main-is:       Bustle.hs
   Other-modules: Bustle.Application.Monad
@@ -42,6 +46,7 @@ Executable bustle
                , Bustle.Loader.OldSkool
                , Bustle.Loader.Pcap
                , Bustle.Markup
+               , Bustle.Monitor
                , Bustle.Noninteractive
                , Bustle.Regions
                , Bustle.Renderer
@@ -54,7 +59,12 @@ Executable bustle
                , Bustle.Upgrade
                , Bustle.Util
                , Bustle.VariantFormatter
-  Ghc-options:    -Wall -fno-warn-unused-imports -fno-warn-unused-do-bind
+  Ghc-options: -threaded
+               -Wall
+               -fno-warn-unused-imports
+               -fno-warn-unused-do-bind
+  C-sources: c-sources/pcap.c
+  pkgconfig-depends: glib-2.0
 
   if flag(PostCabalizedGtk2HS)
     -- Since gtk2hs 0.11, pango is a separate package, and its module names
@@ -94,6 +104,18 @@ Executable bustle
                  , pcap
                  , process
                  , text
+
+Executable test-monitor
+  if flag(InteractiveTests)
+    buildable: True
+  else
+    buildable: False
+
+  main-is: tests/Monitor.hs
+  other-modules: Bustle.Monitor
+  Ghc-options: -threaded
+  C-sources: c-sources/pcap.c
+  pkgconfig-depends: glib-2.0
 
 Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
