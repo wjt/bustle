@@ -30,6 +30,7 @@ import System.Glib.Signals
 newtype Monitor = Monitor { unMonitor :: ForeignPtr Monitor }
     deriving (Eq, Ord)
 
+mkMonitor :: (ForeignPtr Monitor -> Monitor, FinalizerPtr a)
 mkMonitor = (Monitor, objectUnref)
 
 instance GObjectClass Monitor where
@@ -37,9 +38,6 @@ instance GObjectClass Monitor where
     unsafeCastGObject = Monitor . castForeignPtr . unGObject
 
 -- Dirty ugly foreign imports
-foreign import ccall unsafe "bustle_pcap_get_type"
-    bustle_pcap_get_type :: CULong
-
 foreign import ccall "bustle_pcap_new"
     bustle_pcap_new :: CInt
                     -> CString
@@ -83,6 +81,6 @@ monitorStop monitor = do
 
 monitorMessageLogged :: Signal Monitor (IO ())
 monitorMessageLogged =
-    Signal $ \after obj user ->
-        connectGeneric "message-logged" after obj $ \_obj ->
+    Signal $ \after_ obj user ->
+        connectGeneric "message-logged" after_ obj $ \_obj ->
             failOnGError user
