@@ -67,7 +67,7 @@ type B a = Bustle BConfig BState a
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
-               , wiSave :: ImageMenuItem
+               , wiExport :: ImageMenuItem
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
@@ -196,8 +196,8 @@ emptyWindow = do
   let getW cast name = io $ xmlGetWidget xml cast name
 
   window <- getW castToWindow "diagramWindow"
-  [newItem, openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
-       ["new", "open", "saveAs", "close", "about"]
+  [newItem, openItem, exportItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
+       ["new", "open", "export", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -301,7 +301,7 @@ emptyWindow = do
 
   clampIdleId <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
-                              , wiSave = saveItem
+                              , wiExport = exportItem
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
                               , wiNotebook = nb
@@ -422,7 +422,7 @@ displayLog :: WindowInfo
            -> RendererResult Participants
            -> B ()
 displayLog wi@(WindowInfo { wiWindow = window
-                       , wiSave = saveItem
+                       , wiExport = exportItem
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
                        , wiLayout = layout
@@ -452,8 +452,8 @@ displayLog wi@(WindowInfo { wiWindow = window
     updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
 
     windowSetTitle window $ title ++ " — Bustle"
-    widgetSetSensitivity saveItem True
-    onActivateLeaf saveItem $ do
+    widgetSetSensitivity exportItem True
+    onActivateLeaf exportItem $ do
         shapes <- readIORef shapesRef
         saveToPDFDialogue window directory title shapes
 
