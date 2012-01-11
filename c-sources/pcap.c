@@ -403,7 +403,7 @@ initable_init (
   if (priv->td.dumper == NULL)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-          "Couldn't open pcap dump: %s", pcap_geterr (priv->p));
+          "Couldn't open target file %s", pcap_geterr (priv->p));
       return FALSE;
     }
 
