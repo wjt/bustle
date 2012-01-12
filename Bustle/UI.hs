@@ -58,12 +58,19 @@ import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
-import System.FilePath (splitFileName, takeFileName, replaceExtension, (</>), (<.>))
+import System.FilePath ( splitFileName, takeFileName, takeDirectory
+                       , replaceExtension, (</>), (<.>)
+                       )
 import System.Directory (renameFile)
 
 import qualified DBus.Message
 
 type B a = Bustle BConfig BState a
+
+data LogDetails =
+    LogDetails { ldSessionPath :: FilePath
+               , ldSystemPath :: Maybe FilePath
+               }
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
@@ -78,6 +85,8 @@ data WindowInfo =
                , wiLayout :: Layout
                , wiDetailsView :: DetailsView
                , wiClampIdleId :: IORef (Maybe HandlerId)
+
+               , wiLogDetails :: IORef (Maybe LogDetails)
                }
 
 data BConfig =
@@ -174,9 +183,11 @@ loadLogWith getWindow session maybeSystem = do
         io $ mapM warn $ sessionWarnings ++ systemWarnings ++ rrWarnings rr
 
         windowInfo <- lift getWindow
+        let logDetails = LogDetails { ldSessionPath = session
+                                    , ldSystemPath = maybeSystem
+                                    }
         lift $ displayLog windowInfo
-                          session
-                          maybeSystem
+                          logDetails
                           sessionMessages
                           systemMessages
                           rr
@@ -292,6 +303,7 @@ emptyWindow = do
       widgetHide top
 
   clampIdleId <- io $ newIORef Nothing
+  logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
                               , wiExport = exportItem
@@ -304,6 +316,7 @@ emptyWindow = do
                               , wiLayout = layout
                               , wiDetailsView = details
                               , wiClampIdleId = clampIdleId
+                              , wiLogDetails = logDetailsRef
                               }
 
   incWindows
@@ -407,9 +420,24 @@ updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
 
     return ()
 
+logTitle :: LogDetails
+         -> String
+logTitle logDetails =
+    case ldSystemPath logDetails of
+        Nothing         -> sessionName
+        Just systemPath -> takeFileName systemPath ++ " & " ++ sessionName
+  where
+    sessionName = takeFileName $ ldSessionPath logDetails
+
+wiSetLogDetails :: WindowInfo
+                -> LogDetails
+                -> IO ()
+wiSetLogDetails wi logDetails = do
+    writeIORef (wiLogDetails wi) (Just logDetails)
+    windowSetTitle (wiWindow wi) (logTitle logDetails ++ " — Bustle")
+
 displayLog :: WindowInfo
-           -> FilePath
-           -> Maybe FilePath
+           -> LogDetails
            -> Log
            -> Log
            -> RendererResult Participants
@@ -423,19 +451,15 @@ displayLog wi@(WindowInfo { wiWindow = window
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
                        })
-           sessionPath
-           maybeSystemPath
+           logDetails
            sessionMessages
            systemMessages
            rr = do
-  let (directory, sessionName) = splitFileName sessionPath
-      title = case maybeSystemPath of
-          Nothing -> sessionName
-          Just systemPath -> takeFileName systemPath ++ " & " ++ sessionName
-
   showBounds <- asks debugEnabled
 
   io $ do
+    wiSetLogDetails wi logDetails
+
     shapesRef <- newIORef []
     widthRef <- newIORef 0
     regionSelectionRef <- newIORef $ regionSelectionNew []
@@ -443,11 +467,10 @@ displayLog wi@(WindowInfo { wiWindow = window
 
     updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
 
-    windowSetTitle window $ title ++ " — Bustle"
     widgetSetSensitivity exportItem True
     onActivateLeaf exportItem $ do
         shapes <- readIORef shapesRef
-        saveToPDFDialogue window directory title shapes
+        saveToPDFDialogue wi shapes
 
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
@@ -574,13 +597,12 @@ openDialogue window = embedIO $ \r -> do
 
   widgetShowAll chooser
 
-saveToPDFDialogue :: Window
-                  -> FilePath
-                  -> String
+saveToPDFDialogue :: WindowInfo
                   -> Diagram
                   -> IO ()
-saveToPDFDialogue window directory filename shapes = do
-  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
+saveToPDFDialogue wi shapes = do
+  let parent = Just (wiWindow wi)
+  chooser <- fileChooserDialogNew Nothing parent FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-save", ResponseAccept)
              ]
@@ -589,8 +611,13 @@ saveToPDFDialogue window directory filename shapes = do
                 , fileChooserDoOverwriteConfirmation := True
                 ]
 
+  Just logDetails <- readIORef $ wiLogDetails wi
+
+  let directory = takeDirectory $ ldSessionPath logDetails
+      filename  = replaceExtension (logTitle logDetails) "pdf"
+
   fileChooserSetCurrentFolder chooser directory
-  fileChooserSetCurrentName chooser $ replaceExtension filename "pdf"
+  fileChooserSetCurrentName chooser filename
 
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
