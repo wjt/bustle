@@ -82,7 +82,7 @@ data WindowInfo =
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiContentVPaned :: VPaned
-               , wiCanvas :: Canvas
+               , wiCanvas :: Canvas DetailedMessage
                , wiDetailsView :: DetailsView
 
                , wiLogDetails :: IORef (Maybe LogDetails)
@@ -248,7 +248,6 @@ emptyWindow = do
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
 
-  canvas <- io $ canvasNew xml
 
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
@@ -286,6 +285,8 @@ emptyWindow = do
       -- message.
       widgetHide top
 
+  canvas <- io $ canvasNew xml (updateDetailsView details)
+
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
@@ -305,52 +306,33 @@ emptyWindow = do
   io $ widgetShow window
   return windowInfo
 
-type RSDM = RegionSelection DetailedMessage
-
-modifyRegionSelection :: IORef RSDM
-                      -> WindowInfo
-                      -> (RSDM -> RSDM)
-                      -> IO ()
-modifyRegionSelection regionSelectionRef wi f = do
-    let canvas      = wiCanvas wi
-        detailsView = wiDetailsView wi
-
-    rs <- readIORef regionSelectionRef
-    let currentMessage = rsCurrent rs
-        rs' = f rs
-        newMessage = rsCurrent rs'
-    writeIORef regionSelectionRef rs'
-
-    when (newMessage /= currentMessage) $ do
-        case newMessage of
-            Nothing     -> do
-                widgetHide $ detailsViewGetTop detailsView
-            Just (r, m) -> do
-                detailsViewUpdate detailsView m
-                canvasInvalidateStripe canvas r
-                widgetShow $ detailsViewGetTop detailsView
-                canvasClampAroundSelection canvas regionSelectionRef
-
-        case currentMessage of
-            Nothing -> return ()
-            Just (r, _) -> canvasInvalidateStripe canvas r
+updateDetailsView :: DetailsView
+                  -> Maybe DetailedMessage
+                  -> IO ()
+updateDetailsView detailsView newMessage = do
+    case newMessage of
+        Nothing -> do
+            widgetHide $ detailsViewGetTop detailsView
+        Just m  -> do
+            detailsViewUpdate detailsView m
+            widgetShow $ detailsViewGetTop detailsView
 
 updateDisplayedLog :: WindowInfo
                    -> RendererResult a
                    -> IORef [Shape]
                    -> IORef Double
-                   -> IORef (RegionSelection DetailedMessage)
                    -> IO ()
-updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
+updateDisplayedLog wi rr shapesRef widthRef = do
     let shapes = rrShapes rr
         (width, height) = diagramDimensions shapes
 
-        layout = canvasLayout $ wiCanvas wi
+        canvas = wiCanvas wi
+        layout = canvasLayout canvas
 
     writeIORef shapesRef shapes
     writeIORef widthRef width
 
-    modifyRegionSelection regionSelectionRef wi $ \rs ->
+    canvasUpdateSelection canvas $ \rs ->
       let
         rs' = regionSelectionNew (rrRegions rr)
       in
@@ -414,10 +396,9 @@ displayLog wi@(WindowInfo { wiWindow = window
 
     shapesRef <- newIORef []
     widthRef <- newIORef 0
-    regionSelectionRef <- newIORef $ regionSelectionNew []
     hiddenRef <- newIORef Set.empty
 
-    updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
+    updateDisplayedLog wi rr shapesRef widthRef
 
     widgetSetSensitivity exportItem True
     onActivateLeaf exportItem $ do
@@ -428,36 +409,14 @@ displayLog wi@(WindowInfo { wiWindow = window
     -- rather than everything that's visible.
     let layout = canvasLayout canvas
     layout `on` exposeEvent $ tryEvent $ io $ do
-        rs <- readIORef regionSelectionRef
+        current <- canvasGetSelection canvas
         shapes <- readIORef shapesRef
         width <- readIORef widthRef
         let shapes' =
-                case rsCurrent rs of
+                case current of
                     Nothing     -> shapes
                     Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
         update layout shapes' showBounds
-
-    let modifyRS :: MonadIO io
-                 => (RSDM -> RSDM)
-                 -> io ()
-        modifyRS = io . modifyRegionSelection regionSelectionRef wi
-
-    layout `on` buttonPressEvent $ tryEvent $ do
-      io $ layout `set` [ widgetIsFocus := True ]
-      LeftButton <- eventButton
-      (_, y) <- eventCoordinates
-
-      modifyRS (regionSelectionUpdate y)
-
-    layout `on` keyPressEvent $ tryEvent $ do
-      [] <- eventModifier
-      key <- eventKeyName
-      case key of
-        "Up"        -> modifyRS regionSelectionUp
-        "Down"      -> modifyRS regionSelectionDown
-        "Home"      -> modifyRS regionSelectionFirst
-        "End"       -> modifyRS regionSelectionLast
-        _           -> stopEvent
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]
@@ -481,7 +440,7 @@ displayLog wi@(WindowInfo { wiWindow = window
         writeIORef hiddenRef hidden'
         let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
-        updateDisplayedLog wi rr' shapesRef widthRef regionSelectionRef
+        updateDisplayedLog wi rr' shapesRef widthRef
 
     -- The stats start off hidden.
     widgetHide statsBook

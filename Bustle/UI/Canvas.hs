@@ -3,10 +3,11 @@ module Bustle.UI.Canvas
     Canvas
   , canvasNew
 
+  -- FIXME: move the stuff that needs this into this file.
   , canvasLayout
 
-  , canvasInvalidateStripe
-  , canvasClampAroundSelection
+  , canvasGetSelection
+  , canvasUpdateSelection
   )
 where
 
@@ -21,20 +22,26 @@ import Bustle.Diagram
 import Bustle.Regions
 import Bustle.Util
 
-data Canvas =
+data Canvas a =
     Canvas { canvasLayout :: Layout
            , canvasClampIdleId :: IORef (Maybe HandlerId)
+
+           , canvasSelection :: IORef (RegionSelection a)
+           , canvasSelectionChangedCb :: Maybe a -> IO ()
            }
 
-canvasNew :: GladeXML
-          -> IO Canvas
-canvasNew xml = do
+canvasNew :: Eq a
+          => GladeXML
+          -> (Maybe a -> IO ())
+          -> IO (Canvas a)
+canvasNew xml selectionChangedCb = do
     layout <- xmlGetWidget xml castToLayout "diagramLayout"
-
-    setupPanning layout
-
     idRef <- newIORef Nothing
-    return $ Canvas layout idRef
+    rsRef <- newIORef $ regionSelectionNew []
+
+    let canvas = Canvas layout idRef rsRef selectionChangedCb
+    setupCanvas canvas
+    return canvas
 
 -- Add/remove one step/page increment from an Adjustment, limited to the top of
 -- the last page.
@@ -55,9 +62,13 @@ incdec (+-) f adj = do
     lim <- adjustmentGetUpper adj
     adjustmentSetValue adj $ min (pos +- step) (lim - page)
 
-setupPanning :: Layout
-             -> IO ()
-setupPanning layout = do
+setupCanvas :: Eq a
+            => Canvas a
+            -> IO ()
+setupCanvas canvas = do
+    let layout = canvasLayout canvas
+
+    -- Scrolling
     hadj <- layoutGetHAdjustment layout
     vadj <- layoutGetVAdjustment layout
 
@@ -73,9 +84,30 @@ setupPanning layout = do
         "space"     -> io $ incPage vadj
         _           -> stopEvent
 
+    let updateWith f = io $ canvasUpdateSelection canvas f
+
+    -- Clicking
+    layout `on` buttonPressEvent $ tryEvent $ do
+      io $ layout `set` [ widgetIsFocus := True ]
+      LeftButton <- eventButton
+      (_, y) <- eventCoordinates
+
+      updateWith (regionSelectionUpdate y)
+
+    -- Keyboard navigation
+    layout `on` keyPressEvent $ tryEvent $ do
+      [] <- eventModifier
+      key <- eventKeyName
+      case key of
+        "Up"        -> updateWith regionSelectionUp
+        "Down"      -> updateWith regionSelectionDown
+        "Home"      -> updateWith regionSelectionFirst
+        "End"       -> updateWith regionSelectionLast
+        _           -> stopEvent
+
     return ()
 
-canvasInvalidateStripe :: Canvas
+canvasInvalidateStripe :: Canvas a
                        -> Stripe
                        -> IO ()
 canvasInvalidateStripe canvas (Stripe y1 y2) = do
@@ -86,15 +118,15 @@ canvasInvalidateStripe canvas (Stripe y1 y2) = do
 
     drawWindowInvalidateRect win pangoRectangle False
 
-canvasClampAroundSelection :: Canvas
-                           -> IORef (RegionSelection a)
+canvasClampAroundSelection :: Canvas a
                            -> IO ()
-canvasClampAroundSelection canvas regionSelectionRef = do
+canvasClampAroundSelection canvas = do
     let idRef = canvasClampIdleId canvas
+
     id_ <- readIORef idRef
     when (isNothing id_) $ do
         id' <- flip idleAdd priorityDefaultIdle $ do
-            rs <- readIORef regionSelectionRef
+            rs <- readIORef $ canvasSelection canvas
             case rsCurrent rs of
                 Nothing -> return ()
                 Just (Stripe top bottom, _) -> do
@@ -106,3 +138,32 @@ canvasClampAroundSelection canvas regionSelectionRef = do
             return False
 
         writeIORef idRef (Just id')
+
+canvasGetSelection :: Canvas a
+                   -> IO (Maybe (Stripe, a))
+canvasGetSelection canvas = do
+    rs <- readIORef $ canvasSelection canvas
+
+    return $ rsCurrent rs
+
+canvasUpdateSelection :: Eq a
+                      => Canvas a
+                      -> (RegionSelection a -> RegionSelection a)
+                      -> IO ()
+canvasUpdateSelection canvas f = do
+    let regionSelectionRef = canvasSelection canvas
+    rs <- readIORef regionSelectionRef
+    let currentMessage = rsCurrent rs
+        rs' = f rs
+        newMessage = rsCurrent rs'
+    writeIORef regionSelectionRef rs'
+
+    when (newMessage /= currentMessage) $ do
+        maybeM currentMessage $ \(r, _) ->
+            canvasInvalidateStripe canvas r
+
+        maybeM newMessage $ \(r, _) -> do
+            canvasInvalidateStripe canvas r
+            canvasClampAroundSelection canvas
+
+        canvasSelectionChangedCb canvas (fmap snd newMessage)
