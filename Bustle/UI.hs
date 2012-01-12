@@ -283,7 +283,8 @@ emptyWindow = do
       -- message.
       widgetHide top
 
-  canvas <- io $ canvasNew xml (updateDetailsView details)
+  showBounds <- asks debugEnabled
+  canvas <- io $ canvasNew xml showBounds (updateDetailsView details)
 
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
@@ -317,40 +318,15 @@ updateDetailsView detailsView newMessage = do
 
 updateDisplayedLog :: WindowInfo
                    -> RendererResult a
-                   -> IORef [Shape]
-                   -> IORef Double
                    -> IO ()
-updateDisplayedLog wi rr shapesRef widthRef = do
+updateDisplayedLog wi rr = do
     let shapes = rrShapes rr
-        (width, height) = diagramDimensions shapes
-
+        regions = rrRegions rr
         canvas = wiCanvas wi
-        layout = canvasLayout canvas
 
-    writeIORef shapesRef shapes
-    writeIORef widthRef width
-
-    canvasUpdateSelection canvas $ \rs ->
-      let
-        rs' = regionSelectionNew (rrRegions rr)
-      in
-        case rsCurrent rs of
-            Just (_, x) -> regionSelectionSelect x rs'
-            Nothing     -> rs'
-
-    layoutSetSize layout (floor width) (floor height)
-
-    -- FIXME: only do this the first time maybe?
-    -- Shift to make the timestamp column visible
-    hadj <- layoutGetHAdjustment layout
     (windowWidth, _) <- windowGetSize (wiWindow wi)
-    -- Roughly centre the timestamp-and-member column
-    adjustmentSetValue hadj
-        ((rrCentreOffset rr) -
-            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
-        )
 
-    return ()
+    canvasSetShapes canvas shapes regions (rrCentreOffset rr) windowWidth
 
 logTitle :: LogDetails
          -> String
@@ -387,37 +363,20 @@ displayLog wi@(WindowInfo { wiWindow = window
            sessionMessages
            systemMessages
            rr = do
-  showBounds <- asks debugEnabled
-
   io $ do
     wiSetLogDetails wi logDetails
 
-    shapesRef <- newIORef []
-    widthRef <- newIORef 0
     hiddenRef <- newIORef Set.empty
 
-    updateDisplayedLog wi rr shapesRef widthRef
+    updateDisplayedLog wi rr
 
     widgetSetSensitivity exportItem True
     onActivateLeaf exportItem $ do
-        shapes <- readIORef shapesRef
+        shapes <- canvasGetShapes canvas
         saveToPDFDialogue wi shapes
 
-    -- I think we could speed things up by only showing the revealed area
-    -- rather than everything that's visible.
-    let layout = canvasLayout canvas
-    layout `on` exposeEvent $ tryEvent $ io $ do
-        current <- canvasGetSelection canvas
-        shapes <- readIORef shapesRef
-        width <- readIORef widthRef
-        let shapes' =
-                case current of
-                    Nothing     -> shapes
-                    Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
-        canvasUpdate canvas shapes' showBounds
-
     notebookSetCurrentPage nb 1
-    layout `set` [ widgetIsFocus := True ]
+    canvasFocus canvas
 
     -- FIXME: this currently shows stats for all messages, not post-filtered messages
     statsPaneSetMessages statsPane sessionMessages systemMessages
@@ -438,7 +397,7 @@ displayLog wi@(WindowInfo { wiWindow = window
         writeIORef hiddenRef hidden'
         let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
-        updateDisplayedLog wi rr' shapesRef widthRef
+        updateDisplayedLog wi rr'
 
     -- The stats start off hidden.
     widgetHide statsBook

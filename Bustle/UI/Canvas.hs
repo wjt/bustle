@@ -3,13 +3,10 @@ module Bustle.UI.Canvas
     Canvas
   , canvasNew
 
-  -- FIXME: move the stuff that needs this into this file.
-  , canvasLayout
+  , canvasGetShapes
+  , canvasSetShapes
 
-  , canvasGetSelection
-  , canvasUpdateSelection
-
-  , canvasUpdate
+  , canvasFocus
   )
 where
 
@@ -28,20 +25,28 @@ data Canvas a =
     Canvas { canvasLayout :: Layout
            , canvasClampIdleId :: IORef (Maybe HandlerId)
 
+           , canvasShapes :: IORef Diagram
+           , canvasWidth :: IORef Double
+
            , canvasSelection :: IORef (RegionSelection a)
            , canvasSelectionChangedCb :: Maybe a -> IO ()
+
+           , canvasShowBounds :: Bool
            }
 
 canvasNew :: Eq a
           => GladeXML
+          -> Bool
           -> (Maybe a -> IO ())
           -> IO (Canvas a)
-canvasNew xml selectionChangedCb = do
+canvasNew xml showBounds selectionChangedCb = do
     layout <- xmlGetWidget xml castToLayout "diagramLayout"
     idRef <- newIORef Nothing
+    shapesRef <- newIORef []
+    widthRef <- newIORef 0
     rsRef <- newIORef $ regionSelectionNew []
 
-    let canvas = Canvas layout idRef rsRef selectionChangedCb
+    let canvas = Canvas layout idRef shapesRef widthRef rsRef selectionChangedCb showBounds
     setupCanvas canvas
     return canvas
 
@@ -107,6 +112,11 @@ setupCanvas canvas = do
         "End"       -> updateWith regionSelectionLast
         _           -> stopEvent
 
+    -- Expose events
+    -- I think we could speed things up by only showing the revealed area
+    -- rather than everything that's visible.
+    layout `on` exposeEvent $ tryEvent $ io $ canvasUpdate canvas
+
     return ()
 
 canvasInvalidateStripe :: Canvas a
@@ -170,12 +180,54 @@ canvasUpdateSelection canvas f = do
 
         canvasSelectionChangedCb canvas (fmap snd newMessage)
 
--- | Redraws the currently-visible area of the canvas with the provided shapes
+canvasSetShapes :: Eq a
+                => Canvas a
+                -> Diagram
+                -> Regions a
+                -> Double -- Yuck. These shouldn't be here.
+                -> Int    -- No no no!
+                -> IO ()
+canvasSetShapes canvas shapes regions centreOffset windowWidth = do
+    let (width, height) = diagramDimensions shapes
+        layout = canvasLayout canvas
+
+    writeIORef (canvasShapes canvas) shapes
+    writeIORef (canvasWidth canvas) width
+
+    canvasUpdateSelection canvas $ \rs ->
+      let
+        rs' = regionSelectionNew regions
+      in
+        case rsCurrent rs of
+            Just (_, x) -> regionSelectionSelect x rs'
+            Nothing     -> rs'
+
+    layoutSetSize layout (floor width) (floor height)
+
+    -- FIXME: only do this the first time maybe?
+    -- Shift to make the timestamp column visible
+    hadj <- layoutGetHAdjustment layout
+    -- Roughly centre the timestamp-and-member column
+    adjustmentSetValue hadj
+        (centreOffset -
+            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
+        )
+
+canvasGetShapes :: Canvas a
+                -> IO Diagram
+canvasGetShapes = readIORef . canvasShapes
+
+-- | Redraws the currently-visible area of the canvas
 canvasUpdate :: Canvas a
-             -> Diagram
-             -> Bool
              -> IO ()
-canvasUpdate canvas shapes showBounds = do
+canvasUpdate canvas = do
+    current <- canvasGetSelection canvas
+    shapes <- canvasGetShapes canvas
+    width <- readIORef $ canvasWidth canvas
+    let shapes' = case current of
+            Nothing     -> shapes
+            Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
+
     let layout = canvasLayout canvas
 
     hadj <- layoutGetHAdjustment layout
@@ -189,4 +241,9 @@ canvasUpdate canvas shapes showBounds = do
     let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
     win <- layoutGetDrawWindow layout
-    renderWithDrawable win $ drawRegion r showBounds shapes
+    renderWithDrawable win $ drawRegion r (canvasShowBounds canvas) shapes'
+
+canvasFocus :: Canvas a
+            -> IO ()
+canvasFocus canvas = do
+    (canvasLayout canvas) `set` [ widgetIsFocus := True ]
