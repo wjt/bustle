@@ -23,6 +23,7 @@ Extra-source-files: c-sources/bustle-dbus-monitor.c,
                     INSTALL,
                     bustle.sh,
                     run-uninstalled.sh
+                  , Test/data/log-with-h.bustle
 
 Source-Repository head
   Type:           git
@@ -93,3 +94,10 @@ Executable bustle
                  , pcap
                  , process
                  , text
+
+Test-suite test-pcap-crash
+    type: exitcode-stdio-1.0
+    main-is: Test/PcapCrash.hs
+    other-modules: Bustle.Loader.Pcap
+    Build-Depends: pcap
+                 , dbus-core == 0.9.*
