@@ -224,6 +224,11 @@ finishedRecording wi tempFilePath = do
             recorderChooseFile tempFileName mwindow $ \newFilePath -> do
                 renameFile tempFilePath newFilePath
                 widgetSetSensitivity saveItem False
+                Just logDetails <- readIORef (wiLogDetails wi)
+                let logDetails' = logDetails { ldSessionPath = newFilePath
+                                             }
+                wiSetLogDetails wi logDetails'
+
     return ()
 
 maybeQuit :: B ()
