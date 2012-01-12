@@ -30,6 +30,7 @@ import Control.Monad.Error
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.List (intercalate)
 import Data.Time
 
 import Paths_bustle
@@ -57,7 +58,8 @@ import Graphics.UI.Gtk.Glade
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
 import System.FilePath ( splitFileName, takeFileName, takeDirectory
-                       , replaceExtension, (</>), (<.>)
+                       , dropExtension, dropTrailingPathSeparator
+                       , (</>), (<.>)
                        )
 import System.Directory (renameFile)
 
@@ -66,9 +68,9 @@ import qualified DBus.Message
 type B a = Bustle BConfig BState a
 
 data LogDetails =
-    LogDetails { ldSessionPath :: FilePath
-               , ldSystemPath :: Maybe FilePath
-               }
+    RecordedLog FilePath
+  | SingleLog FilePath
+  | TwoLogs FilePath FilePath
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
@@ -133,8 +135,8 @@ mainB :: [String] -> B ()
 mainB args = do
   case args of
       ["--pair", sessionLogFile, systemLogFile] ->
-          loadLog sessionLogFile (Just systemLogFile)
-      _ -> mapM_ (\file -> loadLog file Nothing) args
+          loadLog (TwoLogs sessionLogFile systemLogFile)
+      _ -> mapM_ (loadLog . SingleLog) args
 
   -- If no windows are open (because none of the arguments, if any, were loaded
   -- successfully) create an empty window
@@ -157,32 +159,41 @@ consumeInitialWindow = do
             modify $ \s -> s { initialWindow = Nothing }
             return windowInfo
 
-loadInInitialWindow :: FilePath -> Maybe FilePath -> B ()
+loadInInitialWindow :: LogDetails -> B ()
 loadInInitialWindow = loadLogWith consumeInitialWindow
 
-loadLog :: FilePath -> Maybe FilePath -> B ()
+loadLog :: LogDetails -> B ()
 loadLog = loadLogWith emptyWindow
 
+openLog :: MonadIO io
+        => LogDetails
+        -> ErrorT LoadError io ( ([String], [DetailedMessage])
+                               , ([String], [DetailedMessage])
+                               )
+openLog (RecordedLog filepath) = do
+    result <- readLog filepath
+    return (result, ([], []))
+openLog (SingleLog filepath) = do
+    result <- readLog filepath
+    return (result, ([], []))
+openLog (TwoLogs session system) = do
+    sessionResult <- readLog session
+    systemResult <- readLog system
+    return (sessionResult, systemResult)
+
 loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
-            -> FilePath       -- ^ a log file to load and display
-            -> Maybe FilePath -- ^ an optional second log to show alongside the
-                              --   first log.
+            -> LogDetails
             -> B ()
-loadLogWith getWindow session maybeSystem = do
+loadLogWith getWindow logDetails = do
     ret <- runErrorT $ do
-        (sessionWarnings, sessionMessages) <- readLog session
-        (systemWarnings, systemMessages) <- case maybeSystem of
-            Just system -> readLog system
-            Nothing     -> return ([], [])
+        ((sessionWarnings, sessionMessages),
+         (systemWarnings, systemMessages)) <- openLog logDetails
 
         -- FIXME: pass the log file name into the renderer
         let rr = process sessionMessages systemMessages
         io $ mapM warn $ sessionWarnings ++ systemWarnings ++ rrWarnings rr
 
         windowInfo <- lift getWindow
-        let logDetails = LogDetails { ldSessionPath = session
-                                    , ldSystemPath = maybeSystem
-                                    }
         lift $ displayLog windowInfo
                           logDetails
                           sessionMessages
@@ -212,7 +223,7 @@ finishedRecording :: WindowInfo
                   -> FilePath
                   -> B ()
 finishedRecording wi tempFilePath = do
-    loadLogWith (return wi) tempFilePath Nothing
+    loadLogWith (return wi) (RecordedLog tempFilePath)
 
     let saveItem     = wiSave wi
         mwindow      = Just (wiWindow wi)
@@ -224,10 +235,7 @@ finishedRecording wi tempFilePath = do
             recorderChooseFile tempFileName mwindow $ \newFilePath -> do
                 renameFile tempFilePath newFilePath
                 widgetSetSensitivity saveItem False
-                Just logDetails <- readIORef (wiLogDetails wi)
-                let logDetails' = logDetails { ldSessionPath = newFilePath
-                                             }
-                wiSetLogDetails wi logDetails'
+                wiSetLogDetails wi (SingleLog newFilePath)
 
     return ()
 
@@ -259,7 +267,7 @@ emptyWindow = do
   -- Open two logs dialog
   openTwoDialog <- embedIO $ \r ->
       setupOpenTwoDialog xml window $ \f1 f2 ->
-          makeCallback (loadInInitialWindow f1 (Just f2)) r
+          makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
   withProgramIcon (windowSetIcon openTwoDialog)
 
   -- Set up the window itself
@@ -333,21 +341,45 @@ updateDisplayedLog wi rr = do
 
     canvasSetShapes canvas shapes regions (rrCentreOffset rr) windowWidth
 
+prettyDirectory :: String
+                -> String
+prettyDirectory s = "(" ++ dropTrailingPathSeparator s ++ ")"
+
+logWindowTitle :: LogDetails
+               -> String
+logWindowTitle (RecordedLog filepath) = "(*) " ++ takeFileName filepath
+logWindowTitle (SingleLog   filepath) =
+    intercalate " " [name, prettyDirectory directory]
+  where
+    (directory, name) = splitFileName filepath
+logWindowTitle (TwoLogs sessionPath systemPath) =
+    intercalate " " $ filter (not . null)
+           [ sessionName, sessionDirectory'
+           , "&"
+           , systemName,  prettyDirectory systemDirectory
+           ]
+  where
+    (sessionDirectory, sessionName) = splitFileName sessionPath
+    (systemDirectory,  systemName ) = splitFileName systemPath
+    sessionDirectory' =
+      if sessionDirectory == systemDirectory
+        then ""
+        else prettyDirectory sessionDirectory
+
 logTitle :: LogDetails
          -> String
-logTitle logDetails =
-    case ldSystemPath logDetails of
-        Nothing         -> sessionName
-        Just systemPath -> takeFileName systemPath ++ " & " ++ sessionName
-  where
-    sessionName = takeFileName $ ldSessionPath logDetails
+logTitle (RecordedLog filepath) = dropExtension $ takeFileName filepath
+logTitle (SingleLog   filepath) = dropExtension $ takeFileName filepath
+logTitle (TwoLogs sessionPath systemPath) =
+    intercalate " & " . map (dropExtension . takeFileName)
+                      $ [sessionPath, systemPath]
 
 wiSetLogDetails :: WindowInfo
                 -> LogDetails
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi) (logTitle logDetails ++ " — Bustle")
+    windowSetTitle (wiWindow wi) (logWindowTitle logDetails ++ " — Bustle")
 
 displayLog :: WindowInfo
            -> LogDetails
@@ -431,7 +463,7 @@ openDialogue window = embedIO $ \r -> do
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
-          makeCallback (loadInInitialWindow fn Nothing) r
+          makeCallback (loadInInitialWindow (SingleLog fn)) r
       widgetDestroy chooser
 
   widgetShowAll chooser
@@ -452,11 +484,16 @@ saveToPDFDialogue wi shapes = do
 
   Just logDetails <- readIORef $ wiLogDetails wi
 
-  let directory = takeDirectory $ ldSessionPath logDetails
-      filename  = replaceExtension (logTitle logDetails) "pdf"
-
-  fileChooserSetCurrentFolder chooser directory
+  let filename  = logTitle logDetails <.> "pdf"
   fileChooserSetCurrentName chooser filename
+
+  -- If the currently-loaded log has a meaningful directory, suggest that as
+  -- the default.
+  let mdirectory = case logDetails of
+          RecordedLog _ -> Nothing
+          SingleLog p   -> Just $ takeDirectory p
+          TwoLogs p _   -> Just $ takeDirectory p
+  maybeM mdirectory $ fileChooserSetCurrentFolder chooser
 
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do

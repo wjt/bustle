@@ -75,10 +75,10 @@ handleIOExceptions f act = do
     toErrorT f result
 
 maybeM :: Maybe a
-       -> (a -> IO ())
+       -> (a -> IO b)
        -> IO ()
 maybeM Nothing _ = return ()
-maybeM (Just x) act = act x
+maybeM (Just x) act = act x >> return ()
 
 foreign import ccall "g_get_user_cache_dir"
     g_get_user_cache_dir :: IO CString
