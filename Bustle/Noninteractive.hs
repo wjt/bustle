@@ -32,7 +32,9 @@ process filepath analyze format = do
                           , err
                           ]
             exitFailure
-        Right log -> mapM_ (putStrLn . format) $ analyze log
+        Right (warnings, log) -> do
+            mapM warn warnings
+            mapM_ (putStrLn . format) $ analyze log
 
 formatInterface :: Maybe String -> String
 formatInterface = fromMaybe "(no interface)"

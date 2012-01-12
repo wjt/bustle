@@ -5,6 +5,7 @@ module Bustle.Loader.Pcap
 where
 
 import Data.Maybe (fromJust)
+import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Exception (try)
@@ -194,8 +195,7 @@ convert hdr body =
 
 data Result e a =
     EOF
-  | Failed e
-  | Read a
+  | Packet (Either e a)
   deriving Show
 
 readOne :: (Monad m, MonadIO m)
@@ -211,33 +211,23 @@ readOne p f = do
     -- or something?
     if hdrCaptureLength hdr == 0
         then return EOF
-        else do
-            x <- f hdr body
-            return $ case x of
-                Left e  -> Failed e
-                Right a -> Read a
+        else liftM Packet $ f hdr body
 
 mapBodies :: (Monad m, MonadIO m)
           => PcapHandle
           -> (PktHdr -> BS.ByteString -> StateT s m (Either e a))
-          -> StateT s m (Either e [a])
+          -> StateT s m [Either e a]
 mapBodies p f = do
     ret <- readOne p f
     case ret of
-        EOF      -> return $ Right []
-        Failed e -> return $ Left e
-        Read a   -> do
-            ret' <- mapBodies p f
-            case ret' of
-                Left _   -> return ret'
-                Right as -> return (Right (a:as))
+        EOF      -> return $ []
+        Packet x -> do
+            xs <- mapBodies p f
+            return $ x:xs
 
-readPcap :: FilePath -> IO (Either IOError [B.DetailedMessage])
+readPcap :: FilePath
+         -> IO (Either IOError ([String], [B.DetailedMessage]))
 readPcap path = try $ do
     p <- openOffline path
 
-    ret <- evalStateT (mapBodies p convert) Map.empty
-    -- FIXME: make the error handling less shoddy
-    case ret of
-        Left e -> error $ show e
-        Right xs -> return xs
+    liftM partitionEithers $ evalStateT (mapBodies p convert) Map.empty

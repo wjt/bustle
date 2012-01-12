@@ -168,14 +168,14 @@ loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) 
             -> B ()
 loadLogWith getWindow session maybeSystem = do
     ret <- runErrorT $ do
-        sessionMessages <- readLog session
-        systemMessages <- case maybeSystem of
+        (sessionWarnings, sessionMessages) <- readLog session
+        (systemWarnings, systemMessages) <- case maybeSystem of
             Just system -> readLog system
-            Nothing     -> return []
+            Nothing     -> return ([], [])
 
         -- FIXME: pass the log file name into the renderer
         let rr = process sessionMessages systemMessages
-        forM_ (rrWarnings rr) $ io . warn
+        io $ mapM warn $ sessionWarnings ++ systemWarnings ++ rrWarnings rr
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo

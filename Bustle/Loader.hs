@@ -5,6 +5,7 @@ module Bustle.Loader
 where
 
 import Control.Monad.Error
+import Control.Arrow ((***))
 
 import qualified Bustle.Loader.OldSkool as Old
 import qualified Bustle.Loader.Pcap as Pcap
@@ -18,12 +19,12 @@ instance Error LoadError where
 
 readLog :: MonadIO io
         => FilePath
-        -> ErrorT LoadError io Log
+        -> ErrorT LoadError io ([String], Log)
 readLog f = do
     pcapResult <- io $ Pcap.readPcap f
-    liftM (filter (isRelevant . dmMessage)) $ case pcapResult of
+    liftM (id *** filter (isRelevant . dmMessage)) $ case pcapResult of
         Right ms -> return ms
-        Left _ -> readOldLogFile
+        Left _ -> liftM ((,) []) readOldLogFile
   where
     readOldLogFile = do
         input <- handleIOExceptions (LoadError f . show) $ readFile f
