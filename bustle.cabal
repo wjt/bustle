@@ -55,6 +55,7 @@ Executable bustle
                , Bustle.Types
                , Bustle.UI
                , Bustle.UI.AboutDialog
+               , Bustle.UI.Canvas
                , Bustle.UI.DetailsView
                , Bustle.UI.FilterDialog
                , Bustle.UI.OpenTwoDialog

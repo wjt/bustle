@@ -27,7 +27,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Maybe (isNothing)
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -41,6 +40,7 @@ import Bustle.Diagram
 import Bustle.Regions
 import Bustle.Util
 import Bustle.UI.AboutDialog
+import Bustle.UI.Canvas
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
 import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
@@ -82,9 +82,8 @@ data WindowInfo =
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiContentVPaned :: VPaned
-               , wiLayout :: Layout
+               , wiCanvas :: Canvas
                , wiDetailsView :: DetailsView
-               , wiClampIdleId :: IORef (Maybe HandlerId)
 
                , wiLogDetails :: IORef (Maybe LogDetails)
                }
@@ -248,7 +247,9 @@ emptyWindow = do
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
-  layout <- getW castToLayout "diagramLayout"
+
+  canvas <- io $ canvasNew xml
+
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
   contentVPaned <- getW castToVPaned "contentVPaned"
@@ -273,23 +274,6 @@ emptyWindow = do
   withProgramIcon $ \icon -> io $
       onActivateLeaf aboutItem $ showAboutDialog window icon
 
-  -- Diagram area panning
-  io $ do
-    hadj <- layoutGetHAdjustment layout
-    vadj <- layoutGetVAdjustment layout
-
-    adjustmentSetStepIncrement hadj eventHeight
-    adjustmentSetStepIncrement vadj eventHeight
-
-    layout `on` keyPressEvent $ tryEvent $ do
-      [] <- eventModifier
-      key <- eventKeyName
-      case key of
-        "Left"      -> io $ decStep hadj
-        "Right"     -> io $ incStep hadj
-        "space"     -> io $ incPage vadj
-        _           -> stopEvent
-
   m <- asks methodIcon
   s <- asks signalIcon
   statsPane <- io $ statsPaneNew xml m s
@@ -302,7 +286,6 @@ emptyWindow = do
       -- message.
       widgetHide top
 
-  clampIdleId <- io $ newIORef Nothing
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
@@ -313,9 +296,8 @@ emptyWindow = do
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
                               , wiContentVPaned = contentVPaned
-                              , wiLayout = layout
+                              , wiCanvas = canvas
                               , wiDetailsView = details
-                              , wiClampIdleId = clampIdleId
                               , wiLogDetails = logDetailsRef
                               }
 
@@ -323,44 +305,14 @@ emptyWindow = do
   io $ widgetShow window
   return windowInfo
 
-invalidateRect :: Layout
-               -> Stripe
-               -> IO ()
-invalidateRect layout (Stripe y1 y2) = do
-    win <- layoutGetDrawWindow layout
-    (width, _height) <- layoutGetSize layout
-    let pangoRectangle = Rectangle 0 (floor y1) width (ceiling y2)
-
-    drawWindowInvalidateRect win pangoRectangle False
-
 type RSDM = RegionSelection DetailedMessage
-queueClampAroundSelection :: IORef RSDM
-                          -> WindowInfo
-                          -> IO ()
-queueClampAroundSelection regionSelectionRef wi = do
-    let idRef = wiClampIdleId wi
-    id_ <- readIORef idRef
-    when (isNothing id_) $ do
-        id' <- flip idleAdd priorityDefaultIdle $ do
-            rs <- readIORef regionSelectionRef
-            case rsCurrent rs of
-                Nothing -> return ()
-                Just (Stripe top bottom, _) -> do
-                    vadj <- layoutGetVAdjustment (wiLayout wi)
-                    let padding = (bottom - top) / 2
-                    adjustmentClampPage vadj (top - padding) (bottom + padding)
-
-            writeIORef idRef Nothing
-            return False
-
-        writeIORef idRef (Just id')
 
 modifyRegionSelection :: IORef RSDM
                       -> WindowInfo
                       -> (RSDM -> RSDM)
                       -> IO ()
 modifyRegionSelection regionSelectionRef wi f = do
-    let layout      = wiLayout wi
+    let canvas      = wiCanvas wi
         detailsView = wiDetailsView wi
 
     rs <- readIORef regionSelectionRef
@@ -375,13 +327,13 @@ modifyRegionSelection regionSelectionRef wi f = do
                 widgetHide $ detailsViewGetTop detailsView
             Just (r, m) -> do
                 detailsViewUpdate detailsView m
-                invalidateRect layout r
+                canvasInvalidateStripe canvas r
                 widgetShow $ detailsViewGetTop detailsView
-                queueClampAroundSelection regionSelectionRef wi
+                canvasClampAroundSelection canvas regionSelectionRef
 
         case currentMessage of
             Nothing -> return ()
-            Just (r, _) -> invalidateRect layout r
+            Just (r, _) -> canvasInvalidateStripe canvas r
 
 updateDisplayedLog :: WindowInfo
                    -> RendererResult a
@@ -393,7 +345,7 @@ updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
     let shapes = rrShapes rr
         (width, height) = diagramDimensions shapes
 
-        layout = wiLayout wi
+        layout = canvasLayout $ wiCanvas wi
 
     writeIORef shapesRef shapes
     writeIORef widthRef width
@@ -446,7 +398,7 @@ displayLog wi@(WindowInfo { wiWindow = window
                        , wiExport = exportItem
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
-                       , wiLayout = layout
+                       , wiCanvas = canvas
                        , wiNotebook = nb
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
@@ -474,6 +426,7 @@ displayLog wi@(WindowInfo { wiWindow = window
 
     -- I think we could speed things up by only showing the revealed area
     -- rather than everything that's visible.
+    let layout = canvasLayout canvas
     layout `on` exposeEvent $ tryEvent $ io $ do
         rs <- readIORef regionSelectionRef
         shapes <- readIORef shapesRef
@@ -550,25 +503,6 @@ update layout shapes showBounds = do
   let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
   renderWithDrawable win $ drawRegion r showBounds shapes
-
--- Add/remove one step/page increment from an Adjustment, limited to the top of
--- the last page.
-incStep, decStep, incPage{-, decPage -} :: Adjustment -> IO ()
-incStep = incdec (+) adjustmentGetStepIncrement
-decStep = incdec (-) adjustmentGetStepIncrement
-incPage = incdec (+) adjustmentGetPageIncrement
---decPage = incdec (-) adjustmentGetPageIncrement
-
-incdec :: (Double -> Double -> Double) -- How to combine the increment
-       -> (Adjustment -> IO Double)    -- Action to discover the increment
-       -> Adjustment
-       -> IO ()
-incdec (+-) f adj = do
-    pos <- adjustmentGetValue adj
-    step <- f adj
-    page <- adjustmentGetPageSize adj
-    lim <- adjustmentGetUpper adj
-    adjustmentSetValue adj $ min (pos +- step) (lim - page)
 
 withProgramIcon :: (Maybe Pixbuf -> IO a) -> B a
 withProgramIcon f = asks bustleIcon >>= io . f
