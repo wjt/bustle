@@ -27,7 +27,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
+import Data.Maybe (isNothing)
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -43,6 +43,7 @@ import Bustle.Util
 import Bustle.UI.AboutDialog
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
+import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
 import Bustle.UI.Recorder
 import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
@@ -241,10 +242,11 @@ emptyWindow = do
       ["diagramOrNot", "statsBook"]
   contentVPaned <- getW castToVPaned "contentVPaned"
 
-  -- Open two logs dialog widgets
-  openTwoDialog <- getW castToDialog "openTwoDialog"
-  [sessionBusChooser, systemBusChooser] <- mapM (getW castToFileChooserButton)
-      ["sessionBusChooser", "systemBusChooser"]
+  -- Open two logs dialog
+  openTwoDialog <- embedIO $ \r ->
+      setupOpenTwoDialog xml window $ \f1 f2 ->
+          makeCallback (loadInInitialWindow f1 (Just f2)) r
+  withProgramIcon (windowSetIcon openTwoDialog)
 
   -- Set up the window itself
   withProgramIcon (windowSetIcon window)
@@ -276,50 +278,6 @@ emptyWindow = do
         "Right"     -> io $ incStep hadj
         "space"     -> io $ incPage vadj
         _           -> stopEvent
-
-  -- Open two logs dialog
-  withProgramIcon (windowSetIcon openTwoDialog)
-
-  io $ do
-    windowSetTransientFor openTwoDialog window
-    openTwoDialog `on` deleteEvent $ tryEvent $ io $ widgetHide openTwoDialog
-
-    -- Keep the two dialogs' current folders in sync. We only propagate when
-    -- the new dialog doesn't have a current file. Otherwise, choosing a file
-    -- from a different directory in the second chooser unselects the first.
-    let propagateCurrentFolder d1 d2 = do
-            d1 `onCurrentFolderChanged` do
-                f1 <- fileChooserGetCurrentFolder d1
-                f2 <- fileChooserGetCurrentFolder d2
-                otherFile <- fileChooserGetFilename d2
-                when (isNothing otherFile && f1 /= f2 && isJust f1) $ do
-                    fileChooserSetCurrentFolder d2 (fromJust f1)
-                    return ()
-
-    propagateCurrentFolder sessionBusChooser systemBusChooser
-    propagateCurrentFolder systemBusChooser sessionBusChooser
-
-  let hideTwoDialog = do
-          widgetHideAll openTwoDialog
-          fileChooserUnselectAll sessionBusChooser
-          fileChooserUnselectAll systemBusChooser
-
-  embedIO $ \r -> openTwoDialog `afterResponse` \resp -> do
-      -- The "Open" button should only be sensitive if both pickers have a
-      -- file in them, but the GtkFileChooserButton:file-set signal is not
-      -- bound in my version of Gtk2Hs. So yeah...
-      if (resp == ResponseAccept)
-        then do
-          sessionLogFile <- fileChooserGetFilename sessionBusChooser
-          systemLogFile <- fileChooserGetFilename systemBusChooser
-
-          case (sessionLogFile, systemLogFile) of
-            (Just f1, Just f2) -> do
-                makeCallback (loadInInitialWindow f1 (Just f2)) r
-                hideTwoDialog
-            _ -> return ()
-        else
-          hideTwoDialog
 
   m <- asks methodIcon
   s <- asks signalIcon
