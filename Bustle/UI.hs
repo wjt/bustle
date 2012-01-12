@@ -53,8 +53,6 @@ import System.Glib.GError (GError(..), catchGError)
 
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Glade
-import Graphics.UI.Gtk.Gdk.DrawWindow (drawWindowInvalidateRect)
-import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
@@ -416,7 +414,7 @@ displayLog wi@(WindowInfo { wiWindow = window
                 case current of
                     Nothing     -> shapes
                     Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
-        update layout shapes' showBounds
+        canvasUpdate canvas shapes' showBounds
 
     notebookSetCurrentPage nb 1
     layout `set` [ widgetIsFocus := True ]
@@ -446,22 +444,6 @@ displayLog wi@(WindowInfo { wiWindow = window
     widgetHide statsBook
 
   return ()
-
-update :: Layout -> Diagram -> Bool -> IO ()
-update layout shapes showBounds = do
-  win <- layoutGetDrawWindow layout
-
-  hadj <- layoutGetHAdjustment layout
-  hpos <- adjustmentGetValue hadj
-  hpage <- adjustmentGetPageSize hadj
-
-  vadj <- layoutGetVAdjustment layout
-  vpos <- adjustmentGetValue vadj
-  vpage <- adjustmentGetPageSize vadj
-
-  let r = (hpos, vpos, hpos + hpage, vpos + vpage)
-
-  renderWithDrawable win $ drawRegion r showBounds shapes
 
 withProgramIcon :: (Maybe Pixbuf -> IO a) -> B a
 withProgramIcon f = asks bustleIcon >>= io . f

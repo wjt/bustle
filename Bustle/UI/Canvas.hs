@@ -8,6 +8,8 @@ module Bustle.UI.Canvas
 
   , canvasGetSelection
   , canvasUpdateSelection
+
+  , canvasUpdate
   )
 where
 
@@ -167,3 +169,24 @@ canvasUpdateSelection canvas f = do
             canvasClampAroundSelection canvas
 
         canvasSelectionChangedCb canvas (fmap snd newMessage)
+
+-- | Redraws the currently-visible area of the canvas with the provided shapes
+canvasUpdate :: Canvas a
+             -> Diagram
+             -> Bool
+             -> IO ()
+canvasUpdate canvas shapes showBounds = do
+    let layout = canvasLayout canvas
+
+    hadj <- layoutGetHAdjustment layout
+    hpos <- adjustmentGetValue hadj
+    hpage <- adjustmentGetPageSize hadj
+
+    vadj <- layoutGetVAdjustment layout
+    vpos <- adjustmentGetValue vadj
+    vpage <- adjustmentGetPageSize vadj
+
+    let r = (hpos, vpos, hpos + hpage, vpos + vpage)
+
+    win <- layoutGetDrawWindow layout
+    renderWithDrawable win $ drawRegion r showBounds shapes
