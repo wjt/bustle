@@ -11,6 +11,7 @@ module Bustle.Regions
   , RegionSelection (..)
   , regionSelectionNew
   , regionSelectionAppend
+  , regionSelectionFlatten
   , regionSelectionUpdate
   , regionSelectionSelect
   , regionSelectionUp
@@ -79,6 +80,11 @@ regionSelectionNew rs
     | otherwise                   = RegionSelection [] 0 Nothing rs
   where
     sorted = sort (map fst rs)
+
+regionSelectionFlatten :: RegionSelection a
+                       -> Regions a
+regionSelectionFlatten rs =
+    reverse (rsBefore rs) ++ maybeToList (rsCurrent rs) ++ rsAfter rs
 
 regionSelectionAppend :: Regions a
                       -> RegionSelection a

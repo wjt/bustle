@@ -157,6 +157,14 @@ prop_Append vr@(ValidRegions regions) =
             bs = drop i regions
         in regionSelectionAppend bs (regionSelectionNew as) == regionSelectionNew regions
 
+prop_FlattenThenNewIsIdempotent
+    :: (Eq a, Show a)
+    => ValidRegions a
+    -> Property
+prop_FlattenThenNewIsIdempotent vr@(ValidRegions regions) =
+    withRegions vr $ \rs -> property $
+        regionSelectionNew (regionSelectionFlatten rs) == rs
+
 runTests = $quickCheckAll
 
 main = do
