@@ -22,19 +22,16 @@ module Bustle.UI
   )
 where
 
-import Prelude hiding (catch)
-
-import Control.Exception
 import Control.Monad (when)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Maybe (isJust, isNothing, fromJust, listToMaybe)
-import Data.Version (showVersion)
 import Data.IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.List (intercalate)
+import Data.Time
 
 import Paths_bustle
 import Bustle.Application.Monad
@@ -43,8 +40,13 @@ import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
 import Bustle.Util
+import Bustle.UI.AboutDialog
+import Bustle.UI.Canvas
 import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
+import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
+import Bustle.UI.Recorder
+import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Loader
 
@@ -52,29 +54,44 @@ import System.Glib.GError (GError(..), catchGError)
 
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Glade
-import Graphics.UI.Gtk.Gdk.DrawWindow (drawWindowInvalidateRect)
-import Graphics.Rendering.Pango.Structs (Rectangle)
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
-import System.FilePath (splitFileName, dropExtension)
+import System.FilePath ( splitFileName, takeFileName, takeDirectory
+                       , dropExtension, dropTrailingPathSeparator
+                       , (</>), (<.>)
+                       )
+import System.Directory (renameFile)
 
 import qualified DBus.Message
 
 type B a = Bustle BConfig BState a
 
+data LogDetails =
+    RecordedLog FilePath
+  | SingleLog FilePath
+  | TwoLogs FilePath FilePath
+
+data Page =
+    InstructionsPage
+  | CanvasPage
+  deriving
+    (Enum)
+
 data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
+               , wiExport :: ImageMenuItem
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiContentVPaned :: VPaned
-               , wiLayout :: Layout
+               , wiCanvas :: Canvas DetailedMessage
                , wiDetailsView :: DetailsView
-               , wiClampIdleId :: IORef (Maybe HandlerId)
+
+               , wiLogDetails :: IORef (Maybe LogDetails)
                }
 
 data BConfig =
@@ -124,8 +141,8 @@ mainB :: [String] -> B ()
 mainB args = do
   case args of
       ["--pair", sessionLogFile, systemLogFile] ->
-          loadLog sessionLogFile (Just systemLogFile)
-      _ -> mapM_ (\file -> loadLog file Nothing) args
+          loadLog (TwoLogs sessionLogFile systemLogFile)
+      _ -> mapM_ (loadLog . SingleLog) args
 
   -- If no windows are open (because none of the arguments, if any, were loaded
   -- successfully) create an empty window
@@ -139,39 +156,44 @@ createInitialWindow = do
   misc <- emptyWindow
   modify $ \s -> s { initialWindow = Just misc }
 
-loadInInitialWindow :: FilePath -> Maybe FilePath -> B ()
-loadInInitialWindow = loadLogWith consumeInitialWindow
-  where consumeInitialWindow = do
-          x <- gets initialWindow
-          case x of
-            Nothing   -> emptyWindow
-            Just misc -> do
-              modify $ \s -> s { initialWindow = Nothing }
-              return misc
+consumeInitialWindow :: B WindowInfo
+consumeInitialWindow = do
+    x <- gets initialWindow
+    case x of
+        Nothing   -> emptyWindow
+        Just windowInfo -> do
+            modify $ \s -> s { initialWindow = Nothing }
+            return windowInfo
 
-loadLog :: FilePath -> Maybe FilePath -> B ()
+loadInInitialWindow :: LogDetails -> B ()
+loadInInitialWindow = loadLogWith consumeInitialWindow
+
+loadLog :: LogDetails -> B ()
 loadLog = loadLogWith emptyWindow
 
--- Displays a modal error dialog, with the given strings as title and body
--- respectively.
-displayError :: String -> String -> IO ()
-displayError title body = do
-  dialog <- messageDialogNew Nothing [DialogModal] MessageError ButtonsClose title
-  messageDialogSetSecondaryText dialog body
-  dialog `afterResponse` \_ -> widgetDestroy dialog
-  widgetShowAll dialog
+openLog :: MonadIO io
+        => LogDetails
+        -> ErrorT LoadError io ( ([String], [DetailedMessage])
+                               , ([String], [DetailedMessage])
+                               )
+openLog (RecordedLog filepath) = do
+    result <- readLog filepath
+    return (result, ([], []))
+openLog (SingleLog filepath) = do
+    result <- readLog filepath
+    return (result, ([], []))
+openLog (TwoLogs session system) = do
+    sessionResult <- readLog session
+    systemResult <- readLog system
+    return (sessionResult, systemResult)
 
 loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) in
-            -> FilePath       -- ^ a log file to load and display
-            -> Maybe FilePath -- ^ an optional second log to show alongside the
-                              --   first log.
+            -> LogDetails
             -> B ()
-loadLogWith getWindow session maybeSystem = do
+loadLogWith getWindow logDetails = do
     ret <- runErrorT $ do
-        (sessionWarnings, sessionMessages) <- readLog session
-        (systemWarnings, systemMessages) <- case maybeSystem of
-            Just system -> readLog system
-            Nothing     -> return ([], [])
+        ((sessionWarnings, sessionMessages),
+         (systemWarnings, systemMessages)) <- openLog logDetails
 
         -- FIXME: pass the log file name into the renderer
         let rr = process sessionMessages systemMessages
@@ -179,16 +201,93 @@ loadLogWith getWindow session maybeSystem = do
 
         windowInfo <- lift getWindow
         lift $ displayLog windowInfo
-                          session
-                          maybeSystem
+                          logDetails
                           sessionMessages
                           systemMessages
                           rr
 
     case ret of
       Left (LoadError f e) -> io $
-          displayError ("Could not read '" ++ f ++ "'") e
+          displayError Nothing ("Could not read '" ++ f ++ "'") (Just e)
       Right () -> return ()
+
+startRecording :: B ()
+startRecording = do
+    wi <- consumeInitialWindow
+
+    zt <- io $ getZonedTime
+    -- I hate time manipulation
+    let yyyy_mm_dd_hh_mm_ss = takeWhile (/= '.') (show zt)
+
+    cacheDir <- io $ getCacheDir
+    let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
+
+    io $ setPage wi CanvasPage
+    embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) $
+          makeCallback (finishedRecording wi filename) r
+
+finishedRecording :: WindowInfo
+                  -> FilePath
+                  -> B ()
+finishedRecording wi tempFilePath = do
+    loadLogWith (return wi) (RecordedLog tempFilePath)
+
+    let saveItem     = wiSave wi
+
+    io $ do
+        widgetSetSensitivity saveItem True
+        onActivateLeaf saveItem $ showSaveDialog wi (return ())
+
+    return ()
+
+showSaveDialog :: WindowInfo
+               -> IO ()
+               -> IO ()
+showSaveDialog wi savedCb = do
+    Just (RecordedLog tempFilePath) <- readIORef (wiLogDetails wi)
+    let mwindow      = Just (wiWindow wi)
+        tempFileName = takeFileName tempFilePath
+
+    recorderChooseFile tempFileName mwindow $ \newFilePath -> do
+        renameFile tempFilePath newFilePath
+        widgetSetSensitivity (wiSave wi) False
+        wiSetLogDetails wi (SingleLog newFilePath)
+        savedCb
+
+-- | Show a confirmation dialog if the log is unsaved. Suitable for use as a
+--   'delete-event' handler.
+promptToSave :: MonadIO io
+             => WindowInfo
+             -> io Bool -- ^ True if we showed a prompt; False if we're
+                        --   happy to quit
+promptToSave wi = io $ do
+    mdetails <- readIORef (wiLogDetails wi)
+    case mdetails of
+        Just (RecordedLog tempFilePath) -> do
+            let tempFileName = takeFileName tempFilePath
+                title = "Save log “" ++ tempFileName ++ "” before closing?"
+            prompt <- messageDialogNew (Just (wiWindow wi))
+                                       [DialogModal]
+                                       MessageWarning
+                                       ButtonsNone
+                                       title
+            messageDialogSetSecondaryText prompt
+                "If you don’t save, this log will be lost forever."
+            dialogAddButton prompt "Close _without saving" ResponseClose
+            dialogAddButton prompt stockCancel ResponseCancel
+            dialogAddButton prompt stockSave ResponseYes
+
+            widgetShowAll prompt
+            prompt `afterResponse` \resp -> do
+                let closeUp = widgetDestroy (wiWindow wi)
+                case resp of
+                    ResponseYes -> showSaveDialog wi closeUp
+                    ResponseClose -> closeUp
+                    _ -> return ()
+                widgetDestroy prompt
+
+            return True
+        _ -> return False
 
 maybeQuit :: B ()
 maybeQuit = do
@@ -203,93 +302,36 @@ emptyWindow = do
   let getW cast name = io $ xmlGetWidget xml cast name
 
   window <- getW castToWindow "diagramWindow"
-  [openItem, saveItem, closeItem, aboutItem] <- mapM (getW castToImageMenuItem)
-       ["open", "saveAs", "close", "about"]
+  [newItem, openItem, saveItem, exportItem, closeItem, aboutItem] <-
+      mapM (getW castToImageMenuItem)
+          ["new", "open", "save", "export", "close", "about"]
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
-  layout <- getW castToLayout "diagramLayout"
+
+
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
   contentVPaned <- getW castToVPaned "contentVPaned"
 
-  -- Open two logs dialog widgets
-  openTwoDialog <- getW castToDialog "openTwoDialog"
-  [sessionBusChooser, systemBusChooser] <- mapM (getW castToFileChooserButton)
-      ["sessionBusChooser", "systemBusChooser"]
+  -- Open two logs dialog
+  openTwoDialog <- embedIO $ \r ->
+      setupOpenTwoDialog xml window $ \f1 f2 ->
+          makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
+  withProgramIcon (windowSetIcon openTwoDialog)
 
   -- Set up the window itself
   withProgramIcon (windowSetIcon window)
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu
+  embedIO $ onActivateLeaf newItem . makeCallback startRecording
   embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
   io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
-  io $ closeItem `onActivateLeaf` widgetDestroy window
 
   -- Help menu
-  embedIO $ onActivateLeaf aboutItem . makeCallback (showAbout window)
-
-  -- Diagram area panning
-  io $ do
-    hadj <- layoutGetHAdjustment layout
-    vadj <- layoutGetVAdjustment layout
-
-    adjustmentSetStepIncrement hadj eventHeight
-    adjustmentSetStepIncrement vadj eventHeight
-
-    layout `on` keyPressEvent $ tryEvent $ do
-      [] <- eventModifier
-      key <- eventKeyName
-      case key of
-        "Left"      -> io $ decStep hadj
-        "Right"     -> io $ incStep hadj
-        "space"     -> io $ incPage vadj
-        _           -> stopEvent
-
-  -- Open two logs dialog
-  withProgramIcon (windowSetIcon openTwoDialog)
-
-  io $ do
-    windowSetTransientFor openTwoDialog window
-    openTwoDialog `on` deleteEvent $ tryEvent $ io $ widgetHide openTwoDialog
-
-    -- Keep the two dialogs' current folders in sync. We only propagate when
-    -- the new dialog doesn't have a current file. Otherwise, choosing a file
-    -- from a different directory in the second chooser unselects the first.
-    let propagateCurrentFolder d1 d2 = do
-            d1 `onCurrentFolderChanged` do
-                f1 <- fileChooserGetCurrentFolder d1
-                f2 <- fileChooserGetCurrentFolder d2
-                otherFile <- fileChooserGetFilename d2
-                when (isNothing otherFile && f1 /= f2 && isJust f1) $ do
-                    fileChooserSetCurrentFolder d2 (fromJust f1)
-                    return ()
-
-    propagateCurrentFolder sessionBusChooser systemBusChooser
-    propagateCurrentFolder systemBusChooser sessionBusChooser
-
-  let hideTwoDialog = do
-          widgetHideAll openTwoDialog
-          fileChooserUnselectAll sessionBusChooser
-          fileChooserUnselectAll systemBusChooser
-
-  embedIO $ \r -> openTwoDialog `afterResponse` \resp -> do
-      -- The "Open" button should only be sensitive if both pickers have a
-      -- file in them, but the GtkFileChooserButton:file-set signal is not
-      -- bound in my version of Gtk2Hs. So yeah...
-      if (resp == ResponseAccept)
-        then do
-          sessionLogFile <- fileChooserGetFilename sessionBusChooser
-          systemLogFile <- fileChooserGetFilename systemBusChooser
-
-          case (sessionLogFile, systemLogFile) of
-            (Just f1, Just f2) -> do
-                makeCallback (loadInInitialWindow f1 (Just f2)) r
-                hideTwoDialog
-            _ -> return ()
-        else
-          hideTwoDialog
+  withProgramIcon $ \icon -> io $
+      onActivateLeaf aboutItem $ showAboutDialog window icon
 
   m <- asks methodIcon
   s <- asks signalIcon
@@ -303,200 +345,135 @@ emptyWindow = do
       -- message.
       widgetHide top
 
-  clampIdleId <- io $ newIORef Nothing
+  -- The stats start off hidden.
+  io $ widgetHide statsBook
+
+  showBounds <- asks debugEnabled
+  canvas <- io $ canvasNew xml showBounds (updateDetailsView details)
+
+  logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
                               , wiSave = saveItem
+                              , wiExport = exportItem
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
                               , wiNotebook = nb
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
                               , wiContentVPaned = contentVPaned
-                              , wiLayout = layout
+                              , wiCanvas = canvas
                               , wiDetailsView = details
-                              , wiClampIdleId = clampIdleId
+                              , wiLogDetails = logDetailsRef
                               }
 
+  io $ window `on` deleteEvent $ promptToSave windowInfo
+  io $ closeItem `on` menuItemActivate $ do
+      prompted <- promptToSave windowInfo
+      when (not prompted) (widgetDestroy window)
   incWindows
   io $ widgetShow window
   return windowInfo
 
-invalidateRect :: Layout
-               -> Stripe
-               -> IO ()
-invalidateRect layout (Stripe y1 y2) = do
-    win <- layoutGetDrawWindow layout
-    (width, _height) <- layoutGetSize layout
-    let pangoRectangle = Rectangle 0 (floor y1) width (ceiling y2)
-
-    drawWindowInvalidateRect win pangoRectangle False
-
-type RSDM = RegionSelection DetailedMessage
-queueClampAroundSelection :: IORef RSDM
-                          -> WindowInfo
-                          -> IO ()
-queueClampAroundSelection regionSelectionRef wi = do
-    let idRef = wiClampIdleId wi
-    id_ <- readIORef idRef
-    when (isNothing id_) $ do
-        id' <- flip idleAdd priorityDefaultIdle $ do
-            rs <- readIORef regionSelectionRef
-            case rsCurrent rs of
-                Nothing -> return ()
-                Just (Stripe top bottom, _) -> do
-                    vadj <- layoutGetVAdjustment (wiLayout wi)
-                    let padding = (bottom - top) / 2
-                    adjustmentClampPage vadj (top - padding) (bottom + padding)
-
-            writeIORef idRef Nothing
-            return False
-
-        writeIORef idRef (Just id')
-
-modifyRegionSelection :: IORef RSDM
-                      -> WindowInfo
-                      -> (RSDM -> RSDM)
-                      -> IO ()
-modifyRegionSelection regionSelectionRef wi f = do
-    let layout      = wiLayout wi
-        detailsView = wiDetailsView wi
-
-    rs <- readIORef regionSelectionRef
-    let currentMessage = rsCurrent rs
-        rs' = f rs
-        newMessage = rsCurrent rs'
-    writeIORef regionSelectionRef rs'
-
-    when (newMessage /= currentMessage) $ do
-        case newMessage of
-            Nothing     -> do
-                widgetHide $ detailsViewGetTop detailsView
-            Just (r, m) -> do
-                detailsViewUpdate detailsView m
-                invalidateRect layout r
-                widgetShow $ detailsViewGetTop detailsView
-                queueClampAroundSelection regionSelectionRef wi
-
-        case currentMessage of
-            Nothing -> return ()
-            Just (r, _) -> invalidateRect layout r
+updateDetailsView :: DetailsView
+                  -> Maybe DetailedMessage
+                  -> IO ()
+updateDetailsView detailsView newMessage = do
+    case newMessage of
+        Nothing -> do
+            widgetHide $ detailsViewGetTop detailsView
+        Just m  -> do
+            detailsViewUpdate detailsView m
+            widgetShow $ detailsViewGetTop detailsView
 
 updateDisplayedLog :: WindowInfo
                    -> RendererResult a
-                   -> IORef [Shape]
-                   -> IORef Double
-                   -> IORef (RegionSelection DetailedMessage)
                    -> IO ()
-updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef = do
+updateDisplayedLog wi rr = do
     let shapes = rrShapes rr
-        (width, height) = diagramDimensions shapes
+        regions = rrRegions rr
+        canvas = wiCanvas wi
 
-        layout = wiLayout wi
-
-    writeIORef shapesRef shapes
-    writeIORef widthRef width
-
-    modifyRegionSelection regionSelectionRef wi $ \rs ->
-      let
-        rs' = regionSelectionNew (rrRegions rr)
-      in
-        case rsCurrent rs of
-            Just (_, x) -> regionSelectionSelect x rs'
-            Nothing     -> rs'
-
-    layoutSetSize layout (floor width) (floor height)
-
-    -- FIXME: only do this the first time maybe?
-    -- Shift to make the timestamp column visible
-    hadj <- layoutGetHAdjustment layout
     (windowWidth, _) <- windowGetSize (wiWindow wi)
-    -- Roughly centre the timestamp-and-member column
-    adjustmentSetValue hadj
-        ((rrCentreOffset rr) -
-            (fromIntegral windowWidth - timestampAndMemberWidth) / 2
-        )
 
-    return ()
+    canvasSetShapes canvas shapes regions (rrCentreOffset rr) windowWidth
+
+prettyDirectory :: String
+                -> String
+prettyDirectory s = "(" ++ dropTrailingPathSeparator s ++ ")"
+
+logWindowTitle :: LogDetails
+               -> String
+logWindowTitle (RecordedLog filepath) = "(*) " ++ takeFileName filepath
+logWindowTitle (SingleLog   filepath) =
+    intercalate " " [name, prettyDirectory directory]
+  where
+    (directory, name) = splitFileName filepath
+logWindowTitle (TwoLogs sessionPath systemPath) =
+    intercalate " " $ filter (not . null)
+           [ sessionName, sessionDirectory'
+           , "&"
+           , systemName,  prettyDirectory systemDirectory
+           ]
+  where
+    (sessionDirectory, sessionName) = splitFileName sessionPath
+    (systemDirectory,  systemName ) = splitFileName systemPath
+    sessionDirectory' =
+      if sessionDirectory == systemDirectory
+        then ""
+        else prettyDirectory sessionDirectory
+
+logTitle :: LogDetails
+         -> String
+logTitle (RecordedLog filepath) = dropExtension $ takeFileName filepath
+logTitle (SingleLog   filepath) = dropExtension $ takeFileName filepath
+logTitle (TwoLogs sessionPath systemPath) =
+    intercalate " & " . map (dropExtension . takeFileName)
+                      $ [sessionPath, systemPath]
+
+wiSetLogDetails :: WindowInfo
+                -> LogDetails
+                -> IO ()
+wiSetLogDetails wi logDetails = do
+    writeIORef (wiLogDetails wi) (Just logDetails)
+    windowSetTitle (wiWindow wi) (logWindowTitle logDetails ++ " — Bustle")
+
+setPage :: WindowInfo
+        -> Page
+        -> IO ()
+setPage wi page = notebookSetCurrentPage (wiNotebook wi) (fromEnum page)
 
 displayLog :: WindowInfo
-           -> FilePath
-           -> Maybe FilePath
+           -> LogDetails
            -> Log
            -> Log
            -> RendererResult Participants
            -> B ()
 displayLog wi@(WindowInfo { wiWindow = window
-                       , wiSave = saveItem
+                       , wiExport = exportItem
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
-                       , wiLayout = layout
-                       , wiNotebook = nb
+                       , wiCanvas = canvas
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
                        })
-           sessionPath
-           maybeSystemPath
+           logDetails
            sessionMessages
            systemMessages
            rr = do
-  let (directory, sessionName) = splitFileName sessionPath
-      baseName = snd . splitFileName
-      title = maybe sessionName
-                    ((++ (" + " ++ sessionName)) . baseName)
-                    maybeSystemPath
-
-  showBounds <- asks debugEnabled
-
   io $ do
-    shapesRef <- newIORef []
-    widthRef <- newIORef 0
-    regionSelectionRef <- newIORef $ regionSelectionNew []
+    wiSetLogDetails wi logDetails
+
     hiddenRef <- newIORef Set.empty
 
-    updateDisplayedLog wi rr shapesRef widthRef regionSelectionRef
+    updateDisplayedLog wi rr
 
-    windowSetTitle window $ title ++ " — Bustle"
-    widgetSetSensitivity saveItem True
-    onActivateLeaf saveItem $ do
-        shapes <- readIORef shapesRef
-        saveToPDFDialogue window directory title shapes
+    widgetSetSensitivity exportItem True
+    onActivateLeaf exportItem $ do
+        shapes <- canvasGetShapes canvas
+        saveToPDFDialogue wi shapes
 
-    -- I think we could speed things up by only showing the revealed area
-    -- rather than everything that's visible.
-    layout `on` exposeEvent $ tryEvent $ io $ do
-        rs <- readIORef regionSelectionRef
-        shapes <- readIORef shapesRef
-        width <- readIORef widthRef
-        let shapes' =
-                case rsCurrent rs of
-                    Nothing     -> shapes
-                    Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
-        update layout shapes' showBounds
-
-    let modifyRS :: MonadIO io
-                 => (RSDM -> RSDM)
-                 -> io ()
-        modifyRS = io . modifyRegionSelection regionSelectionRef wi
-
-    layout `on` buttonPressEvent $ tryEvent $ do
-      io $ layout `set` [ widgetIsFocus := True ]
-      LeftButton <- eventButton
-      (_, y) <- eventCoordinates
-
-      modifyRS (regionSelectionUpdate y)
-
-    layout `on` keyPressEvent $ tryEvent $ do
-      [] <- eventModifier
-      key <- eventKeyName
-      case key of
-        "Up"        -> modifyRS regionSelectionUp
-        "Down"      -> modifyRS regionSelectionDown
-        "Home"      -> modifyRS regionSelectionFirst
-        "End"       -> modifyRS regionSelectionLast
-        _           -> stopEvent
-
-    notebookSetCurrentPage nb 1
-    layout `set` [ widgetIsFocus := True ]
+    setPage wi CanvasPage
+    canvasFocus canvas
 
     -- FIXME: this currently shows stats for all messages, not post-filtered messages
     statsPaneSetMessages statsPane sessionMessages systemMessages
@@ -517,49 +494,11 @@ displayLog wi@(WindowInfo { wiWindow = window
         writeIORef hiddenRef hidden'
         let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
-        updateDisplayedLog wi rr' shapesRef widthRef regionSelectionRef
-
-    -- The stats start off hidden.
-    widgetHide statsBook
+        updateDisplayedLog wi rr'
 
   return ()
 
-update :: Layout -> Diagram -> Bool -> IO ()
-update layout shapes showBounds = do
-  win <- layoutGetDrawWindow layout
-
-  hadj <- layoutGetHAdjustment layout
-  hpos <- adjustmentGetValue hadj
-  hpage <- adjustmentGetPageSize hadj
-
-  vadj <- layoutGetVAdjustment layout
-  vpos <- adjustmentGetValue vadj
-  vpage <- adjustmentGetPageSize vadj
-
-  let r = (hpos, vpos, hpos + hpage, vpos + vpage)
-
-  renderWithDrawable win $ drawRegion r showBounds shapes
-
--- Add/remove one step/page increment from an Adjustment, limited to the top of
--- the last page.
-incStep, decStep, incPage{-, decPage -} :: Adjustment -> IO ()
-incStep = incdec (+) adjustmentGetStepIncrement
-decStep = incdec (-) adjustmentGetStepIncrement
-incPage = incdec (+) adjustmentGetPageIncrement
---decPage = incdec (-) adjustmentGetPageIncrement
-
-incdec :: (Double -> Double -> Double) -- How to combine the increment
-       -> (Adjustment -> IO Double)    -- Action to discover the increment
-       -> Adjustment
-       -> IO ()
-incdec (+-) f adj = do
-    pos <- adjustmentGetValue adj
-    step <- f adj
-    page <- adjustmentGetPageSize adj
-    lim <- adjustmentGetUpper adj
-    adjustmentSetValue adj $ min (pos +- step) (lim - page)
-
-withProgramIcon :: (Maybe Pixbuf -> IO ()) -> B ()
+withProgramIcon :: (Maybe Pixbuf -> IO a) -> B a
 withProgramIcon f = asks bustleIcon >>= io . f
 
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
@@ -581,18 +520,17 @@ openDialogue window = embedIO $ \r -> do
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
-          makeCallback (loadInInitialWindow fn Nothing) r
+          makeCallback (loadInInitialWindow (SingleLog fn)) r
       widgetDestroy chooser
 
   widgetShowAll chooser
 
-saveToPDFDialogue :: Window
-                  -> FilePath
-                  -> String
+saveToPDFDialogue :: WindowInfo
                   -> Diagram
                   -> IO ()
-saveToPDFDialogue window directory filename shapes = do
-  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionSave
+saveToPDFDialogue wi shapes = do
+  let parent = Just (wiWindow wi)
+  chooser <- fileChooserDialogNew Nothing parent FileChooserActionSave
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-save", ResponseAccept)
              ]
@@ -601,8 +539,18 @@ saveToPDFDialogue window directory filename shapes = do
                 , fileChooserDoOverwriteConfirmation := True
                 ]
 
-  fileChooserSetCurrentFolder chooser directory
-  fileChooserSetCurrentName chooser $ filename ++ ".pdf"
+  Just logDetails <- readIORef $ wiLogDetails wi
+
+  let filename  = logTitle logDetails <.> "pdf"
+  fileChooserSetCurrentName chooser filename
+
+  -- If the currently-loaded log has a meaningful directory, suggest that as
+  -- the default.
+  let mdirectory = case logDetails of
+          RecordedLog _ -> Nothing
+          SingleLog p   -> Just $ takeDirectory p
+          TwoLogs p _   -> Just $ takeDirectory p
+  maybeM mdirectory $ fileChooserSetCurrentFolder chooser
 
   chooser `afterResponse` \resp -> do
       when (resp == ResponseAccept) $ do
@@ -613,35 +561,5 @@ saveToPDFDialogue window directory filename shapes = do
       widgetDestroy chooser
 
   widgetShowAll chooser
-
-showAbout :: Window -> B ()
-showAbout window = withProgramIcon $ \icon -> io $ do
-    dialog <- aboutDialogNew
-
-    license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
-               `catch` (\e -> warn (show (e :: IOException)) >> return Nothing)
-
-    dialog `set` [ aboutDialogName := "Bustle"
-                 , aboutDialogVersion := showVersion version
-                 , aboutDialogComments := "Someone's favourite D-Bus profiler"
-                 , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
-                 , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2012 Collabora Ltd."
-                 , aboutDialogLicense := license
-                 ]
-    dialog `afterResponse` \resp ->
-        when (resp == ResponseCancel) (widgetDestroy dialog)
-    windowSetTransientFor dialog window
-    windowSetModal dialog True
-    aboutDialogSetLogo dialog icon
-
-    widgetShowAll dialog
-
-authors :: [String]
-authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
-          , "Dafydd Harries"
-          , "Chris Lamb"
-          , "Marc Kleine-Budde"
-          ]
 
 -- vim: sw=2 sts=2

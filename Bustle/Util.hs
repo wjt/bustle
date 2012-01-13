@@ -1,6 +1,7 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-
 Bustle.Util: miscellaneous utility functions
-Copyright © 2008–2010 Collabora Ltd.
+Copyright © 2008–2012 Collabora Ltd.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -24,6 +25,10 @@ module Bustle.Util
   , toErrorT
   , handleIOExceptions
 
+  , maybeM
+
+  , getCacheDir
+
   -- You probably don't actually want to use this function.
   , traceM
   )
@@ -34,6 +39,9 @@ import Control.Monad.Error
 import Control.Monad.Trans (MonadIO, liftIO)
 import Debug.Trace (trace)
 import System.IO (hPutStrLn, stderr)
+import Foreign.C.String
+import System.Directory
+import System.FilePath ((</>))
 
 -- Escape hatch to log a value from a non-IO monadic context.
 traceM :: (Show a, Monad m) => a -> m ()
@@ -65,3 +73,19 @@ handleIOExceptions :: (Error e', MonadIO io)
 handleIOExceptions f act = do
     result <- io $ try act
     toErrorT f result
+
+maybeM :: Maybe a
+       -> (a -> IO b)
+       -> IO ()
+maybeM Nothing _ = return ()
+maybeM (Just x) act = act x >> return ()
+
+foreign import ccall "g_get_user_cache_dir"
+    g_get_user_cache_dir :: IO CString
+
+getCacheDir :: IO FilePath
+getCacheDir = do
+    dotCache <- peekCString =<< g_get_user_cache_dir
+    let dir = dotCache </> "bustle"
+    createDirectoryIfMissing True dir
+    return dir

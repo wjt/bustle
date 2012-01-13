@@ -22,6 +22,14 @@
                   <widget class="GtkMenu" id="menu1">
                     <property name="visible">True</property>
                     <child>
+                      <widget class="GtkImageMenuItem" id="new">
+                        <property name="label">gtk-new</property>
+                        <property name="visible">True</property>
+                        <property name="use_underline">True</property>
+                        <property name="use_stock">True</property>
+                      </widget>
+                    </child>
+                    <child>
                       <widget class="GtkImageMenuItem" id="open">
                         <property name="label">gtk-open</property>
                         <property name="visible">True</property>
@@ -38,13 +46,21 @@
                       </widget>
                     </child>
                     <child>
-                      <widget class="GtkImageMenuItem" id="saveAs">
-                        <property name="label">gtk-save-as</property>
+                      <widget class="GtkImageMenuItem" id="save">
+                        <property name="label">gtk-save</property>
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <accelerator key="s" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkImageMenuItem" id="export">
+                        <property name="label">_Export as PDF…</property>
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="use_underline">True</property>
+                        <accelerator key="s" signal="activate" modifiers="GDK_CONTROL_MASK | GDK_SHIFT_MASK"/>
                       </widget>
                     </child>
                     <child>
@@ -78,6 +94,7 @@
                         <property name="sensitive">False</property>
                         <property name="label" translatable="yes">_Filter visible services…</property>
                         <property name="use_underline">True</property>
+                        <accelerator key="f" signal="activate" modifiers="GDK_CONTROL_MASK"/>
                       </widget>
                     </child>
                     <child>
@@ -86,6 +103,7 @@
                         <property name="sensitive">False</property>
                         <property name="label" translatable="yes">_Statistics</property>
                         <property name="use_underline">True</property>
+                        <accelerator key="F9" signal="activate"/>
                       </widget>
                     </child>
                   </widget>
@@ -127,8 +145,14 @@
             <child>
               <widget class="GtkLabel" id="label3">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Run &lt;i&gt;bustle-pcap foo.bustle&lt;/i&gt; to record a log of D-Bus traffic;
-then open &lt;i&gt;foo.bustle&lt;/i&gt; to view the log.</property>
+                <property name="label" translatable="yes">
+                  &lt;big&gt;&lt;b&gt;No log loaded&lt;/b&gt;&lt;/big&gt;
+
+                  • Choose &lt;b&gt;File → New&lt;/b&gt; to record a new D-Bus traffic log;
+                  • Choose &lt;b&gt;File → Open&lt;/b&gt; to load a previously-recorded log.
+
+                  You may also use the &lt;i&gt;bustle-pcap&lt;/i&gt; command-line tool to record logs.
+                </property>
                 <property name="use_markup">True</property>
               </widget>
             </child>
