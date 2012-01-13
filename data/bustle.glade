@@ -94,6 +94,7 @@
                         <property name="sensitive">False</property>
                         <property name="label" translatable="yes">_Filter visible services…</property>
                         <property name="use_underline">True</property>
+                        <accelerator key="f" signal="activate" modifiers="GDK_CONTROL_MASK"/>
                       </widget>
                     </child>
                     <child>
@@ -102,6 +103,7 @@
                         <property name="sensitive">False</property>
                         <property name="label" translatable="yes">_Statistics</property>
                         <property name="use_underline">True</property>
+                        <accelerator key="F9" signal="activate"/>
                       </widget>
                     </child>
                   </widget>
