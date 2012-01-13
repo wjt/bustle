@@ -148,8 +148,8 @@
                 <property name="label" translatable="yes">
                   &lt;big&gt;&lt;b&gt;No log loaded&lt;/b&gt;&lt;/big&gt;
 
-                  • Choose &lt;b&gt;File→New&lt;/b&gt; to record a new D-Bus traffic log;
-                  • Choose &lt;b&gt;File→Open&lt;/b&gt; to load a previously-recorded log.
+                  • Choose &lt;b&gt;File → New&lt;/b&gt; to record a new D-Bus traffic log;
+                  • Choose &lt;b&gt;File → Open&lt;/b&gt; to load a previously-recorded log.
 
                   You may also use the &lt;i&gt;bustle-pcap&lt;/i&gt; command-line tool to record logs.
                 </property>
