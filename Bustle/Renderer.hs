@@ -101,14 +101,11 @@ process sessionBusLog systemBusLog =
 rendererStateNew :: RendererState
 rendererStateNew = initialState Set.empty Set.empty
 
-buildResult :: Diagram
-            -> Regions DetailedMessage
+buildResult :: RendererOutput
             -> RendererState
             -> RendererResult Participants
-buildResult diagram messageRegions rs =
-    RendererResult x diagram' regions'
-                   participants
-                   (reverse $ warnings rs)
+buildResult (RendererOutput diagram messageRegions warnings) rs =
+    RendererResult x diagram' regions' participants warnings
   where
     (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
     regions' = translateRegions y messageRegions
@@ -128,13 +125,11 @@ processSome :: Log -- ^ freshly-arrived session bus messages
             -> ( RendererResult Participants -- ^ the output from these messages
                , RendererState               -- ^ state to re-use later
                )
-processSome sessionBusLog systemBusLog rs =
-    (buildResult diagram messageRegions rs', rs')
+processSome sessionBusLog systemBusLog rs = (buildResult output rs', rs')
   where
     log' = combine sessionBusLog systemBusLog
 
-    ((diagram, messageRegions), rs') =
-        runRenderer (mapM_ (uncurry munge) log') rs
+    (output, rs') = runRenderer (mapM_ (uncurry munge) log') rs
 
 -- Combines a series of messages on the session bus and system bus into a
 -- single ordered list, annotated by timestamp. Assumes both the source lists
@@ -151,13 +146,13 @@ combine xs@(x:xs') ys@(y:ys') =
         else (SystemBus, y):combine xs ys'
 
 newtype Renderer a =
-    Renderer (WriterT ([Shape], Regions DetailedMessage)
-                 (StateT (RendererState) Identity)
+    Renderer (WriterT RendererOutput
+                 (StateT RendererState Identity)
                     a)
   deriving ( Functor
            , Monad
-           , MonadState (RendererState)
-           , MonadWriter ([Shape], Regions DetailedMessage)
+           , MonadState RendererState
+           , MonadWriter RendererOutput
            )
 
 instance Applicative Renderer where
@@ -166,10 +161,24 @@ instance Applicative Renderer where
 
 runRenderer :: Renderer ()
             -> RendererState
-            -> ( ([Shape], Regions DetailedMessage)
+            -> ( RendererOutput
                , RendererState
                )
 runRenderer (Renderer act) st = runIdentity $ runStateT (execWriterT act) st
+
+data RendererOutput =
+    RendererOutput ![Shape]
+                   !(Regions DetailedMessage)
+                   ![String]
+  deriving
+    (Show)
+
+instance Monoid RendererOutput where
+    mempty = RendererOutput [] [] []
+    mappend (RendererOutput s1 r1 w1)
+            (RendererOutput s2 r2 w2) = RendererOutput (s1 ++ s2)
+                                                       (r1 ++ r2)
+                                                       (w1 ++ w2)
 
 data BusState =
     BusState { apps :: Applications
@@ -185,7 +194,6 @@ data RendererState =
                   , row :: Double
                   , mostRecentLabels :: Double
                   , startTime :: Microseconds
-                  , warnings :: [String]
                   }
 
 initialBusState :: Set UniqueName
@@ -214,7 +222,6 @@ initialState sessionFilter systemFilter = RendererState
     , row = 0
     , mostRecentLabels = 0
     , startTime = 0
-    , warnings = []
     }
 
 -- Maps unique connection name to the column representing that name, if
@@ -415,13 +422,13 @@ remOther bus n u = do
     modifyApps bus $ Map.insert u ai'
 
 shape :: Shape -> Renderer ()
-shape s = tell ([s], [])
+shape s = tell $ RendererOutput [s] [] []
 
 region :: Stripe -> DetailedMessage -> Renderer ()
-region r m = tell ([], [(r, m)])
+region r m = tell $ RendererOutput [] [(r, m)] []
 
 warn :: String -> Renderer ()
-warn warning = modify $ \rs -> rs { warnings = warning:warnings rs }
+warn warning = tell $ RendererOutput [] [] [warning]
 
 modifyPending :: Bus
               -> (Pending -> Pending)
