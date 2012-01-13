@@ -64,4 +64,5 @@ authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
           , "Dafydd Harries"
           , "Chris Lamb"
           , "Marc Kleine-Budde"
+          , "Cosimo Alfarano"
           ]
