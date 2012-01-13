@@ -1,6 +1,8 @@
 {-# LANGUAGE PatternGuards, FlexibleContexts #-}
 module Bustle.Loader.Pcap
   ( readPcap
+
+  , convert
   )
 where
 

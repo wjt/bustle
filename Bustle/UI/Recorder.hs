@@ -7,12 +7,20 @@ where
 
 import Control.Monad (when)
 import Control.Concurrent.MVar
+import qualified Data.Map as Map
+import Data.Map (Map)
+import Control.Monad.State (runStateT)
 
 import System.Glib.GError
 import Graphics.UI.Gtk
 
+import Bustle.Loader.Pcap (convert)
+import Bustle.Loader (isRelevant)
 import Bustle.Monitor
+import Bustle.Renderer
+import Bustle.Types
 import Bustle.UI.Util (displayError)
+import Bustle.Util
 
 type RecorderCallback = IO ()
 
@@ -28,15 +36,35 @@ recorderRun filename mwindow callback = handleGError newFailed $ do
     dialog `set` [ windowModal := True ]
 
     label <- labelNew Nothing
+    labelSetMarkup label "Logged <b>0</b> messages…"
     n <- newMVar (0 :: Integer)
-    let updateLabel = do
-        i <- takeMVar n
-        let j = i + 1
-        labelSetMarkup label $
-            "Logged <b>" ++ show i ++ "</b> messages…"
-        putMVar n j
+    loaderStateRef <- newMVar Map.empty
+    rendererStateRef <- newMVar rendererStateNew
+    let updateLabel body = do
+        -- of course, modifyMVar and runStateT have their tuples back to front.
+        m <- modifyMVar loaderStateRef $ \s -> do
+            (m, s') <- runStateT (convert 0 body) s
+            return (s', m)
+
+        case m of
+            Left e -> warn e
+            Right message
+              | isRelevant (dmMessage message) -> do
+                rr <- modifyMVar rendererStateRef $ \s -> do
+                    let (rr, s') = processSome [message] [] s
+                    return (s', rr)
+
+                when (not (null (rrShapes rr))) $ do
+                    -- If the renderer produced some output, count it as a
+                    -- message from the user's perspective.
+                    i <- takeMVar n
+                    let j = i + 1
+                    labelSetMarkup label $
+                        "Logged <b>" ++ show j ++ "</b> messages…"
+                    putMVar n j
+              | otherwise -> return ()
+
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
-    updateLabel
 
     bar <- progressBarNew
     pulseId <- timeoutAdd (progressBarPulse bar >> return True) 100
