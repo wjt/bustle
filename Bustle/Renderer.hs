@@ -96,7 +96,7 @@ processFull (sessionBusLog, sessionFilter) (systemBusLog, systemFilter) =
   where
         ((diagram, messageRegions), rs) =
             runRenderer (mapM_ (uncurry munge) log')
-                        (initialState initTime sessionFilter systemFilter)
+                        (initialState sessionFilter systemFilter)
         (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
         regions' = translateRegions y messageRegions
 
@@ -110,11 +110,6 @@ processFull (sessionBusLog, sessionFilter) (systemBusLog, systemFilter) =
         participants = Participants sessionApps systemApps
 
         log' = combine sessionBusLog systemBusLog
-
-        timestamps = map (dmTimestamp . snd) log'
-        initTime = case dropWhile (== 0) timestamps of
-            t:_ -> t
-            _   -> 0
 
 -- Combines a series of messages on the session bus and system bus into a
 -- single ordered list, annotated by timestamp. Assumes both the source lists
@@ -185,16 +180,15 @@ initialSessionBusState f =
 initialSystemBusState f =
     initialBusState f $ negate firstColumnOffset
 
-initialState :: Microseconds
-             -> Set UniqueName
+initialState :: Set UniqueName
              -> Set UniqueName
              -> RendererState
-initialState t sessionFilter systemFilter = RendererState
+initialState sessionFilter systemFilter = RendererState
     { sessionBusState = initialSessionBusState sessionFilter
     , systemBusState = initialSystemBusState systemFilter
     , row = 0
     , mostRecentLabels = 0
-    , startTime = t
+    , startTime = 0
     , warnings = []
     }
 
@@ -514,12 +508,22 @@ memberName message isReturn = do
     let Member p i m = member $ dmMessage message
     shape $ memberLabel p i m isReturn current
 
+getTimeOffset :: Microseconds
+              -> Renderer Microseconds
+getTimeOffset µs = do
+    base <- gets startTime
+    if base == 0
+      then do
+        modify (\s -> s { startTime = µs })
+        return 0
+      else
+        return (µs - base)
+
 relativeTimestamp :: DetailedMessage -> Renderer ()
 relativeTimestamp dm = do
-    base <- gets startTime
-    let relative = µsToMs (dmTimestamp dm - base)
+    relative <- getTimeOffset (dmTimestamp dm)
     current <- gets row
-    shape $ timestampLabel (show relative ++ "ms") current
+    shape $ timestampLabel (show (µsToMs relative) ++ "ms") current
 
 returnArc :: Bus
           -> DetailedMessage
