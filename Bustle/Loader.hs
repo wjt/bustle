@@ -1,6 +1,9 @@
 module Bustle.Loader
   ( readLog
   , LoadError(..)
+
+  -- * This function bothers me, but it's used by the live recorder for now...
+  , isRelevant
   )
 where
 
@@ -31,28 +34,28 @@ readLog f = do
         let oldResult = fmap upgrade $ Old.readLog input
         toErrorT (\e -> LoadError f ("Parse error " ++ show e)) oldResult
 
+isRelevant :: Message
+           -> Bool
+isRelevant m = case m of
+    Signal {}       -> none [ senderIsBus
+                            , isDisconnected
+                            ]
+    MethodCall {}   -> none3
+    MethodReturn {} -> none3
+    Error {}        -> none3
+    _               -> True
+  where
     -- FIXME: really? Maybe we should allow people to be interested in,
     --        say, binding to signals?
-    senderIsBus m = sender m == O (OtherName "org.freedesktop.DBus")
-    destIsBus m = destination m == O (OtherName "org.freedesktop.DBus")
+    senderIsBus = sender m == O (OtherName "org.freedesktop.DBus")
+    destIsBus = destination m == O (OtherName "org.freedesktop.DBus")
 
     -- When the monitor is forcibly disconnected from the bus, the
     -- Disconnected message has no sender, so the logger spits out <none>.
     -- This gets turned into OtherName ""
-    isDisconnected m = sender m == O (OtherName "")
+    isDisconnected = sender m == O (OtherName "")
 
-    -- Surely this function must have a standard name?
-    none_ fs x = not $ any ($ x) fs
-
-    none3 = none_ [senderIsBus, destIsBus, isDisconnected]
-
-    isRelevant m@(Signal {}) = none_ [ senderIsBus
-                                     , isDisconnected
-                                     ]
-                                     m
-    isRelevant m@(MethodCall {}) = none3 m
-    isRelevant m@(MethodReturn {}) = none3 m
-    isRelevant m@(Error {}) = none3 m
-    isRelevant _ = True
+    none bs = not $ or bs
+    none3 = none [senderIsBus, destIsBus, isDisconnected]
 
 
