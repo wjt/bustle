@@ -124,11 +124,15 @@ canvasInvalidateStripe :: Canvas a
                        -> IO ()
 canvasInvalidateStripe canvas (Stripe y1 y2) = do
     let layout = canvasLayout canvas
-    win <- layoutGetDrawWindow layout
-    (width, _height) <- layoutGetSize layout
-    let pangoRectangle = Rectangle 0 (floor y1) width (ceiling y2)
+    realized <- widgetGetRealized layout
 
-    drawWindowInvalidateRect win pangoRectangle False
+    -- We only need to invalidate ourself if we're actually on the screen
+    when realized $ do
+        win <- layoutGetDrawWindow layout
+        (width, _height) <- layoutGetSize layout
+        let pangoRectangle = Rectangle 0 (floor y1) width (ceiling y2)
+
+        drawWindowInvalidateRect win pangoRectangle False
 
 canvasClampAroundSelection :: Canvas a
                            -> IO ()
