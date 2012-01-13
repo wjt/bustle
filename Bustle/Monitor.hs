@@ -38,14 +38,14 @@ instance GObjectClass Monitor where
     unsafeCastGObject = Monitor . castForeignPtr . unGObject
 
 -- Dirty ugly foreign imports
-foreign import ccall "bustle_pcap_new"
-    bustle_pcap_new :: CInt
+foreign import ccall "bustle_pcap_monitor_new"
+    bustle_pcap_monitor_new :: CInt
                     -> CString
                     -> CInt
                     -> Ptr (Ptr ())
                     -> IO (Ptr Monitor)
-foreign import ccall "bustle_pcap_stop"
-    bustle_pcap_stop :: Ptr Monitor
+foreign import ccall "bustle_pcap_monitor_stop"
+    bustle_pcap_monitor_stop :: Ptr Monitor
                      -> IO ()
 
 -- Bindings for said imports
@@ -69,15 +69,15 @@ monitorNew busType filename debugOutput =
     wrapNewGObject mkMonitor $
       propagateGError $ \gerrorPtr ->
         withCString filename $ \c_filename ->
-          bustle_pcap_new (fromIntegral $ fromEnum busType)
-                          c_filename
-                          (fromIntegral $ fromEnum debugOutput)
-                          gerrorPtr
+          bustle_pcap_monitor_new (fromIntegral $ fromEnum busType)
+                                  c_filename
+                                  (fromIntegral $ fromEnum debugOutput)
+                                  gerrorPtr
 
 monitorStop :: Monitor
             -> IO ()
 monitorStop monitor = do
-    withForeignPtr (unMonitor monitor) bustle_pcap_stop
+    withForeignPtr (unMonitor monitor) bustle_pcap_monitor_stop
 
 monitorMessageLogged :: Signal Monitor (IO ())
 monitorMessageLogged =

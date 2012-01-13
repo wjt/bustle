@@ -1,6 +1,6 @@
 /*
- * pcap.c - blah blah
- * Copyright ©2011 Collabora Ltd.
+ * pcap-monitor.c - monitors a bus and dumps messages to a pcap file
+ * Copyright ©2011–2012 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "pcap.h"
+#include "pcap-monitor.h"
 
 #include <string.h>
 #include <pcap/pcap.h>
@@ -38,7 +38,7 @@ typedef struct {
     GAsyncQueue *message_queue;
 } ThreadData;
 
-struct _BustlePcapPrivate {
+struct _BustlePcapMonitorPrivate {
     GBusType bus_type;
     GDBusConnection *connection;
     GDBusCapabilityFlags caps;
@@ -73,28 +73,28 @@ static void initable_iface_init (
     gpointer g_class,
     gpointer unused);
 
-G_DEFINE_TYPE_WITH_CODE (BustlePcap, bustle_pcap, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (BustlePcapMonitor, bustle_pcap_monitor, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (G_TYPE_INITABLE, initable_iface_init);
     )
 
 static void
-bustle_pcap_init (BustlePcap *self)
+bustle_pcap_monitor_init (BustlePcapMonitor *self)
 {
-  self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, BUSTLE_TYPE_PCAP,
-      BustlePcapPrivate);
+  self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, BUSTLE_TYPE_PCAP_MONITOR,
+      BustlePcapMonitorPrivate);
   self->priv->bus_type = G_BUS_TYPE_SESSION;
   self->priv->td.message_queue = g_async_queue_new ();
 }
 
 static void
-bustle_pcap_get_property (
+bustle_pcap_monitor_get_property (
     GObject *object,
     guint property_id,
     GValue *value,
     GParamSpec *pspec)
 {
-  BustlePcap *self = BUSTLE_PCAP (object);
-  BustlePcapPrivate *priv = self->priv;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (object);
+  BustlePcapMonitorPrivate *priv = self->priv;
 
   switch (property_id)
     {
@@ -113,14 +113,14 @@ bustle_pcap_get_property (
 }
 
 static void
-bustle_pcap_set_property (
+bustle_pcap_monitor_set_property (
     GObject *object,
     guint property_id,
     const GValue *value,
     GParamSpec *pspec)
 {
-  BustlePcap *self = BUSTLE_PCAP (object);
-  BustlePcapPrivate *priv = self->priv;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (object);
+  BustlePcapMonitorPrivate *priv = self->priv;
 
   switch (property_id)
     {
@@ -139,27 +139,27 @@ bustle_pcap_set_property (
 }
 
 static void
-bustle_pcap_dispose (GObject *object)
+bustle_pcap_monitor_dispose (GObject *object)
 {
-  BustlePcap *self = BUSTLE_PCAP (object);
-  BustlePcapPrivate *priv = self->priv;
-  GObjectClass *parent_class = bustle_pcap_parent_class;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (object);
+  BustlePcapMonitorPrivate *priv = self->priv;
+  GObjectClass *parent_class = bustle_pcap_monitor_parent_class;
 
   if (parent_class->dispose != NULL)
     parent_class->dispose (object);
 
   /* Make sure we're all closed up. */
-  bustle_pcap_stop (self);
+  bustle_pcap_monitor_stop (self);
 
   g_clear_object (&priv->connection);
 }
 
 static void
-bustle_pcap_finalize (GObject *object)
+bustle_pcap_monitor_finalize (GObject *object)
 {
-  BustlePcap *self = BUSTLE_PCAP (object);
-  BustlePcapPrivate *priv = self->priv;
-  GObjectClass *parent_class = bustle_pcap_parent_class;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (object);
+  BustlePcapMonitorPrivate *priv = self->priv;
+  GObjectClass *parent_class = bustle_pcap_monitor_parent_class;
 
   if (parent_class->finalize != NULL)
     parent_class->finalize (object);
@@ -172,17 +172,17 @@ bustle_pcap_finalize (GObject *object)
 }
 
 static void
-bustle_pcap_class_init (BustlePcapClass *klass)
+bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GParamSpec *param_spec;
 
-  object_class->get_property = bustle_pcap_get_property;
-  object_class->set_property = bustle_pcap_set_property;
-  object_class->dispose = bustle_pcap_dispose;
-  object_class->finalize = bustle_pcap_finalize;
+  object_class->get_property = bustle_pcap_monitor_get_property;
+  object_class->set_property = bustle_pcap_monitor_set_property;
+  object_class->dispose = bustle_pcap_monitor_dispose;
+  object_class->finalize = bustle_pcap_monitor_finalize;
 
-  g_type_class_add_private (klass, sizeof (BustlePcapPrivate));
+  g_type_class_add_private (klass, sizeof (BustlePcapMonitorPrivate));
 
 #define THRICE(x) x, x, x
 
@@ -200,7 +200,7 @@ bustle_pcap_class_init (BustlePcapClass *klass)
   g_object_class_install_property (object_class, PROP_VERBOSE, param_spec);
 
   signals[SIG_MESSAGE_LOGGED] = g_signal_new ("message-logged",
-      BUSTLE_TYPE_PCAP, G_SIGNAL_RUN_FIRST,
+      BUSTLE_TYPE_PCAP_MONITOR, G_SIGNAL_RUN_FIRST,
       0, NULL, NULL,
       NULL, G_TYPE_NONE, 0);
 }
@@ -231,7 +231,7 @@ log_thread (gpointer data)
 static gboolean
 emit_me (gpointer data)
 {
-  BustlePcap *self = BUSTLE_PCAP (data);
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (data);
 
   g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0);
   g_object_unref (self);
@@ -245,7 +245,7 @@ filter (
     gboolean is_incoming,
     gpointer user_data)
 {
-  BustlePcap *self = BUSTLE_PCAP (user_data);
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
   const gchar *sender, *dest;
   Message m;
   GError *error = NULL;
@@ -381,8 +381,8 @@ initable_init (
     GCancellable *cancellable,
     GError **error)
 {
-  BustlePcap *self = BUSTLE_PCAP (initable);
-  BustlePcapPrivate *priv = self->priv;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (initable);
+  BustlePcapMonitorPrivate *priv = self->priv;
   GDBusProxy *bus;
 
   if (priv->bus_type == G_BUS_TYPE_NONE)
@@ -468,10 +468,10 @@ initable_init (
 
 /* FIXME: make this async? */
 void
-bustle_pcap_stop (
-    BustlePcap *self)
+bustle_pcap_monitor_stop (
+    BustlePcapMonitor *self)
 {
-  BustlePcapPrivate *priv = self->priv;
+  BustlePcapMonitorPrivate *priv = self->priv;
 
   if (priv->filter_id != 0)
     {
@@ -518,15 +518,15 @@ initable_iface_init (
   iface->init = initable_init;
 }
 
-BustlePcap *
-bustle_pcap_new (
+BustlePcapMonitor *
+bustle_pcap_monitor_new (
     GBusType bus_type,
     const gchar *filename,
     gboolean verbose,
     GError **error)
 {
   return g_initable_new (
-      BUSTLE_TYPE_PCAP, NULL, error,
+      BUSTLE_TYPE_PCAP_MONITOR, NULL, error,
       "bus-type", bus_type,
       "filename", filename,
       "verbose", verbose,

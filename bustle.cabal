@@ -16,6 +16,7 @@ Data-files:     data/bustle.png,
 Build-type:     Simple
 Extra-source-files: c-sources/bustle-dbus-monitor.c,
                     c-sources/bustle-pcap.c,
+                    c-sources/pcap-monitor.h,
                     Makefile,
                     README,
                     NEWS,
@@ -68,7 +69,7 @@ Executable bustle
                -Wall
                -fno-warn-unused-imports
                -fno-warn-unused-do-bind
-  C-sources: c-sources/pcap.c
+  C-sources: c-sources/pcap-monitor.c
   pkgconfig-depends: glib-2.0
 
   if flag(PostCabalizedGtk2HS)
@@ -123,7 +124,7 @@ Executable test-monitor
   main-is: tests/Monitor.hs
   other-modules: Bustle.Monitor
   Ghc-options: -threaded
-  C-sources: c-sources/pcap.c
+  C-sources: c-sources/pcap-monitor.c
   pkgconfig-depends: glib-2.0
   Build-Depends: base >= 4 && < 5
                , gtk > 0.11

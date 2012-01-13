@@ -23,7 +23,7 @@
 #include <glib/gprintf.h>
 #include <gio/gunixinputstream.h>
 
-#include "pcap.h"
+#include "pcap-monitor.h"
 
 static gboolean verbose = FALSE;
 static gboolean quiet = FALSE;
@@ -152,12 +152,12 @@ main (
   GBusType bus_type;
   gchar *filename;
   GError *error = NULL;
-  BustlePcap *pcap;
+  BustlePcapMonitor *pcap;
 
   g_type_init ();
   parse_arguments (&argc, &argv, &bus_type, &filename);
 
-  pcap = bustle_pcap_new (bus_type, filename, verbose, &error);
+  pcap = bustle_pcap_monitor_new (bus_type, filename, verbose, &error);
   if (pcap == NULL)
     {
       fprintf (stderr, "%s", error->message);
@@ -173,7 +173,7 @@ main (
   g_main_loop_run (loop);
   g_main_loop_unref (loop);
 
-  bustle_pcap_stop (pcap);
+  bustle_pcap_monitor_stop (pcap);
   g_object_unref (pcap);
 
   return 0;

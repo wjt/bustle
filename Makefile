@@ -16,8 +16,8 @@ dist/build/bustle-dbus-monitor: c-sources/bustle-dbus-monitor.c
 	@mkdir -p dist/build
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(DBUS_FLAGS)
 
-BUSTLE_PCAP_SOURCES = c-sources/pcap.c c-sources/bustle-pcap.c
-BUSTLE_PCAP_HEADERS = c-sources/pcap.h
+BUSTLE_PCAP_SOURCES = c-sources/pcap-monitor.c c-sources/bustle-pcap.c
+BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h
 
 dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 	@mkdir -p dist/build
