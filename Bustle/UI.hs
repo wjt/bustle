@@ -226,18 +226,61 @@ finishedRecording wi tempFilePath = do
     loadLogWith (return wi) (RecordedLog tempFilePath)
 
     let saveItem     = wiSave wi
-        mwindow      = Just (wiWindow wi)
-        tempFileName = takeFileName tempFilePath
 
     io $ do
         widgetSetSensitivity saveItem True
-        onActivateLeaf saveItem $ do
-            recorderChooseFile tempFileName mwindow $ \newFilePath -> do
-                renameFile tempFilePath newFilePath
-                widgetSetSensitivity saveItem False
-                wiSetLogDetails wi (SingleLog newFilePath)
+        onActivateLeaf saveItem $ showSaveDialog wi (return ())
 
     return ()
+
+showSaveDialog :: WindowInfo
+               -> IO ()
+               -> IO ()
+showSaveDialog wi savedCb = do
+    Just (RecordedLog tempFilePath) <- readIORef (wiLogDetails wi)
+    let mwindow      = Just (wiWindow wi)
+        tempFileName = takeFileName tempFilePath
+
+    recorderChooseFile tempFileName mwindow $ \newFilePath -> do
+        renameFile tempFilePath newFilePath
+        widgetSetSensitivity (wiSave wi) False
+        wiSetLogDetails wi (SingleLog newFilePath)
+        savedCb
+
+-- | Show a confirmation dialog if the log is unsaved. Suitable for use as a
+--   'delete-event' handler.
+promptToSave :: MonadIO io
+             => WindowInfo
+             -> io Bool -- ^ True if we showed a prompt; False if we're
+                        --   happy to quit
+promptToSave wi = io $ do
+    mdetails <- readIORef (wiLogDetails wi)
+    case mdetails of
+        Just (RecordedLog tempFilePath) -> do
+            let tempFileName = takeFileName tempFilePath
+                title = "Save log “" ++ tempFileName ++ "” before closing?"
+            prompt <- messageDialogNew (Just (wiWindow wi))
+                                       [DialogModal]
+                                       MessageWarning
+                                       ButtonsNone
+                                       title
+            messageDialogSetSecondaryText prompt
+                "If you don’t save, this log will be lost forever."
+            dialogAddButton prompt "Close without saving" ResponseClose
+            dialogAddButton prompt stockCancel ResponseCancel
+            dialogAddButton prompt stockSave ResponseYes
+
+            widgetShowAll prompt
+            prompt `afterResponse` \resp -> do
+                let closeUp = widgetDestroy (wiWindow wi)
+                case resp of
+                    ResponseYes -> showSaveDialog wi closeUp
+                    ResponseClose -> closeUp
+                    _ -> return ()
+                widgetDestroy prompt
+
+            return True
+        _ -> return False
 
 maybeQuit :: B ()
 maybeQuit = do
@@ -278,7 +321,6 @@ emptyWindow = do
   embedIO $ onActivateLeaf newItem . makeCallback startRecording
   embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
   io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
-  io $ closeItem `onActivateLeaf` widgetDestroy window
 
   -- Help menu
   withProgramIcon $ \icon -> io $
@@ -314,6 +356,10 @@ emptyWindow = do
                               , wiLogDetails = logDetailsRef
                               }
 
+  io $ window `on` deleteEvent $ promptToSave windowInfo
+  io $ closeItem `on` menuItemActivate $ do
+      prompted <- promptToSave windowInfo
+      when (not prompted) (widgetDestroy window)
   incWindows
   io $ widgetShow window
   return windowInfo
