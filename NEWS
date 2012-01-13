@@ -15,9 +15,12 @@ perfect, but is at least an improvement.)
 
 Directed signals—signals with a specified destination, which are unusual
 but do appear—are now shown differently to normal, undirected signals,
-with an arrow pointing to the signal's recipient.
+with an arrow pointing to the signal's recipient. Relatedly, the
+monitors now [explicitly eavesdrop on messages][eavesdrop] when using
+D-Bus 1.5.x, courtesy of Cosimo Alfarano.
 
 [crash-on-h]: https://bugs.freedesktop.org/show_bug.cgi?id=44714
+[eavesdrop]: https://bugs.freedesktop.org/show_bug.cgi?id=39140
 
 
 Bustle 0.3.1 (2012-01-09)
