@@ -136,3 +136,10 @@ Test-suite test-pcap-crash
     other-modules: Bustle.Loader.Pcap
     Build-Depends: pcap
                  , dbus-core == 0.9.*
+
+Test-suite test-regions
+    type: exitcode-stdio-1.0
+    main-is: Test/Regions.hs
+    other-modules: Bustle.Regions
+    Build-Depends: base
+                 , QuickCheck
