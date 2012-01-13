@@ -1,3 +1,21 @@
+Bustle 0.3.2 (UNRELEASED)
+-------------------------
+
+The “let's hope my attention span lasts long enough” release.
+
+You can now record D-Bus logs from within Bustle itself. No more faffing
+around with command-line tools: just click **File → New** and you're
+away. (But if you want to capture logs from your embedded platform *du
+jour*, don't fear: `bustle-pcap` is still provided as a standalone
+program for your enjoyment.)
+
+Bustle no longer [crashes when it encounters messages containing file
+handles][crash-on-h]. (Those messages are now dropped; which is not
+perfect, but is at least an improvement.)
+
+[crash-on-h]: https://bugs.freedesktop.org/show_bug.cgi?id=44714
+
+
 Bustle 0.3.1 (2012-01-09)
 -------------------------
 
