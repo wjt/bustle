@@ -72,6 +72,12 @@ data LogDetails =
   | SingleLog FilePath
   | TwoLogs FilePath FilePath
 
+data Page =
+    InstructionsPage
+  | CanvasPage
+  deriving
+    (Enum)
+
 data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
@@ -216,6 +222,7 @@ startRecording = do
     cacheDir <- io $ getCacheDir
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
+    io $ setPage wi CanvasPage
     embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) $
           makeCallback (finishedRecording wi filename) r
 
@@ -338,6 +345,9 @@ emptyWindow = do
       -- message.
       widgetHide top
 
+  -- The stats start off hidden.
+  io $ widgetHide statsBook
+
   showBounds <- asks debugEnabled
   canvas <- io $ canvasNew xml showBounds (updateDetailsView details)
 
@@ -427,6 +437,11 @@ wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
     windowSetTitle (wiWindow wi) (logWindowTitle logDetails ++ " — Bustle")
 
+setPage :: WindowInfo
+        -> Page
+        -> IO ()
+setPage wi page = notebookSetCurrentPage (wiNotebook wi) (fromEnum page)
+
 displayLog :: WindowInfo
            -> LogDetails
            -> Log
@@ -438,7 +453,6 @@ displayLog wi@(WindowInfo { wiWindow = window
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
                        , wiCanvas = canvas
-                       , wiNotebook = nb
                        , wiStatsBook = statsBook
                        , wiStatsPane = statsPane
                        })
@@ -458,7 +472,7 @@ displayLog wi@(WindowInfo { wiWindow = window
         shapes <- canvasGetShapes canvas
         saveToPDFDialogue wi shapes
 
-    notebookSetCurrentPage nb 1
+    setPage wi CanvasPage
     canvasFocus canvas
 
     -- FIXME: this currently shows stats for all messages, not post-filtered messages
@@ -481,9 +495,6 @@ displayLog wi@(WindowInfo { wiWindow = window
         let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
         updateDisplayedLog wi rr'
-
-    -- The stats start off hidden.
-    widgetHide statsBook
 
   return ()
 
