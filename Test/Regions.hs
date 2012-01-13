@@ -148,6 +148,15 @@ prop_SelectWorks vr@(ValidRegions regions) =
     forAll (elements regions) $ \ r@(s, x) ->
       Just r == rsCurrent (regionSelectionSelect x rs)
 
+prop_Append :: (Eq a, Show a)
+            => ValidRegions a
+            -> Property
+prop_Append vr@(ValidRegions regions) =
+    forAll (choose (0, length regions - 1)) $ \i ->
+        let as = take i regions
+            bs = drop i regions
+        in regionSelectionAppend bs (regionSelectionNew as) == regionSelectionNew regions
+
 runTests = $quickCheckAll
 
 main = do

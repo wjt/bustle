@@ -10,6 +10,7 @@ module Bustle.Regions
 
   , RegionSelection (..)
   , regionSelectionNew
+  , regionSelectionAppend
   , regionSelectionUpdate
   , regionSelectionSelect
   , regionSelectionUp
@@ -78,6 +79,20 @@ regionSelectionNew rs
     | otherwise                   = RegionSelection [] 0 Nothing rs
   where
     sorted = sort (map fst rs)
+
+regionSelectionAppend :: Regions a
+                      -> RegionSelection a
+                      -> RegionSelection a
+regionSelectionAppend [] old = old
+regionSelectionAppend regions@((newFirst, _):_) old =
+    case rsCurrent (regionSelectionLast old) of
+        Nothing           -> new
+        Just (oldLast, _) ->
+            if oldLast < newFirst && nonOverlapping [oldLast, newFirst]
+                then old { rsAfter = rsAfter old ++ rsAfter new }
+                else error "regionSelectionAppend: new regions overlap old regions"
+  where
+    new = regionSelectionNew regions
 
 regionSelectionUpdate :: Double
                       -> RegionSelection a
