@@ -298,23 +298,27 @@ filter (
 static gboolean
 match_everything (
     GDBusProxy *bus,
+    gboolean with_eavesdrop,
     GError **error)
 {
+#define EAVESDROP "eavesdrop=true,"
   char *rules[] = {
-      "type='signal'",
-      "type='method_call'",
-      "type='method_return'",
-      "type='error'",
+      EAVESDROP "type='signal'",
+      EAVESDROP "type='method_call'",
+      EAVESDROP "type='method_return'",
+      EAVESDROP "type='error'",
       NULL
   };
+  const gsize offset = with_eavesdrop ? 0 : strlen (EAVESDROP);
   char **r;
 
   for (r = rules; *r != NULL; r++)
     {
+      const gchar *rule = *r + offset;
       GVariant *ret = g_dbus_proxy_call_sync (
           bus,
           "AddMatch",
-          g_variant_new ("(s)", *r),
+          g_variant_new ("(s)", rule),
           G_DBUS_CALL_FLAGS_NONE,
           -1,
           NULL,
@@ -448,7 +452,15 @@ initable_init (
       return FALSE;
     }
 
-  if (!match_everything (bus, error))
+  /* As of DBus 1.5.something you have to specify eavesdrop=true to be sure of
+   * getting everything. (Specifically, you don't get directed signals unless
+   * you specify it.)
+   *
+   * So first we try to add match rules with "eavesdrop=true" on them. If that
+   * fails, we try again without that; if that also fails, we return the second error.
+   */
+  if (!match_everything (bus, TRUE, NULL) &&
+      !match_everything (bus, FALSE, error))
     return FALSE;
 
   priv->filter_id = g_dbus_connection_add_filter (priv->connection, filter,
