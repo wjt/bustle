@@ -246,7 +246,7 @@ filter (
     gpointer user_data)
 {
   BustlePcap *self = BUSTLE_PCAP (user_data);
-  const gchar *dest;
+  const gchar *sender, *dest;
   Message m;
   GError *error = NULL;
 
@@ -257,16 +257,15 @@ filter (
       g_critical ("Couldn't marshal message: %s", error->message);
       g_return_val_if_reached (NULL);
     }
-  /* An ugly hack to push the signal into the UI thread. */
-  g_idle_add (emit_me, g_object_ref (self));
   g_async_queue_push (self->priv->td.message_queue, g_slice_dup (Message, &m));
 
+  sender = g_dbus_message_get_sender (message);
   dest = g_dbus_message_get_destination (message);
 
   if (self->priv->verbose)
     g_print ("(%s) %s -> %s: %u %s\n",
         is_incoming ? "incoming" : "outgoing",
-        g_dbus_message_get_sender (message),
+        sender,
         dest,
         g_dbus_message_get_message_type (message),
         g_dbus_message_get_member (message));
@@ -278,12 +277,22 @@ filter (
        * being eavesdropped. */
       return message;
     }
+  else
+    {
+      /* We get our own outgoing messages echoed back to us by the bus daemon. */
+      if (g_strcmp0 (sender, g_dbus_connection_get_unique_name (connection)) != 0)
+        {
+          /* This is a message we've snooped on; signal its receipt in the UI
+           * thread. */
+          g_idle_add (emit_me, g_object_ref (self));
+        }
 
-  /* We have to say we've handled the message, or else GDBus replies to other
-   * people's method calls and we all get really confused.
-   */
-  g_object_unref (message);
-  return NULL;
+      /* We have to say we've handled the message, or else GDBus replies to other
+       * people's method calls and we all get really confused.
+       */
+      g_object_unref (message);
+      return NULL;
+    }
 }
 
 static gboolean
