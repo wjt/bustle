@@ -20,9 +20,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bustle.Renderer
     (
+    -- * Processing entire logs
       process
     , processWithFilters
 
+    -- * Processing logs incrementally
+    , RendererState
+    , rendererStateNew
+    , processSome
+
+    -- * Output of processing
     , RendererResult(..)
     , Participants(..)
     )
@@ -78,38 +85,56 @@ data RendererResult apps =
 processWithFilters :: (Log, Set UniqueName)
                    -> (Log, Set UniqueName)
                    -> RendererResult ()
-processWithFilters session system = fmap (const ()) $ processFull session system
+processWithFilters (sessionBusLog, sessionFilter)
+                   (systemBusLog,  systemFilter ) =
+    fmap (const ()) $ fst $ processSome sessionBusLog systemBusLog rs
+  where
+    rs = initialState sessionFilter systemFilter
 
 process :: Log
         -> Log
         -> RendererResult Participants
 process sessionBusLog systemBusLog =
-    processFull (sessionBusLog, Set.empty) (systemBusLog, Set.empty)
+    fst $ processSome sessionBusLog systemBusLog rendererStateNew
 
-processFull :: (Log, Set UniqueName)
-            -> (Log, Set UniqueName)
+-- Doesn't let you filter
+rendererStateNew :: RendererState
+rendererStateNew = initialState Set.empty Set.empty
+
+buildResult :: Diagram
+            -> Regions DetailedMessage
+            -> RendererState
             -> RendererResult Participants
-processFull (sessionBusLog, sessionFilter) (systemBusLog, systemFilter) =
+buildResult diagram messageRegions rs =
     RendererResult x diagram' regions'
                    participants
                    (reverse $ warnings rs)
   where
-        ((diagram, messageRegions), rs) =
-            runRenderer (mapM_ (uncurry munge) log')
-                        (initialState sessionFilter systemFilter)
-        (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
-        regions' = translateRegions y messageRegions
+    (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
+    regions' = translateRegions y messageRegions
 
-        stripApps = map (\(u, ai) -> (u, aiEverNames ai))
-                  . (sortBy (comparing (aiCurrentColumn . snd)))
-                  . Map.assocs
-                  . Map.filter aiHadAColumn
-                  . apps
-        sessionApps = stripApps $ sessionBusState rs
-        systemApps = stripApps $ systemBusState rs
-        participants = Participants sessionApps systemApps
+    stripApps = map (\(u, ai) -> (u, aiEverNames ai))
+              . (sortBy (comparing (aiCurrentColumn . snd)))
+              . Map.assocs
+              . Map.filter aiHadAColumn
+              . apps
+    sessionApps = stripApps $ sessionBusState rs
+    systemApps = stripApps $ systemBusState rs
+    participants = Participants sessionApps systemApps
 
-        log' = combine sessionBusLog systemBusLog
+processSome :: Log -- ^ freshly-arrived session bus messages
+            -> Log -- ^ freshly-arrived system bus messages
+            -> RendererState -- ^ the saved state from last time
+            -> ( RendererResult Participants -- ^ the output from these messages
+               , RendererState               -- ^ state to re-use later
+               )
+processSome sessionBusLog systemBusLog rs =
+    (buildResult diagram messageRegions rs', rs')
+  where
+    log' = combine sessionBusLog systemBusLog
+
+    ((diagram, messageRegions), rs') =
+        runRenderer (mapM_ (uncurry munge) log') rs
 
 -- Combines a series of messages on the session bus and system bus into a
 -- single ordered list, annotated by timestamp. Assumes both the source lists
