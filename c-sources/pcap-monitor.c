@@ -247,10 +247,10 @@ filter (
     gpointer user_data)
 {
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
-  const gchar *sender, *dest;
+  const gchar *dest;
   gsize size;
   guchar *blob;
-  IdleEmitData ied = { self, message, is_incoming };
+  IdleEmitData ied = { g_object_ref (self), g_object_ref (message), is_incoming };
   GError *error = NULL;
 
   gettimeofday (&ied.message.ts, NULL);
@@ -275,36 +275,27 @@ filter (
   g_async_queue_push (self->priv->td.message_queue,
       g_slice_dup (Message, &(ied.message)));
 
-  sender = g_dbus_message_get_sender (message);
   dest = g_dbus_message_get_destination (message);
+
+  /* The idle steals the remaining refs to self, message, and message_blob. */
+  g_idle_add (emit_me, g_slice_dup (IdleEmitData, &ied));
 
   if (!is_incoming ||
       g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
     {
       /* This message is either outgoing or actually for us, as opposed to
-       * being eavesdropped. */
+       * being eavesdropped; it should be allowed to escape from this handler.
+       */
+      return message;
     }
   else
     {
-      /* We get our own outgoing messages echoed back to us by the bus daemon. */
-      if (g_strcmp0 (sender, g_dbus_connection_get_unique_name (connection)) != 0)
-        {
-          g_object_ref (ied.self);
-          g_object_ref (ied.dbus_message);
-          g_byte_array_ref (ied.message.blob);
-          /* This is a message we've snooped on; signal its receipt in the UI
-           * thread. */
-          g_idle_add (emit_me, g_slice_dup (IdleEmitData, &ied));
-        }
-
-      /* We have to say we've handled the message, or else GDBus replies to other
-       * people's method calls and we all get really confused.
+      /* Otherwise, we need to handle it within this function, or else GDBus
+       * replies to other people's method calls and we all get really confused.
        */
       g_clear_object (&message);
+      return NULL;
     }
-
-  g_byte_array_unref (ied.message.blob);
-  return message;
 }
 
 static gboolean
