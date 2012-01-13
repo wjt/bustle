@@ -134,8 +134,14 @@ Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
     main-is: Test/PcapCrash.hs
     other-modules: Bustle.Loader.Pcap
-    Build-Depends: pcap
+    Build-Depends: base
+                 , binary
+                 , bytestring
+                 , containers
                  , dbus-core == 0.9.*
+                 , mtl
+                 , pcap
+                 , text
 
 Test-suite test-regions
     type: exitcode-stdio-1.0
