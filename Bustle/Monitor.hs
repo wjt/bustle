@@ -22,6 +22,8 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.C
 
+import qualified Data.ByteString as BS
+
 import System.Glib.GObject
 import System.Glib.GError
 import System.Glib.Signals
@@ -79,17 +81,18 @@ monitorStop :: Monitor
 monitorStop monitor = do
     withForeignPtr (unMonitor monitor) bustle_pcap_monitor_stop
 
-messageLoggedHandler :: IO ()
+messageLoggedHandler :: (BS.ByteString -> IO ())
                      -> a
                      -> Ptr ()
                      -> CInt
                      -> Ptr CChar
                      -> CUInt
                      -> IO ()
-messageLoggedHandler user _obj _messageObject _isIncoming _blob _blobLength = do
-    failOnGError user
+messageLoggedHandler user _obj _messageObject _isIncoming blob blobLength = do
+    blobBS <- BS.packCStringLen (blob, fromIntegral blobLength)
+    failOnGError $ user blobBS
 
-monitorMessageLogged :: Signal Monitor (IO ())
+monitorMessageLogged :: Signal Monitor (BS.ByteString -> IO ())
 monitorMessageLogged =
     Signal $ \after_ obj user ->
         connectGeneric "message-logged" after_ obj $ messageLoggedHandler user
