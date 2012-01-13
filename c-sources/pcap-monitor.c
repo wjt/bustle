@@ -27,6 +27,13 @@ typedef struct {
     GByteArray *blob;
 } Message;
 
+typedef struct {
+    BustlePcapMonitor *self;
+    GDBusMessage *dbus_message;
+    gboolean is_incoming;
+    Message message;
+} IdleEmitData;
+
 #define STOP ((Message *) 0x1)
 
 typedef struct {
@@ -46,16 +53,11 @@ struct _BustlePcapMonitorPrivate {
 
     GThread *thread;
     ThreadData td;
-
-    /* FIXME: this does not really belong here. main() should connect to
-     * ::message-logged when it provides enough details. */
-    gboolean verbose;
 };
 
 enum {
     PROP_BUS_TYPE = 1,
     PROP_FILENAME,
-    PROP_VERBOSE,
 };
 
 enum {
@@ -100,9 +102,6 @@ bustle_pcap_monitor_get_property (
       case PROP_FILENAME:
         g_value_set_string (value, priv->filename);
         break;
-      case PROP_VERBOSE:
-        g_value_set_boolean (value, priv->verbose);
-        break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
     }
@@ -125,9 +124,6 @@ bustle_pcap_monitor_set_property (
         break;
       case PROP_FILENAME:
         priv->filename = g_value_dup_string (value);
-        break;
-      case PROP_VERBOSE:
-        priv->verbose = g_value_get_boolean (value);
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -191,14 +187,14 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
       G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_FILENAME, param_spec);
 
-  param_spec = g_param_spec_boolean (THRICE ("verbose"), FALSE,
-      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  g_object_class_install_property (object_class, PROP_VERBOSE, param_spec);
-
   signals[SIG_MESSAGE_LOGGED] = g_signal_new ("message-logged",
       BUSTLE_TYPE_PCAP_MONITOR, G_SIGNAL_RUN_FIRST,
       0, NULL, NULL,
-      NULL, G_TYPE_NONE, 0);
+      NULL, G_TYPE_NONE, 4,
+      G_TYPE_DBUS_MESSAGE,
+      G_TYPE_BOOLEAN,
+      G_TYPE_POINTER,
+      G_TYPE_UINT);
 }
 
 static gpointer
@@ -227,10 +223,19 @@ log_thread (gpointer data)
 static gboolean
 emit_me (gpointer data)
 {
-  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (data);
+  IdleEmitData *ied = data;
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (ied->self);
 
-  g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0);
+  g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0,
+      ied->dbus_message,
+      ied->is_incoming,
+      /* FIXME: include timestamp */
+      ied->message.blob->data,
+      ied->message.blob->len);
   g_object_unref (self);
+  g_object_unref (ied->dbus_message);
+  g_byte_array_unref (ied->message.blob);
+  g_slice_free (IdleEmitData, ied);
   return FALSE;
 }
 
@@ -245,10 +250,10 @@ filter (
   const gchar *sender, *dest;
   gsize size;
   guchar *blob;
-  Message m;
+  IdleEmitData ied = { self, message, is_incoming };
   GError *error = NULL;
 
-  gettimeofday (&m.ts, NULL);
+  gettimeofday (&ied.message.ts, NULL);
   blob = g_dbus_message_to_blob (message, &size, self->priv->caps, &error);
   if (blob == NULL)
     {
@@ -263,44 +268,43 @@ filter (
                   "at least 32 bits wide");
       g_return_val_if_reached (NULL);
     }
-  m.blob = g_byte_array_append (g_byte_array_sized_new ((guint) size),
-                                blob, (guint) size);
-  g_async_queue_push (self->priv->td.message_queue, g_slice_dup (Message, &m));
+  ied.message.blob = g_byte_array_append (
+      g_byte_array_sized_new ((guint) size),
+      blob, (guint) size);
+  g_byte_array_ref (ied.message.blob);
+  g_async_queue_push (self->priv->td.message_queue,
+      g_slice_dup (Message, &(ied.message)));
 
   sender = g_dbus_message_get_sender (message);
   dest = g_dbus_message_get_destination (message);
-
-  if (self->priv->verbose)
-    g_print ("(%s) %s -> %s: %u %s\n",
-        is_incoming ? "incoming" : "outgoing",
-        sender,
-        dest,
-        g_dbus_message_get_message_type (message),
-        g_dbus_message_get_member (message));
 
   if (!is_incoming ||
       g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
     {
       /* This message is either outgoing or actually for us, as opposed to
        * being eavesdropped. */
-      return message;
     }
   else
     {
       /* We get our own outgoing messages echoed back to us by the bus daemon. */
       if (g_strcmp0 (sender, g_dbus_connection_get_unique_name (connection)) != 0)
         {
+          g_object_ref (ied.self);
+          g_object_ref (ied.dbus_message);
+          g_byte_array_ref (ied.message.blob);
           /* This is a message we've snooped on; signal its receipt in the UI
            * thread. */
-          g_idle_add (emit_me, g_object_ref (self));
+          g_idle_add (emit_me, g_slice_dup (IdleEmitData, &ied));
         }
 
       /* We have to say we've handled the message, or else GDBus replies to other
        * people's method calls and we all get really confused.
        */
-      g_object_unref (message);
-      return NULL;
+      g_clear_object (&message);
     }
+
+  g_byte_array_unref (ied.message.blob);
+  return message;
 }
 
 static gboolean
@@ -542,13 +546,11 @@ BustlePcapMonitor *
 bustle_pcap_monitor_new (
     GBusType bus_type,
     const gchar *filename,
-    gboolean verbose,
     GError **error)
 {
   return g_initable_new (
       BUSTLE_TYPE_PCAP_MONITOR, NULL, error,
       "bus-type", bus_type,
       "filename", filename,
-      "verbose", verbose,
       NULL);
 }

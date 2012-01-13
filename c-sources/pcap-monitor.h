@@ -42,7 +42,6 @@ GType bustle_pcap_monitor_get_type (void);
 BustlePcapMonitor *bustle_pcap_monitor_new (
     GBusType bus_type,
     const gchar *filename,
-    gboolean verbose,
     GError **error);
 void bustle_pcap_monitor_stop (
     BustlePcapMonitor *self);

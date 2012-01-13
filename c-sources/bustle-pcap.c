@@ -143,6 +143,23 @@ parse_arguments (
   *filename = filenames[0];
 }
 
+static void
+message_logged_cb (
+    BustlePcapMonitor *pcap,
+    GDBusMessage *message,
+    gboolean is_incoming,
+    guint8 *data,
+    guint len,
+    gpointer user_data)
+{
+    g_print ("(%s) %s -> %s: %u %s\n",
+        is_incoming ? "incoming" : "outgoing",
+        g_dbus_message_get_sender (message),
+        g_dbus_message_get_destination (message),
+        g_dbus_message_get_message_type (message),
+        g_dbus_message_get_member (message));
+}
+
 int
 main (
     int argc,
@@ -157,12 +174,16 @@ main (
   g_type_init ();
   parse_arguments (&argc, &argv, &bus_type, &filename);
 
-  pcap = bustle_pcap_monitor_new (bus_type, filename, verbose, &error);
+  pcap = bustle_pcap_monitor_new (bus_type, filename, &error);
   if (pcap == NULL)
     {
       fprintf (stderr, "%s", error->message);
       exit (1);
     }
+
+  if (verbose)
+    g_signal_connect (pcap, "message-logged",
+        G_CALLBACK (message_logged_cb), NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
 

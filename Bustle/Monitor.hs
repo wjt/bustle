@@ -79,8 +79,17 @@ monitorStop :: Monitor
 monitorStop monitor = do
     withForeignPtr (unMonitor monitor) bustle_pcap_monitor_stop
 
+messageLoggedHandler :: IO ()
+                     -> a
+                     -> Ptr ()
+                     -> CInt
+                     -> Ptr CChar
+                     -> CUInt
+                     -> IO ()
+messageLoggedHandler user _obj _messageObject _isIncoming _blob _blobLength = do
+    failOnGError user
+
 monitorMessageLogged :: Signal Monitor (IO ())
 monitorMessageLogged =
     Signal $ \after_ obj user ->
-        connectGeneric "message-logged" after_ obj $ \_obj ->
-            failOnGError user
+        connectGeneric "message-logged" after_ obj $ messageLoggedHandler user
