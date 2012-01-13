@@ -266,7 +266,7 @@ promptToSave wi = io $ do
                                        title
             messageDialogSetSecondaryText prompt
                 "If you don’t save, this log will be lost forever."
-            dialogAddButton prompt "Close without saving" ResponseClose
+            dialogAddButton prompt "Close _without saving" ResponseClose
             dialogAddButton prompt stockCancel ResponseCancel
             dialogAddButton prompt stockSave ResponseYes
 
