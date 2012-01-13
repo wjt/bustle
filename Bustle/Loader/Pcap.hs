@@ -182,24 +182,14 @@ bustlify µs bytes m = do
 
         (ReceivedUnknown _ _ _) -> error "wtf"
 
-fromPacket :: PktHdr
-           -> BS.ByteString
-           -> Either UnmarshalError (B.Microseconds, ReceivedMessage)
-fromPacket hdr body =
-    case unmarshalMessage body of
-        Left e  -> Left e
-        Right m -> Right (µs, m)
-  where
-    µs = fromIntegral (hdrTime hdr)
-
 convert :: Monad m
-        => PktHdr
+        => B.Microseconds
         -> BS.ByteString
         -> StateT PendingMessages m (Either String B.DetailedMessage)
-convert hdr body =
-    case fromPacket hdr body of
+convert µs body =
+    case unmarshalMessage body of
         Left unmarshalError -> return $ Left $ show unmarshalError
-        Right (ms, m)       -> liftM Right $ bustlify ms (BS.length body) m
+        Right m             -> liftM Right $ bustlify µs (BS.length body) m
 
 data Result e a =
     EOF
@@ -208,7 +198,7 @@ data Result e a =
 
 readOne :: (Monad m, MonadIO m)
         => PcapHandle
-        -> (PktHdr -> BS.ByteString -> StateT s m (Either e a))
+        -> (B.Microseconds -> BS.ByteString -> StateT s m (Either e a))
         -> StateT s m (Result e a)
 readOne p f = do
     (hdr, body) <- liftIO $ nextBS p
@@ -219,11 +209,11 @@ readOne p f = do
     -- or something?
     if hdrCaptureLength hdr == 0
         then return EOF
-        else liftM Packet $ f hdr body
+        else liftM Packet $ f (fromIntegral (hdrTime hdr)) body
 
 mapBodies :: (Monad m, MonadIO m)
           => PcapHandle
-          -> (PktHdr -> BS.ByteString -> StateT s m (Either e a))
+          -> (B.Microseconds -> BS.ByteString -> StateT s m (Either e a))
           -> StateT s m [Either e a]
 mapBodies p f = do
     ret <- readOne p f
