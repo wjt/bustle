@@ -22,13 +22,9 @@
 #include <string.h>
 #include <pcap/pcap.h>
 
-/* Not using GString because it holds signed chars but we both receive and
- * provide unsigned chars. C!
- */
 typedef struct {
     struct timeval ts;
-    gsize size;
-    guchar *blob;
+    GByteArray *blob;
 } Message;
 
 #define STOP ((Message *) 0x1)
@@ -216,12 +212,12 @@ log_thread (gpointer data)
       struct pcap_pkthdr hdr;
       hdr.ts = message->ts;
 
-      hdr.caplen = message->size;
-      hdr.len = message->size;
+      hdr.caplen = message->blob->len;
+      hdr.len = message->blob->len;
 
       /* The cast is necessary because libpcap is weird. */
-      pcap_dump ((u_char *) td->dumper, &hdr, message->blob);
-      g_free (message->blob);
+      pcap_dump ((u_char *) td->dumper, &hdr, message->blob->data);
+      g_byte_array_unref (message->blob);
       g_slice_free (Message, message);
     }
 
@@ -247,16 +243,28 @@ filter (
 {
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
   const gchar *sender, *dest;
+  gsize size;
+  guchar *blob;
   Message m;
   GError *error = NULL;
 
   gettimeofday (&m.ts, NULL);
-  m.blob = g_dbus_message_to_blob (message, &m.size, self->priv->caps, &error);
-  if (m.blob == NULL)
+  blob = g_dbus_message_to_blob (message, &size, self->priv->caps, &error);
+  if (blob == NULL)
     {
       g_critical ("Couldn't marshal message: %s", error->message);
       g_return_val_if_reached (NULL);
     }
+  if (size > G_MAXUINT)
+    {
+      g_critical ("Message is longer than " G_STRINGIFY (G_MAXUINT)
+                  "(which is surprising because the specification says the "
+                  "maximum length of a message is 2**27 and guint is always "
+                  "at least 32 bits wide");
+      g_return_val_if_reached (NULL);
+    }
+  m.blob = g_byte_array_append (g_byte_array_sized_new ((guint) size),
+                                blob, (guint) size);
   g_async_queue_push (self->priv->td.message_queue, g_slice_dup (Message, &m));
 
   sender = g_dbus_message_get_sender (message);
