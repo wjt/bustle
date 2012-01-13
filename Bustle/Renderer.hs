@@ -49,7 +49,7 @@ import Control.Monad.Writer
 import Control.Monad (forM_)
 
 import Data.List (isPrefixOf, stripPrefix, sort, sortBy)
-import Data.Maybe (fromJust, maybe, fromMaybe, catMaybes)
+import Data.Maybe (fromJust, maybe, fromMaybe, catMaybes, maybeToList)
 import Data.Ord (comparing)
 
 data Bus = SessionBus
@@ -498,6 +498,14 @@ destinationCoordinate :: Bus
                       -> Renderer Double
 destinationCoordinate bus m = appCoordinate bus . destination $ dmMessage m
 
+signalDestinationCoordinate :: Bus
+                            -> DetailedMessage
+                            -> Renderer (Maybe Double)
+signalDestinationCoordinate bus m =
+    case signalDestination $ dmMessage m of
+        Nothing -> return Nothing
+        Just n  -> Just <$> appCoordinate bus n
+
 memberName :: DetailedMessage
            -> Bool
            -> Renderer ()
@@ -543,7 +551,7 @@ mentionedNames :: Message
 mentionedNames m = case m of
     MethodCall { sender = s, destination = d }   -> [s, d]
     MethodReturn { sender = s, destination = d } -> [s, d]
-    Signal { sender = s }                        -> [s]
+    Signal { sender = s, signalDestination = d } -> s:maybeToList d
     Error { sender = s, destination = d }        -> [s, d]
     -- We always want to process owner changes.
     _                                            -> []
@@ -620,19 +628,24 @@ methodLike colour a bus dm = do
 
 signal :: Bus -> DetailedMessage -> Renderer ()
 signal bus dm = do
-    x <- senderCoordinate bus dm
     t <- gets row
+    emitter <- senderCoordinate bus dm
+    mtarget <- signalDestinationCoordinate bus dm
 
-    -- FIXME: per-bus sign.
-    let f = case bus of
-            SessionBus -> subtract
-            SystemBus  -> (+)
-    -- fromJust is safe here because we must have an app to have a signal. It
-    -- doesn't make me very happy though.
-    outside <- f columnWidth . fromJust <$> edgemostApp bus
-    inside <- getsBusState firstColumn bus
-    let [x1, x2] = sort [outside, inside]
+    case mtarget of
+        Just target -> do
+            shape $ DirectedSignalArrow emitter target t
+        Nothing -> do
+            -- FIXME: per-bus sign.
+            let f = case bus of
+                    SessionBus -> subtract
+                    SystemBus  -> (+)
+            -- fromJust is safe here because we must have an app to have a
+            -- signal. It doesn't make me very happy though.
+            outside <- f columnWidth . fromJust <$> edgemostApp bus
+            inside <- getsBusState firstColumn bus
+            let [x1, x2] = sort [outside, inside]
 
-    shape $ SignalArrow (x1 - 20) x (x2 + 20) t
+            shape $ SignalArrow (x1 - 20) emitter (x2 + 20) t
 
 -- vim: sw=2 sts=2

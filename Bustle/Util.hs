@@ -74,9 +74,10 @@ handleIOExceptions f act = do
     result <- io $ try act
     toErrorT f result
 
-maybeM :: Maybe a
-       -> (a -> IO b)
-       -> IO ()
+maybeM :: Monad m
+       => Maybe a
+       -> (a -> m b)
+       -> m ()
 maybeM Nothing _ = return ()
 maybeM (Just x) act = act x >> return ()
 

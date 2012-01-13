@@ -13,6 +13,10 @@ Bustle no longer [crashes when it encounters messages containing file
 handles][crash-on-h]. (Those messages are now dropped; which is not
 perfect, but is at least an improvement.)
 
+Directed signals—signals with a specified destination, which are unusual
+but do appear—are now shown differently to normal, undirected signals,
+with an arrow pointing to the signal's recipient.
+
 [crash-on-h]: https://bugs.freedesktop.org/show_bug.cgi?id=44714
 
 

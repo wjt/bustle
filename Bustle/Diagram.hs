@@ -67,6 +67,7 @@ import Graphics.UI.Gtk.Pango.Font
 
 import qualified Bustle.Markup as Markup
 import Bustle.Markup (Markup)
+import Bustle.Util
 
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
@@ -114,6 +115,7 @@ data Shape = Header { strs :: [String]
                    , shapex1, shapex2, shapey :: Double
                    }
            | SignalArrow { shapex1, epicentre, shapex2, shapey :: Double }
+           | DirectedSignalArrow { epicentre, shapex, shapey :: Double }
            | Arc { topx, topy, bottomx, bottomy :: Double
                  , arcside :: Side
                  , caption :: String
@@ -228,6 +230,10 @@ bounds s = case s of
     let (x1, x2) = xMinMax s
         (y1, y2) = (subtract 5) &&& (+5) $ shapey s
     in (x1, y1, x2, y2)
+  DirectedSignalArrow {} ->
+    let (x1, x2) = minMax (epicentre s, shapex s)
+        (y1, y2) = (subtract 5) &&& (+5) $ shapey s
+    in (x1, y1, x2, y2)
   Arc { topx=x1, bottomx=x2, topy=y1, bottomy=y2 } ->
     let ((cx, _), (dx, _)) = arcControlPoints s
        -- FIXME: magic 5 makes the bounding box include the text
@@ -332,8 +338,13 @@ draw s = draw' s
           Arc {} -> let ((cx, cy), (dx, dy)) = arcControlPoints s
                     in drawArc cx cy dx dy <$>
                           topx <*> topy <*> bottomx <*> bottomy <*> caption
-          SignalArrow {} -> drawSignalArrow <$> epicentre <*> shapex1 <*>
-                              shapex2 <*> shapey
+          SignalArrow {} -> drawSignalArrow <$> epicentre
+                                            <*> Just . shapex1
+                                            <*> Just . shapex2
+                                            <*> shapey
+          DirectedSignalArrow { } -> drawDirectedSignalArrow <$> epicentre
+                                                             <*> shapex
+                                                             <*> shapey
           Arrow {} -> drawArrow <$> shapecolour <*> arrowhead <*> shapex1 <*>
                         shapex2 <*> shapey
           Header {} -> drawHeader <$> strs <*> shapex <*> shapey
@@ -374,21 +385,35 @@ drawArrow c a from to y = saved $ do
     halfArrowHead a (from < to)
     stroke
 
-drawSignalArrow :: Double -> Double -> Double -> Double -> Render ()
-drawSignalArrow e left right y = do
+drawDirectedSignalArrow :: Double -- ^ the signal emission source
+                        -> Double -- ^ signal target coordinate
+                        -> Double -- ^ vertical coordinate
+                        -> Render ()
+drawDirectedSignalArrow e x y
+    | x < e     = drawSignalArrow e (Just x) Nothing y
+    | otherwise = drawSignalArrow e Nothing (Just x) y
+
+drawSignalArrow :: Double -- ^ the signal emission source
+                -> Maybe Double -- ^ left-pointing arrow coordinate
+                -> Maybe Double -- ^ right-pointing arrow coordinate
+                -> Double -- ^ vertical coordinate
+                -> Render ()
+drawSignalArrow e mleft mright y = do
     newPath
     arc e y 5 0 (2 * pi)
     stroke
 
-    moveTo left y
-    arrowHead False
-    lineTo (e - 5) y
-    stroke
+    maybeM mleft $ \left -> do
+        moveTo left y
+        arrowHead False
+        lineTo (e - 5) y
+        stroke
 
-    moveTo (e + 5) y
-    lineTo right y
-    arrowHead True
-    stroke
+    maybeM mright $ \right -> do
+        moveTo (e + 5) y
+        lineTo right y
+        arrowHead True
+        stroke
 
 drawArc :: Double -> Double -> Double -> Double
         -> Double -> Double -> Double -> Double

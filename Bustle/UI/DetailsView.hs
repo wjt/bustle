@@ -87,7 +87,10 @@ pickTitle (DetailedMessage _ m _) = case m of
     MethodCall {} -> b (escape "Method call")
     MethodReturn {} -> b (escape "Method return")
     Error {} -> b (escape "Error")
-    Signal {} -> b (escape "Signal")
+    Signal { signalDestination = d } ->
+        b . escape $ case d of
+            Nothing -> "Signal"
+            Just _  -> "Directed signal"
     _ -> escape "I am made of chalk"
 
 getMemberMarkup :: Member -> String

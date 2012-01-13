@@ -4,7 +4,7 @@ module Bustle.Loader.Pcap
   )
 where
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -27,15 +27,21 @@ import qualified Bustle.Types as B
 
 -- Conversions from dbus-core's types into Bustle's more stupid types. This
 -- whole section is pretty upsetting.
+stringifyBusName :: BusName
+                 -> String
+stringifyBusName = T.unpack . busNameText
+
+stupifyBusName :: String
+               -> B.BusName
+stupifyBusName n =
+    case n of
+        (':':_) -> B.U $ B.UniqueName n
+        _       -> B.O $ B.OtherName n
+
 convertBusName :: String
                -> Maybe BusName
                -> B.BusName
-convertBusName context n =
-    case rawName of
-        (':':_) -> B.U $ B.UniqueName rawName
-        _       -> B.O $ B.OtherName rawName
-  where
-    rawName = maybe context (T.unpack . busNameText) n
+convertBusName context n = stupifyBusName (maybe context stringifyBusName n)
 
 convertMember :: (a -> ObjectPath)
               -> (a -> Maybe InterfaceName)
@@ -170,6 +176,8 @@ bustlify µs bytes m = do
             | otherwise                      -> return $
                 B.Signal { B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
+                         , B.signalDestination = fmap (stupifyBusName . stringifyBusName)
+                                               $ signalDestination sig
                          }
 
         (ReceivedUnknown _ _ _) -> error "wtf"

@@ -73,6 +73,7 @@ data Message = MethodCall { serial :: Serial
                             , destination :: BusName
                             }
              | Signal { sender :: BusName
+                      , signalDestination :: Maybe BusName
                       , member :: Member
                       }
              | Error { inReplyTo :: Maybe DetailedMessage

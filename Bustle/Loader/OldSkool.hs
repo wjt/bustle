@@ -148,6 +148,7 @@ signal = do
     t
     -- Ignore serial
     m <- Signal <$> (parseSerial >> t >> parseBusName) <* t
+                <*> return Nothing
                 <*> entireMember
     return $ DetailedMessage µs m Nothing
   <?> "signal"
