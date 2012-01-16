@@ -31,7 +31,8 @@ module Bustle.Renderer
 
     -- * Output of processing
     , RendererResult(..)
-    , Participants(..)
+    , Participants
+    , sessionParticipants
     )
 where
 
@@ -48,7 +49,7 @@ import Data.Map (Map)
 import Data.Ratio
 
 import Control.Applicative (Applicative(..), (<$>), (<*>))
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), (***))
 import Control.Monad.Error
 import Control.Monad.Identity
 import Control.Monad.State
@@ -67,12 +68,27 @@ describeBus :: Bus -> String
 describeBus SessionBus = "session"
 describeBus SystemBus = "system"
 
+-- We keep the column in the map to allow the Monoid instance to preserve the
+-- ordering returned by sessionParticipants, which is the only view on this
+-- type exported.
 data Participants =
-    Participants { sessionParticipants
-                 , systemParticipants :: [(UniqueName, Set OtherName)]
+    Participants { pSession
+                 , _pSystem :: Map (Double, UniqueName) (Set OtherName)
                  }
   deriving
     (Show)
+
+instance Monoid Participants where
+    mempty = Participants Map.empty Map.empty
+    mappend (Participants sess1 sys1) (Participants sess2 sys2) =
+        Participants (f sess1 sess2)
+                     (f sys1  sys2)
+      where
+        f = Map.unionWith Set.union
+
+sessionParticipants :: Participants
+                    -> [(UniqueName, Set OtherName)] -- ^ sorted by column
+sessionParticipants = map (snd *** id) . Map.toAscList . pSession
 
 data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
@@ -112,11 +128,10 @@ buildResult (RendererOutput diagram messageRegions warnings) rs =
     (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
     regions' = translateRegions y messageRegions
 
-    stripApps = map (\(u, ai) -> (u, aiEverNames ai))
-              . (sortBy (comparing (aiCurrentColumn . snd)))
-              . Map.assocs
-              . Map.filter aiHadAColumn
-              . apps
+    stripApps bs = Map.fromList [ ((column, u), aiEverNames ai)
+                                | (u, ai) <- Map.assocs (apps bs)
+                                , Just column <- [everColumn $ aiColumn ai]
+                                ]
     sessionApps = stripApps $ sessionBusState rs
     systemApps = stripApps $ systemBusState rs
     participants = Participants sessionApps systemApps
@@ -239,6 +254,12 @@ currentColumn :: Column
 currentColumn (CurrentColumn x) = Just x
 currentColumn _ = Nothing
 
+everColumn :: Column
+           -> Maybe Double
+everColumn NoColumn          = Nothing
+everColumn (CurrentColumn x) = Just x
+everColumn (FormerColumn mx) = mx
+
 data ApplicationInfo =
     ApplicationInfo { aiColumn :: Column
                     , aiCurrentNames :: Set OtherName
@@ -249,11 +270,6 @@ data ApplicationInfo =
 
 aiCurrentColumn :: ApplicationInfo -> Maybe Double
 aiCurrentColumn = currentColumn . aiColumn
-
-aiHadAColumn :: ApplicationInfo -> Bool
-aiHadAColumn ai = case aiColumn ai of
-    NoColumn -> False
-    _        -> True
 
 type Applications = Map UniqueName ApplicationInfo
 
