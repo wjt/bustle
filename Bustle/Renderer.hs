@@ -71,6 +71,8 @@ data Participants =
     Participants { sessionParticipants
                  , systemParticipants :: [(UniqueName, Set OtherName)]
                  }
+  deriving
+    (Show)
 
 data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
