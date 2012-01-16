@@ -7,6 +7,7 @@ module Bustle.UI.Canvas
   , canvasSetShapes
 
   , canvasFocus
+  , canvasScrollToBottom
   )
 where
 
@@ -119,6 +120,21 @@ setupCanvas canvas = do
 
     return ()
 
+canvasInvalidateArea :: Canvas a
+                     -> Int
+                     -> Int
+                     -> Int
+                     -> Int
+                     -> IO ()
+canvasInvalidateArea canvas x1 y1 x2 y2 = do
+    let layout = canvasLayout canvas
+    realized <- widgetGetRealized layout
+
+    when realized $ do
+        win <- layoutGetDrawWindow layout
+        let pangoRectangle = Rectangle x1 y1 x2 y2
+        drawWindowInvalidateRect win pangoRectangle False
+
 canvasInvalidateStripe :: Canvas a
                        -> Stripe
                        -> IO ()
@@ -207,6 +223,7 @@ canvasSetShapes canvas shapes regions centreOffset windowWidth = do
             Nothing     -> rs'
 
     layoutSetSize layout (floor width) (floor height)
+    canvasInvalidateArea canvas 0 0 (floor width) (floor height)
 
     -- FIXME: only do this the first time maybe?
     -- Shift to make the timestamp column visible
@@ -251,3 +268,11 @@ canvasFocus :: Canvas a
             -> IO ()
 canvasFocus canvas = do
     (canvasLayout canvas) `set` [ widgetIsFocus := True ]
+
+canvasScrollToBottom :: Canvas a
+                     -> IO ()
+canvasScrollToBottom canvas = do
+    vadj <- layoutGetVAdjustment (canvasLayout canvas)
+    page <- adjustmentGetPageSize vadj
+    lim <- adjustmentGetUpper vadj
+    adjustmentSetValue vadj (max 0 (lim - page))

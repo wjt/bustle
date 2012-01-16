@@ -223,8 +223,15 @@ startRecording = do
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
     io $ setPage wi CanvasPage
-    embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) $
+    embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) (aChallengerAppears wi) $
           makeCallback (finishedRecording wi filename) r
+
+aChallengerAppears :: WindowInfo
+                   -> RendererResult a
+                   -> IO ()
+aChallengerAppears wi rr = do
+    updateDisplayedLog wi rr
+    canvasScrollToBottom (wiCanvas wi)
 
 finishedRecording :: WindowInfo
                   -> FilePath
