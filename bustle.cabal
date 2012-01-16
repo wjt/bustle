@@ -149,3 +149,17 @@ Test-suite test-regions
     other-modules: Bustle.Regions
     Build-Depends: base
                  , QuickCheck
+
+Test-suite test-participants
+    type: exitcode-stdio-1.0
+    main-is: Test/Participants.hs
+    other-modules: Bustle.Renderer
+    Build-Depends: base
+                 , cairo
+                 , containers
+                 , dbus-core
+                 , directory
+                 , filepath
+                 , gtk
+                 , mtl
+                 , pango
