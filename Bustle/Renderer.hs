@@ -76,7 +76,7 @@ data Participants =
                  , _pSystem :: Map (Double, UniqueName) (Set OtherName)
                  }
   deriving
-    (Show)
+    (Show, Eq)
 
 instance Monoid Participants where
     mempty = Participants Map.empty Map.empty
@@ -92,13 +92,54 @@ sessionParticipants = map (snd *** id) . Map.toAscList . pSession
 
 data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
+                   , rrTopOffset :: Double -- ^ you shouldn't really need this outside of here.
                    , rrShapes :: [Shape]
                    , rrRegions :: Regions DetailedMessage
                    , rrApplications :: apps
                    , rrWarnings :: [String]
                    }
   deriving
-    (Show, Functor) -- Using Functor is a slight hack really
+    (Show, Functor, Eq) -- Using Functor is a slight hack really
+
+-- Yikes.
+--
+-- When combining two segments of a diagram, we may need to translate
+-- one or other segment in either axis. For instance, if the first message
+-- involves a service with only one bus name, but the second involves a service
+-- with a hundred names, we're going to need a massive downwards translation to
+-- shift the first set of messages down to match the second.
+--
+-- This is extremely unpleasant but it's a Monday. There's a test case in
+-- Test/Renderer.hs because I don't trust myself.
+instance Monoid apps => Monoid (RendererResult apps) where
+    mempty = RendererResult 0 0 [] [] mempty []
+    mappend rr1 rr2 = RendererResult centreOffset topOffset shapes regions applications warnings
+      where
+        centreOffset = rrCentreOffset rr1 `max` rrCentreOffset rr2
+        topOffset = rrTopOffset rr1 `max` rrTopOffset rr2
+
+        shapes = shapes1 ++ shapes2
+        versus x y = if x < y then Just (y - x) else Nothing
+        translation rr = ( rrCentreOffset rr `versus` centreOffset
+                         , rrTopOffset    rr `versus` topOffset
+                         )
+        translateShapes rr =
+            case translation rr of
+                -- Hooray for premature optimization
+                (Nothing, Nothing) -> rrShapes rr
+                (mx,      my) -> translateDiagram (fromMaybe 0 mx, fromMaybe 0 my) $ rrShapes rr
+        shapes1 = translateShapes rr1
+        shapes2 = translateShapes rr2
+
+        translatedRegions rr =
+            case snd $ translation rr of
+                Nothing -> rrRegions rr
+                Just  y -> translateRegions y $ rrRegions rr
+
+        regions = translatedRegions rr1 ++ translatedRegions rr2
+
+        applications = rrApplications rr1 `mappend` rrApplications rr2
+        warnings = rrWarnings rr1 `mappend` rrWarnings rr2
 
 processWithFilters :: (Log, Set UniqueName)
                    -> (Log, Set UniqueName)
@@ -123,7 +164,7 @@ buildResult :: RendererOutput
             -> RendererState
             -> RendererResult Participants
 buildResult (RendererOutput diagram messageRegions warnings) rs =
-    RendererResult x diagram' regions' participants warnings
+    RendererResult x y diagram' regions' participants warnings
   where
     (_translation@(x, y), diagram') = topLeftJustifyDiagram diagram
     regions' = translateRegions y messageRegions

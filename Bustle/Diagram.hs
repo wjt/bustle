@@ -42,6 +42,7 @@ module Bustle.Diagram
   -- Displaying diagrams
   , diagramDimensions
   , topLeftJustifyDiagram
+  , translateDiagram
   , drawDiagram
   , drawRegion
   )
