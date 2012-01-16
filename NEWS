@@ -4,8 +4,10 @@ Bustle 0.3.2 (UNRELEASED)
 The “let's hope my attention span lasts long enough” release.
 
 You can now record D-Bus logs from within Bustle itself. No more faffing
-around with command-line tools: just click **File → New** and you're
-away. (But if you want to capture logs from your embedded platform *du
+around with command-line tools: just click **File → New**, and watch
+the diagram being drawn as the messages trickle (or fly) in.
+
+(If you want to capture logs from your embedded platform *du
 jour*, don't fear: `bustle-pcap` is still provided as a standalone
 program for your enjoyment.)
 
