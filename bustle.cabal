@@ -150,9 +150,9 @@ Test-suite test-regions
     Build-Depends: base
                  , QuickCheck
 
-Test-suite test-participants
+Test-suite test-renderer
     type: exitcode-stdio-1.0
-    main-is: Test/Participants.hs
+    main-is: Test/Renderer.hs
     other-modules: Bustle.Renderer
     Build-Depends: base
                  , cairo
@@ -163,3 +163,6 @@ Test-suite test-participants
                  , gtk
                  , mtl
                  , pango
+                 , test-framework
+                 , test-framework-hunit
+                 , HUnit
