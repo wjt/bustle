@@ -28,6 +28,8 @@ import System.Glib.GObject
 import System.Glib.GError
 import System.Glib.Signals
 
+import Bustle.Types (Microseconds)
+
 -- Gtk2HS boilerplate
 newtype Monitor = Monitor { unMonitor :: ForeignPtr Monitor }
     deriving (Eq, Ord)
@@ -81,18 +83,21 @@ monitorStop :: Monitor
 monitorStop monitor = do
     withForeignPtr (unMonitor monitor) bustle_pcap_monitor_stop
 
-messageLoggedHandler :: (BS.ByteString -> IO ())
+messageLoggedHandler :: (Microseconds -> BS.ByteString -> IO ())
                      -> a
                      -> Ptr ()
                      -> CInt
+                     -> CLong
+                     -> CLong
                      -> Ptr CChar
                      -> CUInt
                      -> IO ()
-messageLoggedHandler user _obj _messageObject _isIncoming blob blobLength = do
+messageLoggedHandler user _obj _messageObject _isIncoming sec usec blob blobLength = do
     blobBS <- BS.packCStringLen (blob, fromIntegral blobLength)
-    failOnGError $ user blobBS
+    let µsec = fromIntegral sec * (10 ^ (6 :: Int)) + fromIntegral usec
+    failOnGError $ user µsec blobBS
 
-monitorMessageLogged :: Signal Monitor (BS.ByteString -> IO ())
+monitorMessageLogged :: Signal Monitor (Microseconds -> BS.ByteString -> IO ())
 monitorMessageLogged =
     Signal $ \after_ obj user ->
         connectGeneric "message-logged" after_ obj $ messageLoggedHandler user

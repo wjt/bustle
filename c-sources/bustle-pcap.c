@@ -148,6 +148,8 @@ message_logged_cb (
     BustlePcapMonitor *pcap,
     GDBusMessage *message,
     gboolean is_incoming,
+    glong sec,
+    glong usec,
     guint8 *data,
     guint len,
     gpointer user_data)

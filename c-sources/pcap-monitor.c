@@ -187,12 +187,29 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
       G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_FILENAME, param_spec);
 
+  /**
+   * BustlePcapMonitor::message-logged:
+   * @self: the monitor.
+   * @message: the #GDBusMessage object logged.
+   * @is_incoming: if %TRUE, @message has come in from the bus daemon; if
+   *  %FALSE, this is a message we're in the process of sending. Note that this
+   *  can be %TRUE for messages our process sends, because we eavesdrop all
+   *  messages, including our own.
+   * @sec: seconds since 1970.
+   * @usec: microseconds! (These are not combined into a single %gint64 because
+   *  my version of gtk2hs crashes when it encounters %G_TYPE_UINT64 in a
+   *  #GValue.)
+   * @blob: an array of bytes containing the serialized message.
+   * @length: the size in bytes of @blob.
+   */
   signals[SIG_MESSAGE_LOGGED] = g_signal_new ("message-logged",
       BUSTLE_TYPE_PCAP_MONITOR, G_SIGNAL_RUN_FIRST,
       0, NULL, NULL,
-      NULL, G_TYPE_NONE, 4,
+      NULL, G_TYPE_NONE, 6,
       G_TYPE_DBUS_MESSAGE,
       G_TYPE_BOOLEAN,
+      G_TYPE_LONG,
+      G_TYPE_LONG,
       G_TYPE_POINTER,
       G_TYPE_UINT);
 }
@@ -225,11 +242,14 @@ emit_me (gpointer data)
 {
   IdleEmitData *ied = data;
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (ied->self);
+  glong sec = ied->message.ts.tv_sec;
+  glong usec = ied->message.ts.tv_usec;
 
   g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0,
       ied->dbus_message,
       ied->is_incoming,
-      /* FIXME: include timestamp */
+      sec,
+      usec,
       ied->message.blob->data,
       ied->message.blob->len);
   g_object_unref (self);

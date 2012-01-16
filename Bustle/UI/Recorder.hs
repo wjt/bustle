@@ -47,10 +47,10 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
     -- FIXME: this is stupid. If we have to manually combine the outputs, it's
     -- basically just more state.
     rendererResultRef <- newMVar mempty
-    let updateLabel body = do
+    let updateLabel µs body = do
         -- of course, modifyMVar and runStateT have their tuples back to front.
         m <- modifyMVar loaderStateRef $ \s -> do
-            (m, s') <- runStateT (convert 0 body) s
+            (m, s') <- runStateT (convert µs body) s
             return (s', m)
 
         case m of
