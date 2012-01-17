@@ -130,6 +130,22 @@ Executable test-monitor
                , gtk > 0.11
                , glib
 
+Executable dump-messages
+  if flag(InteractiveTests) && flag(PostCabalizedGtk2HS)
+    buildable: True
+  else
+    buildable: False
+
+  main-is: Test/DumpMessages.hs
+  Build-Depends: base
+               , binary
+               , bytestring
+               , containers
+               , dbus-core == 0.9.*
+               , mtl
+               , pcap
+               , text
+
 Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
     main-is: Test/PcapCrash.hs
