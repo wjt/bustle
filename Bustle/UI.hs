@@ -32,6 +32,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.List (intercalate)
 import Data.Time
+import Data.Monoid (mempty)
 
 import Paths_bustle
 import Bustle.Application.Monad
@@ -224,8 +225,11 @@ startRecording = do
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
     setPage wi PleaseHoldPage
-    embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) (aChallengerAppears wi) $
-          makeCallback (finishedRecording wi filename) r
+    let mwindow = Just (wiWindow wi)
+        progress = aChallengerAppears wi
+        finished = finishedRecording wi filename
+    embedIO $ \r -> recorderRun filename mwindow progress
+                                (\p -> makeCallback (finished p) r)
 
 aChallengerAppears :: WindowInfo
                    -> RendererResult a
@@ -237,17 +241,25 @@ aChallengerAppears wi rr = do
 
 finishedRecording :: WindowInfo
                   -> FilePath
+                  -> Bool
                   -> B ()
-finishedRecording wi tempFilePath = do
-    loadLogWith (return wi) (RecordedLog tempFilePath)
+finishedRecording wi tempFilePath producedOutput = do
+    if producedOutput
+      then do
+        -- TODO: There is a noticable lag when reloading big files. It would be
+        -- nice to either make the loading faster, or eliminate the reload.
+        loadLogWith (return wi) (RecordedLog tempFilePath)
 
-    let saveItem     = wiSave wi
+        let saveItem     = wiSave wi
 
-    io $ do
-        widgetSetSensitivity saveItem True
-        onActivateLeaf saveItem $ showSaveDialog wi (return ())
-
-    return ()
+        io $ do
+            widgetSetSensitivity saveItem True
+            onActivateLeaf saveItem $ showSaveDialog wi (return ())
+        return ()
+      else do
+        setPage wi InstructionsPage
+        modify $ \s -> s { initialWindow = Just wi }
+        updateDisplayedLog wi (mempty :: RendererResult ())
 
 showSaveDialog :: WindowInfo
                -> IO ()

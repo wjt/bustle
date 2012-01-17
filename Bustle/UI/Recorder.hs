@@ -5,7 +5,7 @@ module Bustle.UI.Recorder
   )
 where
 
-import Control.Monad (when)
+import Control.Monad (when, liftM)
 import Control.Concurrent.MVar
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -25,18 +25,19 @@ import Bustle.Util
 
 type RecorderIncomingCallback = RendererResult Participants
                              -> IO ()
-type RecorderFinishedCallback = IO ()
+type RecorderFinishedCallback = Bool -- ^ was anything meaningful actually recorded?
+                             -> IO ()
 
 processBatch :: MVar [DetailedMessage]
+             -> MVar Int
              -> Label
              -> RecorderIncomingCallback
              -> IO (IO Bool)
-processBatch pendingRef label incoming = do
+processBatch pendingRef n label incoming = do
     rendererStateRef <- newMVar rendererStateNew
     -- FIXME: this is stupid. If we have to manually combine the outputs, it's
     -- basically just more state.
     rendererResultRef <- newMVar mempty
-    n <- newMVar (0 :: Int)
 
     return $ do
         pending <- takeMVar pendingRef
@@ -47,6 +48,10 @@ processBatch pendingRef label incoming = do
                 let (rr, s') = processSome (reverse pending) [] s
                 return (s', rr)
 
+            oldRR <- takeMVar rendererResultRef
+            let rr' = oldRR `mappend` rr
+            putMVar rendererResultRef rr'
+
             when (not (null (rrShapes rr))) $ do
                 -- If the renderer produced some visible output, count it as a
                 -- message from the user's perspective.
@@ -56,10 +61,7 @@ processBatch pendingRef label incoming = do
                     "Logged <b>" ++ show j ++ "</b> messages…"
                 putMVar n j
 
-            oldRR <- takeMVar rendererResultRef
-            let rr' = oldRR `mappend` rr
-            putMVar rendererResultRef rr'
-            incoming rr'
+                incoming rr'
 
         return True
 
@@ -93,7 +95,8 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
               | otherwise -> return ()
 
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
-    processor <- processBatch pendingRef label incoming
+    n <- newMVar (0 :: Int)
+    processor <- processBatch pendingRef n label incoming
     processorId <- timeoutAdd processor 200
 
     bar <- progressBarNew
@@ -113,7 +116,8 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
         -- Flush out any last messages from the queue.
         processor
         widgetDestroy dialog
-        finished
+        hadOutput <- liftM (/= 0) (readMVar n)
+        finished hadOutput
 
     widgetShowAll dialog
   where
