@@ -7,5 +7,3 @@ Grab the latest code from git:
 
 and get stuck in! Please submit patches, or links to git branches, as
 bugs on <https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle>.
-
-Hacking bustle-dbus-monitor.c is not advised.

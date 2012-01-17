@@ -10,29 +10,32 @@ times.
 Using Bustle
 ============
 
-Capture some D-Bus traffic:
+Run it:
+
+    bustle
+
+Now click **File → New…** to start recording session bus traffic. When you're
+done, click **Stop**, and explore the log.
+
+If you want to record traffic without running the UI (maybe on an embedded
+platform which doesn't have Gtk+), you can use the stand-alone logger:
 
     bustle-pcap logfile.bustle
 
-Now look at some diagrams and statistics based on it:
-
-    bustle logfile.bustle
-
-Or get some ASCII art versions of those stats:
+You can then open `logfile.bustle` in Bustle. You can also get some ASCII-art
+version of the statistics shown in the UI:
 
     bustle --count logfile.bustle
     bustle --time logfile.bustle
 
+If you want to log all system bus traffic, you need to edit
+/etc/dbus/system.conf to enable eavesdropping, and then remove the include of
+/etc/dbus-1/system.conf.d which seems to re-enable strictness. Then you can run
+the stand-alone logger against the system bus:
 
-FAQ
-===
+    bustle-pcap --system system-log.bustle
 
-How do I log the system bus?
-----------------------------
-
-You need to edit /etc/dbus/system.conf to enable eavesdropping, and then
-remove the include of /etc/dbus-1/system.conf.d which seems to re-enable
-strictness. Please remember to undo your changes when you're done logging!
+Please remember to **undo these changes** when you're done.
 
 
 More information
