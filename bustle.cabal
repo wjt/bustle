@@ -22,9 +22,14 @@ Extra-source-files: c-sources/bustle-dbus-monitor.c,
                     NEWS,
                     HACKING,
                     INSTALL,
-                    bustle.sh,
                     run-uninstalled.sh
                   , Test/data/log-with-h.bustle
+
+                  -- Stuff for the stupid binary tarballs
+                  , bustle.sh
+                  , ldd-me-up.sh
+                  , LICENSE.bundled-libraries
+
 
 Source-Repository head
   Type:           git
