@@ -392,10 +392,11 @@ updateDetailsView detailsView newMessage = do
             detailsViewUpdate detailsView m
             widgetShow $ detailsViewGetTop detailsView
 
-updateDisplayedLog :: WindowInfo
+updateDisplayedLog :: MonadIO io
+                   => WindowInfo
                    -> RendererResult a
-                   -> IO ()
-updateDisplayedLog wi rr = do
+                   -> io ()
+updateDisplayedLog wi rr = io $ do
     let shapes = rrShapes rr
         regions = rrRegions rr
         canvas = wiCanvas wi
@@ -444,10 +445,11 @@ wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
     windowSetTitle (wiWindow wi) (logWindowTitle logDetails ++ " — Bustle")
 
-setPage :: WindowInfo
+setPage :: MonadIO io
+        => WindowInfo
         -> Page
-        -> IO ()
-setPage wi page = notebookSetCurrentPage (wiNotebook wi) (fromEnum page)
+        -> io ()
+setPage wi page = io $ notebookSetCurrentPage (wiNotebook wi) (fromEnum page)
 
 displayLog :: WindowInfo
            -> LogDetails
