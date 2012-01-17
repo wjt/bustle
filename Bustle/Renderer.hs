@@ -41,6 +41,7 @@ import Prelude hiding (log)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
+import Bustle.Util (maybeM)
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -242,6 +243,7 @@ data BusState =
     BusState { apps :: Applications
              , firstColumn :: Double
              , nextColumn :: Double
+             , columnsInUse :: Set Double
              , pending :: Pending
              , bsIgnoredNames :: Set UniqueName
              }
@@ -261,6 +263,7 @@ initialBusState ignore first =
     BusState { apps = Map.empty
              , firstColumn = first
              , nextColumn = first
+             , columnsInUse = Set.empty
              , pending = Map.empty
              , bsIgnoredNames = ignore
              }
@@ -413,7 +416,9 @@ appCoordinate bus n = do
             let f = case bus of
                     SessionBus -> (+ columnWidth)
                     SystemBus -> subtract columnWidth
-            modifyBusState bus $ \bs -> bs { nextColumn = f x }
+            modifyBusState bus $ \bs -> bs { nextColumn = f x
+                                           , columnsInUse = Set.insert x (columnsInUse bs)
+                                           }
             modifyApps bus $ Map.adjust (\ai -> ai { aiColumn = CurrentColumn x }) u
 
             -- FIXME: Does this really live here?
@@ -458,12 +463,12 @@ addUnique bus n = do
 -- we'll have to revisit the FormerColumn concept to include a range of time.
 remUnique :: Bus -> UniqueName -> Renderer ()
 remUnique bus n = do
-    modifyApps bus (Map.adjust clearColumn n)
-  where
-    clearColumn :: ApplicationInfo -> ApplicationInfo
-    clearColumn ai = case aiColumn ai of
-        CurrentColumn x -> ai { aiColumn = FormerColumn (Just x) }
-        _               -> ai { aiColumn = FormerColumn Nothing }
+    ai <- lookupUniqueName bus n
+    let mcolumn = aiCurrentColumn ai
+    modifyApps bus $ Map.insert n (ai { aiColumn = FormerColumn mcolumn })
+    maybeM mcolumn $ \x ->
+        modifyBusState bus $ \bs ->
+            bs { columnsInUse = Set.delete x (columnsInUse bs) }
 
 addOther, remOther :: Bus -> OtherName -> UniqueName -> Renderer ()
 -- Add a new well-known name to a unique name.
@@ -563,17 +568,14 @@ bestNames (UniqueName u) os
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do
-    (first, next) <- getsBusState (firstColumn &&& nextColumn) bus
-    xs <- getsApps (catMaybes . map aiCurrentColumn . Map.elems) bus
-
-    -- FIXME: per-bus sign
-    let edgiest = case bus of
-            SessionBus -> maximum
-            SystemBus -> minimum
-
-    if first == next
-        then return Nothing
-        else return $ Just $ edgiest xs
+    columns <- getsBusState columnsInUse bus
+    return $ if Set.null columns
+        then Nothing
+        else Just $ findMinMax columns
+  where
+    findMinMax = case bus of
+        SessionBus -> Set.findMax
+        SystemBus  -> Set.findMin
 
 senderCoordinate :: Bus
                  -> DetailedMessage
