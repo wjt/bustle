@@ -50,5 +50,6 @@ maintainer-binary-tarball: all
 	cp $(BINARIES) $(TARBALL_FULL_DIR)
 	mkdir -p $(TARBALL_FULL_DIR)/lib
 	cp LICENSE.bundled-libraries $(TARBALL_FULL_DIR)/lib
-	cp $(shell ./ldd-me-up.sh $(TARBALL_FULL_DIR)/bin/bustle) $(TARBALL_FULL_DIR)/lib
+	./ldd-me-up.sh $(TARBALL_FULL_DIR)/bin/bustle \
+		| xargs -I XXX cp XXX $(TARBALL_FULL_DIR)/lib
 	cd $(TARBALL_PARENT_DIR) && tar cjf $(TARBALL) $(TARBALL_DIR)
