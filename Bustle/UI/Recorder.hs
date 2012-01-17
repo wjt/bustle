@@ -27,6 +27,42 @@ type RecorderIncomingCallback = RendererResult Participants
                              -> IO ()
 type RecorderFinishedCallback = IO ()
 
+processBatch :: MVar [DetailedMessage]
+             -> Label
+             -> RecorderIncomingCallback
+             -> IO (IO Bool)
+processBatch pendingRef label incoming = do
+    rendererStateRef <- newMVar rendererStateNew
+    -- FIXME: this is stupid. If we have to manually combine the outputs, it's
+    -- basically just more state.
+    rendererResultRef <- newMVar mempty
+    n <- newMVar (0 :: Int)
+
+    return $ do
+        pending <- takeMVar pendingRef
+        putMVar pendingRef []
+
+        when (not (null pending)) $ do
+            rr <- modifyMVar rendererStateRef $ \s -> do
+                let (rr, s') = processSome (reverse pending) [] s
+                return (s', rr)
+
+            when (not (null (rrShapes rr))) $ do
+                -- If the renderer produced some visible output, count it as a
+                -- message from the user's perspective.
+                i <- takeMVar n
+                let j = i + (length pending)
+                labelSetMarkup label $
+                    "Logged <b>" ++ show j ++ "</b> messages…"
+                putMVar n j
+
+            oldRR <- takeMVar rendererResultRef
+            let rr' = oldRR `mappend` rr
+            putMVar rendererResultRef rr'
+            incoming rr'
+
+        return True
+
 recorderRun :: FilePath
             -> Maybe Window
             -> RecorderIncomingCallback
@@ -41,12 +77,8 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
 
     label <- labelNew Nothing
     labelSetMarkup label "Logged <b>0</b> messages…"
-    n <- newMVar (0 :: Integer)
     loaderStateRef <- newMVar Map.empty
-    rendererStateRef <- newMVar rendererStateNew
-    -- FIXME: this is stupid. If we have to manually combine the outputs, it's
-    -- basically just more state.
-    rendererResultRef <- newMVar mempty
+    pendingRef <- newMVar []
     let updateLabel µs body = do
         -- of course, modifyMVar and runStateT have their tuples back to front.
         m <- modifyMVar loaderStateRef $ \s -> do
@@ -57,26 +89,12 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
             Left e -> warn e
             Right message
               | isRelevant (dmMessage message) -> do
-                rr <- modifyMVar rendererStateRef $ \s -> do
-                    let (rr, s') = processSome [message] [] s
-                    return (s', rr)
-
-                when (not (null (rrShapes rr))) $ do
-                    -- If the renderer produced some output, count it as a
-                    -- message from the user's perspective.
-                    i <- takeMVar n
-                    let j = i + 1
-                    labelSetMarkup label $
-                        "Logged <b>" ++ show j ++ "</b> messages…"
-                    putMVar n j
-
-                oldRR <- takeMVar rendererResultRef
-                let rr' = oldRR `mappend` rr
-                putMVar rendererResultRef rr'
-                incoming rr'
+                    modifyMVar_ pendingRef $ \pending -> return (message:pending)
               | otherwise -> return ()
 
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
+    processor <- processBatch pendingRef label incoming
+    processorId <- timeoutAdd processor 200
 
     bar <- progressBarNew
     pulseId <- timeoutAdd (progressBarPulse bar >> return True) 100
@@ -91,6 +109,9 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
         monitorStop monitor
         signalDisconnect handlerId
         timeoutRemove pulseId
+        timeoutRemove processorId
+        -- Flush out any last messages from the queue.
+        processor
         widgetDestroy dialog
         finished
 
