@@ -481,7 +481,10 @@ remOther bus n u = do
     modifyApps bus $ Map.insert u ai'
 
 shape :: Shape -> Renderer ()
-shape s = tell $ RendererOutput [s] [] []
+shape s = tellShapes [s]
+
+tellShapes :: [Shape] -> Renderer ()
+tellShapes ss = tell $ RendererOutput ss [] []
 
 region :: Stripe -> DetailedMessage -> Renderer ()
 region r m = tell $ RendererOutput [] [(r, m)] []
@@ -532,7 +535,7 @@ advanceBy d = do
                   | (u, ApplicationInfo (CurrentColumn x) os _) <- xs
                   ]
         let (height, ss) = headers xs' (current' + 20)
-        mapM_ shape ss
+        tellShapes ss
         modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
                            , row = row bs + height + 10
                            }
@@ -548,7 +551,9 @@ advanceBy d = do
         appColumns = catMaybes . Map.fold ((:) . aiCurrentColumn) []
     xs <- (++) <$> getsApps appColumns SessionBus
                <*> getsApps appColumns SystemBus
-    forM_ xs $ \x -> shape $ ClientLine x (current + 15) (next + 15)
+    tellShapes [ ClientLine x (current + 15) (next + 15)
+               | x <- xs
+               ]
 
 bestNames :: UniqueName -> Set OtherName -> [String]
 bestNames (UniqueName u) os
