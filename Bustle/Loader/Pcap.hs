@@ -107,8 +107,8 @@ bustlifyNOC :: (BusName, Maybe BusName, Maybe BusName)
 bustlifyNOC ns@(name, oldOwner, newOwner)
     | isUnique name =
           case (oldOwner, newOwner) of
-              (Just _, Nothing) -> B.Connected (uniquify name)
-              (Nothing, Just _) -> B.Disconnected (uniquify name)
+              (Nothing, Just _) -> B.Connected (uniquify name)
+              (Just _, Nothing) -> B.Disconnected (uniquify name)
               _                 -> error $ "wtf: NOC" ++ show ns
     | otherwise = B.NameChanged (otherify name) $
           case (oldOwner, newOwner) of
