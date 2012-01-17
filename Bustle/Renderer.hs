@@ -518,9 +518,9 @@ findCallCoordinates bus = maybe (return Nothing) $ \m -> do
 -- without overlapping the rule.
 getLeftMargin, getRightMargin :: Renderer Double
 getLeftMargin =
-    maybe 0 (+ 35) <$> edgemostApp SystemBus
+    maybe 0 (subtract 35) <$> edgemostApp SystemBus
 getRightMargin =
-    maybe timestampAndMemberWidth (subtract 35) <$> edgemostApp SessionBus
+    maybe timestampAndMemberWidth (+ 35) <$> edgemostApp SessionBus
 
 advanceBy :: Double -> Renderer ()
 advanceBy d = do
@@ -573,10 +573,7 @@ edgemostApp bus = do
 
     if first == next
         then return Nothing
-        -- FIXME: Including 'next' here seems to fix the rendering of signals
-        -- which are the first appearence on the chart of a name on the system
-        -- bus.  This is a hack but I CBA to figure out why.
-        else return $ Just $ edgiest (next:xs)
+        else return $ Just $ edgiest xs
 
 senderCoordinate :: Bus
                  -> DetailedMessage
@@ -736,13 +733,9 @@ signal bus dm = do
         Just target -> do
             shape $ DirectedSignalArrow emitter target t
         Nothing -> do
-            -- FIXME: per-bus sign.
-            let f = case bus of
-                    SessionBus -> subtract
-                    SystemBus  -> (+)
             -- fromJust is safe here because we must have an app to have a
             -- signal. It doesn't make me very happy though.
-            outside <- f columnWidth . fromJust <$> edgemostApp bus
+            outside <- fromJust <$> edgemostApp bus
             inside <- getsBusState firstColumn bus
             let [x1, x2] = sort [outside, inside]
 
