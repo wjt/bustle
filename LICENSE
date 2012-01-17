@@ -1,6 +1,5 @@
-The majority of this project (all Haskell code, and bustle-pcap.c) is
-licensed under the GNU LGPL Version 2.1 or (at your option) any later
-version.
+All code in this project is licensed under the GNU LGPL Version 2.1 or (at your
+option) any later version.
 
 dbus-core, the Haskell reimplementation of the D-Bus wire protocol used
 by the main application, is covered by the GNU GPL version 3. By my
@@ -16,13 +15,8 @@ In summary:
 • The Bustle binary probably falls under the terms of the GPL3;
 • The Haskell source code is licensed under the LGPL v2.1 or later.
 
-In simpler news:
-
-bustle-dbus-monitor.c was taken from dbus-1.2.1 and is licensed under
-the GNU GPL Version 2 or (at your option) any later version.
-
 dfeet-method.png and dfeet-signal.png were, as their names suggest,
-taken from D-Feet, and are also licensed under the GNU GPL Version 2 or
+taken from D-Feet, and are licensed under the GNU GPL Version 2 or
 (at your option) any later version.
 
 The LGPL v2.1, GPL v2 and GPL v3 follow.
