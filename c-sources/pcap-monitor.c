@@ -458,6 +458,12 @@ initable_init (
       return FALSE;
     }
 
+  /* Work around <https://bugzilla.gnome.org/show_bug.cgi?id=662100>. With glib
+   * 2.30.1, the client closing the connection erroneously triggers the
+   * (implicitly enabled) exit-on-close logic.
+   */
+  g_dbus_connection_set_exit_on_close (priv->connection, FALSE);
+
   priv->caps = g_dbus_connection_get_capabilities (priv->connection);
 
   bus = g_dbus_proxy_new_sync (priv->connection,
