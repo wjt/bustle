@@ -25,6 +25,7 @@ where
 import Data.Word
 import Data.Int
 import Data.List (intercalate)
+import Data.Char (chr, isPrint)
 -- :'(
 import Data.Maybe (fromJust)
 import qualified Data.Text.Lazy as Text
@@ -36,6 +37,15 @@ format_Bool = show
 
 format_Word8 :: Word8 -> String
 format_Word8 = show
+
+format_ByteArray :: Array -> String
+format_ByteArray ay =
+    if all (\y -> isPrint (chr (fromIntegral y))) bytes
+        then show (map (chr . fromIntegral) bytes :: String)
+        else format_Array ay
+  where
+    bytes = map (fromJust . fromVariant) (arrayItems ay) :: [Word8]
+
 
 format_Int16 :: Int16 -> String
 format_Int16 = show
@@ -129,6 +139,7 @@ format_Variant style v =
         TypeSignature -> format_Signature . fromJust . fromVariant
         TypeObjectPath -> format_ObjectPath . fromJust . fromVariant
         TypeVariant -> format_Variant VariantStyleAngleBrackets . fromJust . fromVariant
+        TypeArray TypeWord8 -> format_ByteArray . fromJust . fromVariant
         TypeArray _ -> format_Array . fromJust . fromVariant
         TypeDictionary _ _ -> format_Dictionary . fromJust . fromVariant
         TypeStructure _ -> format_Structure . fromJust . fromVariant
