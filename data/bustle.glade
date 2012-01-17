@@ -159,6 +159,25 @@
             <child>
               <widget class="GtkLabel" id="label1">
                 <property name="visible">True</property>
+                <property name="label" translatable="yes">Please Hold</property>
+              </widget>
+              <packing>
+                <property name="tab_fill">False</property>
+                <property name="type">tab</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkLabel" id="label4">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">
+                  &lt;big&gt;&lt;b&gt;Waiting for D-Bus traffic; please hold…&lt;/b&gt;&lt;/big&gt;
+                </property>
+                <property name="use_markup">True</property>
+              </widget>
+            </child>
+            <child>
+              <widget class="GtkLabel" id="label1">
+                <property name="visible">True</property>
                 <property name="label" translatable="yes">Instructions</property>
               </widget>
               <packing>

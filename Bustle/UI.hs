@@ -74,6 +74,7 @@ data LogDetails =
 
 data Page =
     InstructionsPage
+  | PleaseHoldPage
   | CanvasPage
   deriving
     (Enum)
@@ -222,7 +223,7 @@ startRecording = do
     cacheDir <- io $ getCacheDir
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
-    io $ setPage wi CanvasPage
+    setPage wi PleaseHoldPage
     embedIO $ \r -> recorderRun filename (Just (wiWindow wi)) (aChallengerAppears wi) $
           makeCallback (finishedRecording wi filename) r
 
@@ -232,6 +233,7 @@ aChallengerAppears :: WindowInfo
 aChallengerAppears wi rr = do
     updateDisplayedLog wi rr
     canvasScrollToBottom (wiCanvas wi)
+    setPage wi CanvasPage
 
 finishedRecording :: WindowInfo
                   -> FilePath
