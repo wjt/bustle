@@ -14,10 +14,13 @@ Data-files:     data/bustle.png,
                 data/bustle.glade,
                 LICENSE
 Build-type:     Simple
-Extra-source-files: c-sources/bustle-dbus-monitor.c,
+Extra-source-files:
+                  -- C bits
                     c-sources/bustle-pcap.c,
                     c-sources/pcap-monitor.h,
                     Makefile,
+
+                  -- Stuff for nerds
                     README,
                     NEWS,
                     HACKING,
