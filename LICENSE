@@ -1,19 +1,9 @@
 All code in this project is licensed under the GNU LGPL Version 2.1 or (at your
 option) any later version.
 
-dbus-core, the Haskell reimplementation of the D-Bus wire protocol used
-by the main application, is covered by the GNU GPL version 3. By my
-interpretation, the result of building the LGPL ≥2.1 application against
-a GPL3 library is covered by the terms of the GPL3. The dbus-core
-maintainer, John Millikin, disagrees with this interpretation: he seems to hold
-that using a GPL3 library does not necessarily require your application to
-conform to the terms of GPL3. (See comments on
-<http://www.jonkristensen.com/gpl-lgpl-and-ghc-linking/>, for instance.)
-
-In summary:
-
-• The Bustle binary probably falls under the terms of the GPL3;
-• The Haskell source code is licensed under the LGPL v2.1 or later.
+dbus-core, a Haskell reimplementation of the D-Bus wire protocol which Bustle
+depends on, is covered by the GNU GPL version 3. Hence, Bustle binaries may be
+distributed under the GNU GPL version 3.
 
 dfeet-method.png and dfeet-signal.png were, as their names suggest,
 taken from D-Feet, and are licensed under the GNU GPL Version 2 or
