@@ -28,6 +28,7 @@ import Control.Monad (when)
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Glade
 
+import Paths_bustle (getDataFileName)
 import Bustle.Util
 
 -- Propagates changes to d1's currently-selected folder to d2, if and only if
@@ -49,11 +50,12 @@ propagateCurrentFolder d1 d2 = d1 `onCurrentFolderChanged` do
         fileChooserSetCurrentFolder d2 (fromJust f1)
         return ()
 
-setupOpenTwoDialog :: GladeXML
-                   -> Window
+setupOpenTwoDialog :: Window
                    -> (FilePath -> FilePath -> IO ())
                    -> IO Dialog
-setupOpenTwoDialog xml parent callback = do
+setupOpenTwoDialog parent callback = do
+    Just xml <- xmlNew =<< getDataFileName "data/bustle.glade"
+
     dialog <- xmlGetWidget xml castToDialog "openTwoDialog"
     [sessionBusChooser, systemBusChooser] <-
         mapM (xmlGetWidget xml castToFileChooserButton)
