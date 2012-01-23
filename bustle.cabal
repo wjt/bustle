@@ -38,11 +38,6 @@ Source-Repository head
   Type:           git
   Location:       git://anongit.freedesktop.org/bustle
 
-Flag PostCabalizedGtk2HS
-  Description:    Build against recent gtk2hs, with reorganized packaging and
-                  module names
-  Default:        True
-
 Flag InteractiveTests
   Description:    Build interactive test programs
   Default:        False
@@ -80,51 +75,28 @@ Executable bustle
   C-sources: c-sources/pcap-monitor.c
   pkgconfig-depends: glib-2.0
 
-  if flag(PostCabalizedGtk2HS)
-    -- Since gtk2hs 0.11, pango is a separate package, and its module names
-    -- have changed.
-    Build-Depends: base >= 4 && < 5
-                 , binary
-                 , bytestring
-                 , cairo
-                 , containers
-                 , dbus-core == 0.9.*
-                 , directory
-                 , filepath
-                 , glade
-                 , glib
-                 , gtk > 0.11
-                 , haskell98
-                 , mtl
-                 , pango
-                 , parsec
-                 , pcap
-                 , process
-                 , text
-                 , time
-  else
-    Build-Depends: base >= 4 && < 5
-                 , binary
-                 , bytestring
-                 , cairo
-                 , containers
-                 , dbus-core == 0.9.*
-                 , directory
-                 , filepath
-                 , glade
-                 , glib
-                 , gtk > 0.10 && < 0.11
-                 , haskell98
-                 , mtl
-                 , pango
-                 , parsec
-                 , pcap
-                 , process
-                 , text
-                 , time
+  Build-Depends: base >= 4 && < 5
+               , binary
+               , bytestring
+               , cairo
+               , containers
+               , dbus-core == 0.9.*
+               , directory
+               , filepath
+               , glade
+               , glib
+               , gtk > 0.12
+               , haskell98
+               , mtl
+               , pango
+               , parsec
+               , pcap
+               , process
+               , text
+               , time
 
 Executable test-monitor
-  if flag(InteractiveTests) && flag(PostCabalizedGtk2HS)
+  if flag(InteractiveTests)
     buildable: True
   else
     buildable: False
@@ -135,11 +107,11 @@ Executable test-monitor
   C-sources: c-sources/pcap-monitor.c
   pkgconfig-depends: glib-2.0
   Build-Depends: base >= 4 && < 5
-               , gtk > 0.11
+               , gtk > 0.12
                , glib
 
 Executable dump-messages
-  if flag(InteractiveTests) && flag(PostCabalizedGtk2HS)
+  if flag(InteractiveTests)
     buildable: True
   else
     buildable: False

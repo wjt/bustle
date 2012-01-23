@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# LANGUAGE CPP #-}
 module Bustle.Markup
   ( Markup
   , unMarkup
@@ -34,15 +33,9 @@ where
 
 import Data.Monoid
 
-#if MIN_VERSION_gtk(0,11,0)
 import Graphics.Rendering.Pango.BasicTypes (Weight(..))
 import Graphics.Rendering.Pango.Layout (escapeMarkup)
 import Graphics.Rendering.Pango.Markup (markSpan, SpanAttribute(..))
-#else
-import Graphics.UI.Gtk.Pango.BasicTypes (Weight(..))
-import Graphics.UI.Gtk.Pango.Layout (escapeMarkup)
-import Graphics.UI.Gtk.Pango.Markup (markSpan, SpanAttribute(..))
-#endif
 
 newtype Markup = Markup { unMarkup :: String }
     deriving (Show, Read, Ord, Eq)
