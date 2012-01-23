@@ -11,7 +11,6 @@ Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
 Data-files:     data/bustle.png,
                 data/dfeet-method.png,
                 data/dfeet-signal.png,
-                data/bustle.glade,
                 data/bustle.ui,
                 LICENSE
 Build-type:     Simple

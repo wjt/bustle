@@ -26,7 +26,6 @@ import Data.Maybe (isJust, isNothing, fromJust)
 import Control.Monad (when)
 
 import Graphics.UI.Gtk
-import Graphics.UI.Gtk.Glade
 
 import Paths_bustle (getDataFileName)
 import Bustle.Util
@@ -50,15 +49,14 @@ propagateCurrentFolder d1 d2 = d1 `onCurrentFolderChanged` do
         fileChooserSetCurrentFolder d2 (fromJust f1)
         return ()
 
-setupOpenTwoDialog :: Window
+setupOpenTwoDialog :: Builder
+                   -> Window
                    -> (FilePath -> FilePath -> IO ())
                    -> IO Dialog
-setupOpenTwoDialog parent callback = do
-    Just xml <- xmlNew =<< getDataFileName "data/bustle.glade"
-
-    dialog <- xmlGetWidget xml castToDialog "openTwoDialog"
+setupOpenTwoDialog builder parent callback = do
+    dialog <- builderGetObject builder castToDialog "openTwoDialog"
     [sessionBusChooser, systemBusChooser] <-
-        mapM (xmlGetWidget xml castToFileChooserButton)
+        mapM (builderGetObject builder castToFileChooserButton)
             ["sessionBusChooser", "systemBusChooser"]
 
     windowSetTransientFor dialog parent

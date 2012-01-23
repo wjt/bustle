@@ -338,7 +338,7 @@ emptyWindow = do
 
   -- Open two logs dialog
   openTwoDialog <- embedIO $ \r ->
-      setupOpenTwoDialog window $ \f1 f2 ->
+      setupOpenTwoDialog builder window $ \f1 f2 ->
           makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
   withProgramIcon (windowSetIcon openTwoDialog)
 
