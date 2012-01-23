@@ -51,7 +51,7 @@ import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Loader
 
-import System.Glib.GError (GError(..), catchGError)
+import System.Glib.GError (GError(..), catchGError, failOnGError)
 
 import Graphics.UI.Gtk
 
@@ -116,7 +116,7 @@ decWindows :: B Int
 decWindows = modifyWindows (subtract 1) >> gets windows
 
 uiMain :: IO ()
-uiMain = do
+uiMain = failOnGError $ do
     args <- initGUI
 
     -- FIXME: get a real option parser
