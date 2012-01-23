@@ -54,7 +54,6 @@ import Bustle.Loader
 import System.Glib.GError (GError(..), catchGError)
 
 import Graphics.UI.Gtk
-import Graphics.UI.Gtk.Glade
 
 import Graphics.Rendering.Cairo (withPDFSurface, renderWith)
 
@@ -83,7 +82,7 @@ data Page =
 data WindowInfo =
     WindowInfo { wiWindow :: Window
                , wiSave :: ImageMenuItem
-               , wiExport :: ImageMenuItem
+               , wiExport :: MenuItem
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
@@ -317,15 +316,17 @@ maybeQuit = do
 
 emptyWindow :: B WindowInfo
 emptyWindow = do
-  Just xml <- io $ xmlNew =<< getDataFileName "data/bustle.glade"
+  builder <- io builderNew
+  io $ builderAddFromFile builder =<< getDataFileName "data/bustle.ui"
 
   -- Grab a bunch of widgets. Surely there must be a better way to do this?
-  let getW cast name = io $ xmlGetWidget xml cast name
+  let getW cast name = io $ builderGetObject builder cast name
 
   window <- getW castToWindow "diagramWindow"
-  [newItem, openItem, saveItem, exportItem, closeItem, aboutItem] <-
+  [newItem, openItem, saveItem, closeItem, aboutItem] <-
       mapM (getW castToImageMenuItem)
-          ["new", "open", "save", "export", "close", "about"]
+          ["new", "open", "save", "close", "about"]
+  exportItem <- getW castToMenuItem "export"
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -356,7 +357,7 @@ emptyWindow = do
 
   m <- asks methodIcon
   s <- asks signalIcon
-  statsPane <- io $ statsPaneNew xml m s
+  statsPane <- io $ statsPaneNew builder m s
 
   details <- io $ detailsViewNew
   io $ do
@@ -370,7 +371,7 @@ emptyWindow = do
   io $ widgetHide statsBook
 
   showBounds <- asks debugEnabled
-  canvas <- io $ canvasNew xml showBounds (updateDetailsView details)
+  canvas <- io $ canvasNew builder showBounds (updateDetailsView details)
 
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window

@@ -34,7 +34,6 @@ import Data.IORef
 import Control.Monad (when)
 
 import Graphics.UI.Gtk
-import Graphics.UI.Gtk.Glade
 
 import Bustle.Diagram
 import Bustle.Regions
@@ -54,12 +53,12 @@ data Canvas a =
            }
 
 canvasNew :: Eq a
-          => GladeXML
+          => Builder
           -> Bool
           -> (Maybe a -> IO ())
           -> IO (Canvas a)
-canvasNew xml showBounds selectionChangedCb = do
-    layout <- xmlGetWidget xml castToLayout "diagramLayout"
+canvasNew builder showBounds selectionChangedCb = do
+    layout <- builderGetObject builder castToLayout "diagramLayout"
     idRef <- newIORef Nothing
     shapesRef <- newIORef []
     widthRef <- newIORef 0

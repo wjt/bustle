@@ -27,7 +27,6 @@ import Control.Applicative ((<$>))
 import Control.Monad (forM_)
 import Text.Printf
 import Graphics.UI.Gtk hiding (Markup)
-import Graphics.UI.Gtk.Glade
 import Bustle.Stats
 import Bustle.Types (Log)
 import qualified Bustle.Markup as Markup
@@ -40,12 +39,12 @@ data StatsPane =
               , spSizeStore :: ListStore SizeInfo
               }
 
-statsPaneNew :: GladeXML
+statsPaneNew :: Builder
              -> Maybe Pixbuf
              -> Maybe Pixbuf
              -> IO StatsPane
-statsPaneNew xml methodIcon signalIcon = do
-  [frequencySW, durationSW, sizeSW] <- mapM (xmlGetWidget xml castToScrolledWindow)
+statsPaneNew builder methodIcon signalIcon = do
+  [frequencySW, durationSW, sizeSW] <- mapM (builderGetObject builder castToScrolledWindow)
       ["frequencySW", "durationSW", "sizeSW"]
 
   (countStore, countView) <- newCountView methodIcon signalIcon
