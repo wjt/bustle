@@ -58,6 +58,7 @@ setupOpenTwoDialog builder parent callback = do
     [sessionBusChooser, systemBusChooser] <-
         mapM (builderGetObject builder castToFileChooserButton)
             ["sessionBusChooser", "systemBusChooser"]
+    openTwoOpenButton <- builderGetObject builder castToButton "openTwoOpenButton"
 
     windowSetTransientFor dialog parent
     dialog `on` deleteEvent $ tryEvent $ io $ widgetHide dialog
@@ -70,21 +71,24 @@ setupOpenTwoDialog builder parent callback = do
             fileChooserUnselectAll sessionBusChooser
             fileChooserUnselectAll systemBusChooser
 
-    dialog `afterResponse` \resp -> do
-      -- The "Open" button should only be sensitive if both pickers have a
-      -- file in them, but the GtkFileChooserButton:file-set signal is not
-      -- bound in my version of Gtk2Hs. So yeah...
-      if (resp == ResponseAccept)
-        then do
-          sessionLogFile <- fileChooserGetFilename sessionBusChooser
-          systemLogFile <- fileChooserGetFilename systemBusChooser
+    let updateOpenSensitivity = do
+            sessionLogFile <- fileChooserGetFilename sessionBusChooser
+            systemLogFile <- fileChooserGetFilename systemBusChooser
 
-          case (sessionLogFile, systemLogFile) of
-            (Just f1, Just f2) -> do
-                callback f1 f2
-                hideMyself
-            _ -> return ()
-        else
-          hideMyself
+            widgetSetSensitive openTwoOpenButton $
+              case (sessionLogFile, systemLogFile) of
+                (Just _, Just _) -> True
+                _                -> False
+    connectGeneric "file-set" False sessionBusChooser updateOpenSensitivity
+    connectGeneric "file-set" False systemBusChooser updateOpenSensitivity
+    updateOpenSensitivity
+
+    dialog `afterResponse` \resp -> do
+      when (resp == ResponseAccept) $ do
+          Just f1 <- fileChooserGetFilename sessionBusChooser
+          Just f2 <- fileChooserGetFilename systemBusChooser
+          callback f1 f2
+
+      hideMyself
 
     return dialog
