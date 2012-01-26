@@ -2,9 +2,9 @@ Building from source
 ====================
 
 First, make sure the Haskell Platform is installed, preferably along with the
-Gtk+ and Glade bindings for Haskell. On Debian-flavoured systems:
+Gtk+ bindings for Haskell. On Debian-flavoured systems:
 
-    sudo apt-get install haskell-platform libghc-gtk-dev libghc-glade-dev
+    sudo apt-get install haskell-platform libghc-gtk-dev
 
 If you can't get the Haskell Platform via your package manager, see
 <http://hackage.haskell.org/platform/>. If you can't get the Gtk+ binding for

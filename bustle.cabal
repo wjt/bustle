@@ -83,7 +83,6 @@ Executable bustle
                , dbus-core == 0.9.*
                , directory
                , filepath
-               , glade
                , glib
                , gtk > 0.12
                , haskell98
