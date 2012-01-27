@@ -326,6 +326,7 @@ emptyWindow = do
   [newItem, openItem, saveItem, closeItem, aboutItem] <-
       mapM (getW castToImageMenuItem)
           ["new", "open", "save", "close", "about"]
+  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
   exportItem <- getW castToMenuItem "export"
   openTwoItem <- getW castToMenuItem "openTwo"
   viewStatistics <- getW castToCheckMenuItem "statistics"
@@ -346,10 +347,17 @@ emptyWindow = do
   withProgramIcon (windowSetIcon window)
   embedIO $ onDestroy window . makeCallback maybeQuit
 
-  -- File menu
-  embedIO $ onActivateLeaf newItem . makeCallback startRecording
-  embedIO $ onActivateLeaf openItem . makeCallback (openDialogue window)
-  io $ openTwoItem `onActivateLeaf` widgetShowAll openTwoDialog
+  -- File menu and related buttons
+  embedIO $ \r -> do
+      let new = makeCallback startRecording r
+      onActivateLeaf newItem new
+      onClicked newButton new
+
+      let open = makeCallback (openDialogue window) r
+      onActivateLeaf openItem open
+      onClicked openButton open
+
+      onActivateLeaf openTwoItem $ widgetShowAll openTwoDialog
 
   -- Help menu
   withProgramIcon $ \icon -> io $
