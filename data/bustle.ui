@@ -490,19 +490,67 @@
     </child>
   </object>
   <object class="GtkDialog" id="openTwoDialog">
+    <property name="can_focus">False</property>
     <property name="border_width">5</property>
     <property name="title" translatable="yes">Open a pair of logs</property>
     <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
-      <object class="GtkVBox" id="dialog-vbox1">
+      <object class="GtkBox" id="dialog-vbox1">
         <property name="visible">True</property>
+        <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="dialog-action_area1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="openTwoCancelButton">
+                <property name="label">gtk-cancel</property>
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="openTwoOpenButton">
+                <property name="label">gtk-open</property>
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
         <child>
           <object class="GtkTable" id="table1">
             <property name="visible">True</property>
+            <property name="can_focus">False</property>
             <property name="n_rows">2</property>
             <property name="n_columns">2</property>
             <property name="column_spacing">6</property>
@@ -510,6 +558,7 @@
             <child>
               <object class="GtkFileChooserButton" id="systemBusChooser">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <property name="title" translatable="yes">Select system bus log</property>
                 <property name="width_chars">30</property>
               </object>
@@ -524,6 +573,7 @@
             <child>
               <object class="GtkLabel" id="label44">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <property name="xalign">0</property>
                 <property name="label" translatable="yes">System bus log:</property>
               </object>
@@ -535,6 +585,7 @@
             <child>
               <object class="GtkLabel" id="label55">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <property name="xalign">0</property>
                 <property name="label" translatable="yes">Session bus log:</property>
               </object>
@@ -542,6 +593,7 @@
             <child>
               <object class="GtkFileChooserButton" id="sessionBusChooser">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <property name="title" translatable="yes">Select session bus log</property>
                 <property name="width_chars">30</property>
               </object>
@@ -553,46 +605,9 @@
             </child>
           </object>
           <packing>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child internal-child="action_area">
-          <object class="GtkHButtonBox" id="dialog-action_area1">
-            <property name="visible">True</property>
-            <property name="layout_style">end</property>
-            <child>
-              <object class="GtkButton" id="openTwoCancelButton">
-                <property name="label">gtk-cancel</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton" id="openTwoOpenButton">
-                <property name="label">gtk-open</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
             <property name="expand">False</property>
-            <property name="pack_type">end</property>
-            <property name="position">0</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
