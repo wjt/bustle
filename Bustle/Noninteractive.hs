@@ -25,7 +25,7 @@ where
 
 import Prelude hiding (log)
 
-import System
+import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (nub)

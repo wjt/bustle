@@ -85,7 +85,6 @@ Executable bustle
                , filepath
                , glib
                , gtk > 0.12
-               , haskell98
                , mtl
                , pango
                , parsec

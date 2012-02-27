@@ -68,7 +68,7 @@ frequencies = reverse
     where alt Nothing  = Just 1
           alt (Just n) = Just (n + 1)
 
-mean :: Fractional a => [a] -> a
+mean :: (Eq a, Fractional a) => [a] -> a
 mean = acc 0 0
    where acc 0 _ [] = error "mean of empty list"
          acc n t [] = t / n
