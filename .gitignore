@@ -4,4 +4,5 @@ Setup
 *.hi
 *.o
 tags
+bustle-pcap.1
 cabal-dev/

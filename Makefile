@@ -4,15 +4,19 @@ GIO_FLAGS := $(shell pkg-config --cflags --libs glib-2.0 gio-2.0 gio-unix-2.0)
 PCAP_FLAGS := $(shell pcap-config --cflags pcap-config --libs)
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+MAN1DIR = $(PREFIX)/share/man/man1
 
 BINARIES = \
 	dist/build/bustle-pcap \
 	$(NULL)
 
-all: $(BINARIES)
+all: $(BINARIES) bustle-pcap.1
 
 BUSTLE_PCAP_SOURCES = c-sources/pcap-monitor.c c-sources/bustle-pcap.c
 BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h
+
+bustle-pcap.1: c-sources/bustle-pcap.c
+	-help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' ./dist/build/bustle-pcap
 
 dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 	@mkdir -p dist/build
@@ -22,6 +26,8 @@ dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 install: all
 	mkdir -p $(BINDIR)
 	cp $(BINARIES) $(BINDIR)
+	-mkdir -p $(MAN1DIR)
+	-cp bustle-pcap.1 $(MAN1DIR)
 
 uninstall:
 	rm -f $(notdir $(BINARIES))

@@ -27,6 +27,7 @@
 
 static gboolean verbose = FALSE;
 static gboolean quiet = FALSE;
+static gboolean version = FALSE;
 
 #if GLIB_CHECK_VERSION (2, 30, 0)
 static void
@@ -85,8 +86,11 @@ static GOptionEntry entries[] = {
     { "quiet", 'q', 0, G_OPTION_ARG_NONE, &quiet,
       "Don't print out instructions", NULL
     },
+    { "version", 'V', 0, G_OPTION_ARG_NONE, &version,
+      "Print version information and exit", NULL
+    },
     { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &filenames,
-      "blah blah", NULL
+      "The filename to log to", NULL
     },
     { NULL }
 };
@@ -103,8 +107,9 @@ parse_arguments (
   GError *error = NULL;
   gboolean ret;
 
-  context = g_option_context_new ("FILENAME - logs D-Bus traffic to FILENAME");
+  context = g_option_context_new ("FILENAME");
   g_option_context_add_main_entries (context, entries, NULL);
+  g_option_context_set_summary (context, "Logs D-Bus traffic to FILENAME in a format suitable for bustle");
 
   ret = g_option_context_parse (context, argc, argv, &error);
   usage = g_option_context_get_help (context, TRUE, NULL);
@@ -116,7 +121,15 @@ parse_arguments (
       exit (2);
     }
 
-  if (session_specified && system_specified)
+  if (version)
+    {
+      fprintf (stdout, "bustle-pcap 0.4.0\n\n");
+      fprintf (stdout, "Copyright 2011 Will Thompson <will.thompson@collabora.co.uk>\n");
+      fprintf (stdout, "This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n");
+      fprintf (stdout, "Written by Will Thompson <will.thompson@collabora.co.uk>\n");
+      exit (0);
+    }
+  else if (session_specified && system_specified)
     {
       fprintf (stderr, "You may only specify one of --session and --system\n");
       fprintf (stderr, "%s", usage);
