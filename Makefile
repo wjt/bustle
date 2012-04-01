@@ -28,8 +28,8 @@ uninstall:
 
 clean:
 	rm -f $(BINARIES)
-	if test -d $(TARBALL_DIR); then rm -r $(TARBALL_DIR); fi
-	rm -f $(TARBALL)
+	if test -d ./$(TARBALL_DIR); then rm -r ./$(TARBALL_DIR); fi
+	rm -f ./$(TARBALL)
 
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
