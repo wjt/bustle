@@ -24,6 +24,7 @@
 #include <gio/gunixinputstream.h>
 
 #include "pcap-monitor.h"
+#include "version.h"
 
 static gboolean verbose = FALSE;
 static gboolean quiet = FALSE;
@@ -123,7 +124,7 @@ parse_arguments (
 
   if (version)
     {
-      fprintf (stdout, "bustle-pcap 0.4.0\n\n");
+      fprintf (stdout, "bustle-pcap " BUSTLE_VERSION "\n\n");
       fprintf (stdout, "Copyright 2011 Will Thompson <will.thompson@collabora.co.uk>\n");
       fprintf (stdout, "This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n");
       fprintf (stdout, "Written by Will Thompson <will.thompson@collabora.co.uk>\n");

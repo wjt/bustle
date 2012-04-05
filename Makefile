@@ -10,18 +10,27 @@ BINARIES = \
 	dist/build/bustle-pcap \
 	$(NULL)
 
-all: $(BINARIES) bustle-pcap.1
+MANPAGE = bustle-pcap.1
+
+all: $(BINARIES) $(MANPAGE)
 
 BUSTLE_PCAP_SOURCES = c-sources/pcap-monitor.c c-sources/bustle-pcap.c
-BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h
+BUSTLE_PCAP_GENERATED_HEADERS = dist/build/autogen/version.h
+BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h $(BUSTLE_PCAP_GENERATED_HEADERS)
 
-bustle-pcap.1: c-sources/bustle-pcap.c
-	-help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' ./dist/build/bustle-pcap
+bustle-pcap.1: dist/build/bustle-pcap
+	-help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' $<
 
 dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 	@mkdir -p dist/build
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $(BUSTLE_PCAP_SOURCES) \
-	$(GIO_FLAGS) $(PCAP_FLAGS)
+	$(CC) -Idist/build/autogen $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) \
+		-o $@ $(BUSTLE_PCAP_SOURCES) \
+		$(GIO_FLAGS) $(PCAP_FLAGS)
+
+dist/build/autogen/version.h: bustle.cabal
+	@mkdir -p `dirname $@`
+	perl -nle 'm/^Version:\s+(.*)$$/ and print qq(#define BUSTLE_VERSION "$$1")' \
+		$< > $@
 
 install: all
 	mkdir -p $(BINDIR)
@@ -33,7 +42,7 @@ uninstall:
 	rm -f $(notdir $(BINARIES))
 
 clean:
-	rm -f $(BINARIES)
+	rm -f $(BINARIES) $(MANPAGE) $(BUSTLE_PCAP_GENERATED_HEADERS)
 	if test -d ./$(TARBALL_DIR); then rm -r ./$(TARBALL_DIR); fi
 	rm -f ./$(TARBALL)
 
@@ -53,7 +62,7 @@ maintainer-binary-tarball: all
 	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
 		-e  's{^    bustle}     {    ./bustle.sh};' \
 		$(TARBALL_FULL_DIR)/README
-	cp $(BINARIES) $(TARBALL_FULL_DIR)
+	cp $(BINARIES) $(MANPAGE) $(TARBALL_FULL_DIR)
 	mkdir -p $(TARBALL_FULL_DIR)/lib
 	cp LICENSE.bundled-libraries $(TARBALL_FULL_DIR)/lib
 	./ldd-me-up.sh $(TARBALL_FULL_DIR)/bin/bustle \
