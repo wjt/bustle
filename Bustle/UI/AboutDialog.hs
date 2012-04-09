@@ -65,4 +65,6 @@ authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
           , "Chris Lamb"
           , "Marc Kleine-Budde"
           , "Cosimo Alfarano"
+          , "Sergei Trofimovich"
+          , "Alex Merry"
           ]
