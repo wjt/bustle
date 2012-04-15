@@ -26,7 +26,9 @@ where
 
 import Data.List (intercalate)
 import Data.Maybe (maybe, fromJust)
+import Control.Applicative ((<$>))
 import Graphics.UI.Gtk hiding (Signal, Markup)
+import qualified Data.Text as T
 import qualified DBus.Message
 
 import qualified DBus.Types as D
@@ -142,6 +144,6 @@ detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
     labelSetMarkup (detailsTitle d) (unMarkup $ pickTitle m)
-    labelSetText (detailsPath d) (maybe "Unknown" path member_)
+    labelSetText (detailsPath d) (maybe "Unknown" (T.unpack . D.objectPathText . path) member_)
     labelSetMarkup (detailsMember d) (maybe "Unknown" getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m

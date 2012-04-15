@@ -17,15 +17,43 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-module Bustle.Types where
+module Bustle.Types
+  ( ObjectPath
+  , objectPathText
+
+  , InterfaceName
+  , interfaceNameText
+
+  , MemberName
+  , memberNameText
+
+  , Serial
+
+  , UniqueName(..)
+  , OtherName(..)
+  , BusName(..)
+  , isUnique
+  , isOther
+  , unBusName
+
+  , Microseconds(..)
+  , µsFromPair
+  , µsToMs
+
+  , Member(..)
+  , Message(..)
+  , DetailedMessage(..)
+  , Change(..)
+  , isNameOwnerChanged
+  , Log
+  )
+where
 
 import Data.Word (Word32)
+import DBus.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
 import DBus.Message (ReceivedMessage)
+import qualified Data.Text as T
 
-type ObjectPath = String
-type Interface = String
-type MemberName = String
-type ErrorName = String
 type Serial = Word32
 
 newtype UniqueName = UniqueName { unUniqueName :: String }
@@ -58,10 +86,10 @@ newtype Microseconds = Microseconds Integer
 µsToMs (Microseconds µs) = µs `div` 1000
 
 data Member = Member { path :: ObjectPath
-                     , iface :: Maybe Interface
+                     , iface :: Maybe InterfaceName
                      , membername :: MemberName
                      }
-  deriving (Ord, Show, Read, Eq)
+  deriving (Ord, Show, Eq)
 
 data Message = MethodCall { serial :: Serial
                           , sender :: BusName
@@ -89,10 +117,12 @@ data Message = MethodCall { serial :: Serial
                            }
   deriving (Show, Eq, Ord)
 
+type MessageSize = Int
+
 data DetailedMessage =
     DetailedMessage { dmTimestamp :: Microseconds
                     , dmMessage :: Message
-                    , dmDetails :: Maybe (Int, ReceivedMessage)
+                    , dmDetails :: Maybe (MessageSize, ReceivedMessage)
                     }
   deriving (Show, Eq)
 

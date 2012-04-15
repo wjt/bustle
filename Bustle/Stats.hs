@@ -43,7 +43,7 @@ data TallyType = TallyMethod | TallySignal
     deriving (Eq, Ord, Show)
 
 repr :: DetailedMessage
-     -> Maybe (TallyType, Maybe Interface, MemberName)
+     -> Maybe (TallyType, Maybe InterfaceName, MemberName)
 repr (DetailedMessage _ msg _) =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
@@ -53,7 +53,7 @@ repr (DetailedMessage _ msg _) =
 data FrequencyInfo =
     FrequencyInfo { fiFrequency :: Int
                   , fiType :: TallyType
-                  , fiInterface :: Maybe Interface
+                  , fiInterface :: Maybe InterfaceName
                   , fiMember :: MemberName
                   }
   deriving (Show, Eq, Ord)
@@ -75,7 +75,7 @@ mean = acc 0 0
          acc n t (x:xs) = acc (n + 1) (t + x) xs
 
 data TimeInfo =
-    TimeInfo { tiInterface :: Maybe Interface
+    TimeInfo { tiInterface :: Maybe InterfaceName
              , tiMethodName :: MemberName
              , tiTotalTime :: Double -- milliseconds
              , tiCallFrequency :: Int
@@ -96,7 +96,7 @@ methodTimes = reverse
               Just (newtime + total, newtime : times)
 
           methodReturn :: DetailedMessage
-                       -> Maybe (Maybe Interface, MemberName, Microseconds)
+                       -> Maybe (Maybe InterfaceName, MemberName, Microseconds)
           methodReturn dm = case dmMessage dm of
               MethodReturn { inReplyTo =
                                  Just (DetailedMessage start call@(MethodCall {}) _)
@@ -127,7 +127,7 @@ data SizeType = SizeCall
 data SizeInfo =
     SizeInfo { siMeanSize, siMaxSize, siMinSize :: Int
              , siType :: SizeType
-             , siInterface :: Maybe Interface
+             , siInterface :: Maybe InterfaceName
              , siName :: MemberName
              }
   deriving
@@ -138,7 +138,7 @@ messageSizes :: Log
 messageSizes messages =
     reverse . sort . map summarize $ Map.assocs sizeTable
   where
-    summarize :: ((SizeType, Maybe Interface, MemberName), [Int]) -> SizeInfo
+    summarize :: ((SizeType, Maybe InterfaceName, MemberName), [Int]) -> SizeInfo
     summarize ((t, i, m), sizes) =
         SizeInfo (intMean sizes) (maximum sizes) (minimum sizes) t i m
 
@@ -147,14 +147,14 @@ messageSizes messages =
 
     sizeTable = foldr f Map.empty messages
 
-    f :: DetailedMessage -> Map (SizeType, Maybe Interface, MemberName) [Int]
-                         -> Map (SizeType, Maybe Interface, MemberName) [Int]
+    f :: DetailedMessage -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
+                         -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
     f dm = case (sizeKeyRepr dm, dmDetails dm) of
         (Just key, Just (size, _)) -> Map.insertWith' (++) key [size]
         _                          -> id
 
     sizeKeyRepr :: DetailedMessage
-                -> Maybe (SizeType, Maybe Interface, MemberName)
+                -> Maybe (SizeType, Maybe InterfaceName, MemberName)
     sizeKeyRepr (DetailedMessage _ msg _) =
         case msg of
             MethodCall { member = m } -> Just (SizeCall, iface m, membername m)

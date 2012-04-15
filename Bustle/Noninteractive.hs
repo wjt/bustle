@@ -29,6 +29,7 @@ import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (nub)
+import qualified Data.Text as T
 import Control.Monad.Error
 import Text.Printf
 
@@ -54,15 +55,18 @@ process filepath analyze format = do
             mapM warn warnings
             mapM_ (putStrLn . format) $ analyze log
 
-formatInterface :: Maybe String -> String
-formatInterface = fromMaybe "(no interface)"
+formatInterface :: Maybe InterfaceName -> String
+formatInterface = maybe "(no interface)" (T.unpack . interfaceNameText)
+
+formatMemberName :: MemberName -> String
+formatMemberName = T.unpack . memberNameText
 
 runCount :: FilePath -> IO ()
 runCount filepath = process filepath frequencies format
   where
     format :: FrequencyInfo -> String
     format (FrequencyInfo c t i m) =
-        printf " %4d %6s %s.%s" c (show t) (formatInterface i) m
+        printf " %4d %6s %s.%s" c (show t) (formatInterface i) (formatMemberName m)
 
 runTime :: FilePath -> IO ()
 runTime filepath = process filepath methodTimes format
@@ -70,7 +74,7 @@ runTime filepath = process filepath methodTimes format
     format :: TimeInfo -> String
     format (TimeInfo interface method total ncalls mean) =
         printf " %9.4f %3d %9.4f %s.%s" total ncalls mean
-           (formatInterface interface) method
+           (formatInterface interface) (formatMemberName method)
 
 runDot :: FilePath -> IO ()
 runDot filepath = process filepath makeDigraph id

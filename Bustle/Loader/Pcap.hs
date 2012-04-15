@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-
 Bustle.Loader.Pcap: loads logs out of pcap files using dbus-core
 Copyright © 2011–2012 Collabora Ltd.
@@ -69,9 +70,9 @@ convertMember :: (a -> ObjectPath)
               -> a
               -> B.Member
 convertMember getObjectPath getInterfaceName getMemberName m =
-    B.Member (T.unpack . objectPathText . getObjectPath $ m)
-             (fmap (T.unpack . interfaceNameText) . getInterfaceName $ m)
-             (T.unpack . memberNameText . getMemberName $ m)
+    B.Member (getObjectPath m)
+             (getInterfaceName m)
+             (getMemberName m)
 
 type PendingMessages = Map (Maybe BusName, Serial)
                            (MethodCall, B.DetailedMessage)
@@ -172,7 +173,7 @@ bustlify µs bytes m = do
                     -- FIXME: obviously this should be more robust:
                     --  • check that the service really is the bus daemon
                     --  • don't crash if the body of the call or reply doesn't contain one bus name.
-                    | B.membername (B.member (B.dmMessage dm)) == "GetNameOwner"
+                    | memberNameText (B.membername (B.member (B.dmMessage dm))) == "GetNameOwner"
                         -> bustlifyNOC ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
                                        , Nothing
                                        , fromVariant $ (methodReturnBody mr !! 0)

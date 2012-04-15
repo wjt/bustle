@@ -28,7 +28,7 @@ import Control.Monad (forM_)
 import Text.Printf
 import Graphics.UI.Gtk hiding (Markup)
 import Bustle.Stats
-import Bustle.Types (Log)
+import Bustle.Types (Log, interfaceNameText)
 import qualified Bustle.Markup as Markup
 import Bustle.Markup (Markup)
 import Data.Monoid

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-
 Bustle.Diagram: My First Type-Safe Markup Library
 Copyright © 2011 Will Thompson
@@ -32,10 +33,14 @@ module Bustle.Markup
 where
 
 import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Graphics.Rendering.Pango.BasicTypes (Weight(..))
 import Graphics.Rendering.Pango.Layout (escapeMarkup)
 import Graphics.Rendering.Pango.Markup (markSpan, SpanAttribute(..))
+
+import Bustle.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
 
 newtype Markup = Markup { unMarkup :: String }
     deriving (Show, Read, Ord, Eq)
@@ -77,12 +82,31 @@ light = span_ [FontWeight WeightLight]
 red :: Markup -> Markup
 red = span_ [FontForeground "#ff0000"]
 
-escape :: String -> Markup
-escape = Markup . escapeMarkup
+-- Kind of a transitional measure because some strings are Strings, and some are Text.
+class Unescaped s where
+    toString :: s -> String
 
-formatMember :: Maybe String -> String -> Markup
+instance Unescaped String where
+    toString = id
+
+instance Unescaped Text where
+    toString = T.unpack
+
+instance Unescaped InterfaceName where
+    toString = toString . interfaceNameText
+
+instance Unescaped ObjectPath where
+    toString = toString . objectPathText
+
+instance Unescaped MemberName where
+    toString = toString . memberNameText
+
+escape :: Unescaped s => s -> Markup
+escape = Markup . escapeMarkup . toString
+
+formatMember :: Maybe InterfaceName -> MemberName -> Markup
 formatMember iface member = iface' `mappend` b (escape member)
   where
     iface' = case iface of
-        Just ifaceName -> escape $ ifaceName ++ "."
+        Just ifaceName -> escape ifaceName `mappend` Markup "."
         Nothing        -> light (escape "(no interface) ")

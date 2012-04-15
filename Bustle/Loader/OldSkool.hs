@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-
 Bustle.Loader.OldSkool: reads the output of bustle-dbus-monitor
 Copyright © 2008–2011 Collabora Ltd.
@@ -22,6 +23,8 @@ module Bustle.Loader.OldSkool
 where
 
 import Bustle.Types
+import qualified DBus.Types as D
+import qualified Data.Text as T
 import Text.ParserCombinators.Parsec hiding (Parser)
 import Data.Map (Map)
 import Data.Maybe (isJust)
@@ -80,12 +83,24 @@ none = do
     string "<none>"
     return Nothing
 
+pathify :: String -> D.ObjectPath
+pathify s = case D.objectPath (T.pack s) of
+    Just p -> p
+    Nothing -> D.objectPath_ "/unparseable/object/path"
+
+interfacify :: String -> Maybe D.InterfaceName
+interfacify = D.interfaceName . T.pack
+
+memberNamify :: String -> D.MemberName
+memberNamify s = case D.memberName (T.pack s) of
+    Just m -> m
+    Nothing -> D.memberName_ "UnparseableMemberName"
 
 entireMember :: Parser Member
 entireMember = do
-    let p = many1 (oneOf "/_" <|> alphaNum) <?> "path"
-        i = none <|> fmap Just (many1 (oneOf "._" <|> alphaNum)) <?> "iface"
-        m = many1 (oneOf "_" <|> alphaNum) <?> "membername"
+    let p = pathify <$> many1 (oneOf "/_" <|> alphaNum) <?> "path"
+        i = none <|> fmap interfacify (many1 (oneOf "._" <|> alphaNum)) <?> "iface"
+        m = memberNamify <$> many1 (oneOf "_" <|> alphaNum) <?> "membername"
     Member <$> p <* t <*> i <* t <*> m
   <?> "member"
 

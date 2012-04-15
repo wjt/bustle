@@ -63,6 +63,7 @@ import Graphics.Rendering.Pango.Font
 import qualified Bustle.Markup as Markup
 import Bustle.Markup (Markup)
 import Bustle.Util
+import Bustle.Types (ObjectPath, InterfaceName, MemberName)
 
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
@@ -92,9 +93,9 @@ data Colour = Colour Double Double Double
 data Shape = Header { strs :: [String]
                     , shapex, shapey :: Double
                     }
-           | MemberLabel { labelPath :: String
-                         , labelInterface :: Maybe String
-                         , labelMember :: String
+           | MemberLabel { labelPath :: ObjectPath
+                         , labelInterface :: Maybe InterfaceName
+                         , labelMember :: MemberName
                          , shapeIsReturn :: Bool
                          , shapex :: Double -- The coordinates of the *centre*
                          , shapey :: Double -- of the label
@@ -117,13 +118,13 @@ data Shape = Header { strs :: [String]
                  }
            | Highlight { highlightRegion :: Rect
                        }
-  deriving (Show, Read, Eq)
+  deriving (Show, Eq)
 
 -- Smart constructors for TimestampLabel and MemberLabel that fill in the
 -- hardcoded (spit) x coordinates.
-memberLabel :: String -- ^ object path
-            -> Maybe String -- ^ interface
-            -> String -- ^ method name
+memberLabel :: ObjectPath
+            -> Maybe InterfaceName
+            -> MemberName
             -> Bool   -- ^ True if this is a return; False if it's a call
             -> Double -- ^ y-coordinate
             -> Shape
@@ -461,7 +462,13 @@ drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
     showLayout l
   where h = 10
 
-drawMember :: String -> Maybe String -> String -> Bool -> Double -> Double -> Render ()
+drawMember :: ObjectPath
+           -> Maybe InterfaceName
+           -> MemberName
+           -> Bool
+           -> Double
+           -> Double
+           -> Render ()
 drawMember p i m isReturn x y = do
     drawOne path (y - 10)
     drawOne fullMethod y
