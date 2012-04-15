@@ -385,9 +385,9 @@ lookupOtherName bus o = do
                                     , show several
                                     ]
 
--- Finds a BusName in a map of applications
+-- Finds a TaggedBusName in a map of applications
 lookupApp :: Bus
-          -> BusName
+          -> TaggedBusName
           -> Renderer (UniqueName, ApplicationInfo)
 lookupApp bus name = case name of
     U u -> do
@@ -395,9 +395,9 @@ lookupApp bus name = case name of
         return (u, details)
     O o -> lookupOtherName bus o
 
--- Finds a BusName in the current state, yielding its column if it exists.  If
+-- Finds a TaggedBusName in the current state, yielding its column if it exists.  If
 -- it exists, but previously lacked a column, a column is allocated.
-appCoordinate :: Bus -> BusName -> Renderer Double
+appCoordinate :: Bus -> TaggedBusName -> Renderer Double
 appCoordinate bus n = do
     (u, details) <- lookupApp bus n
     case aiColumn details of
@@ -646,7 +646,7 @@ addMessageRegion m = do
     region (Stripe (newRow - eventHeight / 2) (newRow + eventHeight / 2)) m
 
 mentionedNames :: Message
-               -> [BusName]
+               -> [TaggedBusName]
 mentionedNames m = case m of
     MethodCall { sender = s, destination = d }   -> [s, d]
     MethodReturn { sender = s, destination = d } -> [s, d]

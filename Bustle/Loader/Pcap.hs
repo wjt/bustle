@@ -53,7 +53,7 @@ stringifyBusName :: BusName
 stringifyBusName = T.unpack . busNameText
 
 stupifyBusName :: String
-               -> B.BusName
+               -> B.TaggedBusName
 stupifyBusName n =
     case n of
         (':':_) -> B.U $ B.UniqueName n
@@ -61,7 +61,7 @@ stupifyBusName n =
 
 convertBusName :: String
                -> Maybe BusName
-               -> B.BusName
+               -> B.TaggedBusName
 convertBusName context n = stupifyBusName (maybe context stringifyBusName n)
 
 convertMember :: (a -> ObjectPath)

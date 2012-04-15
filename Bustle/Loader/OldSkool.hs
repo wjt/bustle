@@ -40,7 +40,7 @@ infixl 4 <*>
 (<*>) :: Monad m => m (a -> b) -> m a -> m b
 (<*>) = ap
 
-type Parser a = GenParser Char (Map (BusName, Serial) DetailedMessage) a
+type Parser a = GenParser Char (Map (TaggedBusName, Serial) DetailedMessage) a
 
 t :: Parser Char
 t = char '\t'
@@ -64,7 +64,7 @@ parseOtherName =
   <?>
     "non-unique name"
 
-parseBusName :: Parser BusName
+parseBusName :: Parser TaggedBusName
 parseBusName = (fmap U parseUniqueName) <|> (fmap O parseOtherName)
 
 parseSerial :: Parser Serial
@@ -109,7 +109,7 @@ addPendingCall dm = updateState $ Map.insert (sender m, serial m) dm
   where
     m = dmMessage dm
 
-findPendingCall :: BusName -> Serial -> Parser (Maybe DetailedMessage)
+findPendingCall :: TaggedBusName -> Serial -> Parser (Maybe DetailedMessage)
 findPendingCall dest s = do
     pending <- getState
     let key = (dest, s)
@@ -131,7 +131,7 @@ methodCall = do
   <?> "method call"
 
 parseReturnOrError :: String
-                   -> (Maybe DetailedMessage -> BusName -> BusName -> Message)
+                   -> (Maybe DetailedMessage -> TaggedBusName -> TaggedBusName -> Message)
                    -> Parser DetailedMessage
 parseReturnOrError prefix constructor = do
     string prefix <* t
@@ -198,7 +198,7 @@ nameOwnerChanged = do
     m <- parseNOCDetails n
     return $ DetailedMessage ts m Nothing
 
-parseNOCDetails :: BusName
+parseNOCDetails :: TaggedBusName
                 -> Parser Message
 parseNOCDetails n =
     case n of

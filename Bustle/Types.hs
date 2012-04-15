@@ -31,7 +31,7 @@ module Bustle.Types
 
   , UniqueName(..)
   , OtherName(..)
-  , BusName(..)
+  , TaggedBusName(..)
   , isUnique
   , isOther
   , unBusName
@@ -60,16 +60,17 @@ newtype UniqueName = UniqueName { unUniqueName :: String }
   deriving (Ord, Show, Eq)
 newtype OtherName = OtherName { unOtherName :: String }
   deriving (Ord, Show, Eq)
-data BusName = U UniqueName
-             | O OtherName
+data TaggedBusName =
+    U UniqueName
+  | O OtherName
   deriving (Ord, Show, Eq)
 
-isUnique, isOther :: BusName -> Bool
+isUnique, isOther :: TaggedBusName -> Bool
 isUnique (U _) = True
 isUnique (O _) = False
 isOther = not . isUnique
 
-unBusName :: BusName -> String
+unBusName :: TaggedBusName -> String
 unBusName (U (UniqueName x)) = x
 unBusName (O (OtherName  x)) = x
 
@@ -92,21 +93,21 @@ data Member = Member { path :: ObjectPath
   deriving (Ord, Show, Eq)
 
 data Message = MethodCall { serial :: Serial
-                          , sender :: BusName
-                          , destination :: BusName
+                          , sender :: TaggedBusName
+                          , destination :: TaggedBusName
                           , member :: Member
                           }
              | MethodReturn { inReplyTo :: Maybe DetailedMessage
-                            , sender :: BusName
-                            , destination :: BusName
+                            , sender :: TaggedBusName
+                            , destination :: TaggedBusName
                             }
-             | Signal { sender :: BusName
-                      , signalDestination :: Maybe BusName
+             | Signal { sender :: TaggedBusName
+                      , signalDestination :: Maybe TaggedBusName
                       , member :: Member
                       }
              | Error { inReplyTo :: Maybe DetailedMessage
-                     , sender :: BusName
-                     , destination :: BusName
+                     , sender :: TaggedBusName
+                     , destination :: TaggedBusName
                      }
              | Connected { actor :: UniqueName
                          }

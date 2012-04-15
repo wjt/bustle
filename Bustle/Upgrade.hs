@@ -32,7 +32,7 @@ upgrade ms =
             then ms
             else concat $ evalState (mapM synthesiseNOC ms) Set.empty
 
-synthesiseNOC :: DetailedMessage -> State (Set BusName) [DetailedMessage]
+synthesiseNOC :: DetailedMessage -> State (Set TaggedBusName) [DetailedMessage]
 synthesiseNOC dm | isNameOwnerChanged (dmMessage dm) = error "guarded above"
 synthesiseNOC dm = case m of
     Signal {sender = n} -> do
@@ -45,13 +45,13 @@ synthesiseNOC dm = case m of
   where
     m = dmMessage dm
     µs = dmTimestamp dm
-    synthDM :: BusName -> State (Set BusName) [DetailedMessage]
+    synthDM :: TaggedBusName -> State (Set TaggedBusName) [DetailedMessage]
     synthDM n = do
         fakes <- synth n
         return $ map (\fake -> DetailedMessage µs fake Nothing) fakes
 
-synth :: BusName
-      -> State (Set BusName) [Message]
+synth :: TaggedBusName
+      -> State (Set TaggedBusName) [Message]
 synth n = do
     b <- gets (Set.member n)
     if b
