@@ -1,4 +1,5 @@
 *.swp
+*~
 dist
 Setup
 *.hi
