@@ -156,6 +156,7 @@ Test-suite test-renderer
                  , filepath
                  , gtk
                  , mtl
+                 , text
                  , pango
                  , test-framework
                  , test-framework-hunit

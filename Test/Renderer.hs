@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Test.Framework (defaultMain, testGroup)
@@ -11,6 +12,7 @@ import qualified Data.Set as Set
 import Data.Monoid
 import Data.List
 import System.Exit (exitFailure)
+import DBus.Types (objectPath_)
 
 import Bustle.Types
 import Bustle.Renderer
@@ -36,13 +38,13 @@ main = defaultMain tests
 -- disconnect from the bus before the end of the log. This is a regression test
 -- for a bug I almost introduced.
 activeService = UniqueName ":1.1"
-swaddle messages timestamps = map (\(m, ts) -> DetailedMessage ts m Nothing)
+swaddle messages timestamps = map (\(e, ts) -> Detailed ts e Nothing)
                                   (zip messages timestamps)
 sessionLogWithoutDisconnect =
-    [ Connected activeService
-    , Signal (U activeService) Nothing $ Member "/" Nothing "Hello"
+    [ NOCEvent $ Connected activeService
+    , MessageEvent $ Signal (U activeService) Nothing $ Member (objectPath_ "/") Nothing "Hello"
     ]
-sessionLogWithDisconnect = sessionLogWithoutDisconnect ++ [ Disconnected activeService ]
+sessionLogWithDisconnect = sessionLogWithoutDisconnect ++ [ NOCEvent $ Disconnected activeService ]
 expectedParticipants = [ (activeService, Set.empty) ]
 
 test_ l expected = expected @=? ps
@@ -62,12 +64,12 @@ os = map (OtherName . ("Foo." ++) . (:"potato")) ['a'..'z']
 
 m = Member "/" Nothing "Hi"
 
-bareLog = [ Connected u1
-          , Signal (U u1) Nothing m
-          , Connected u2
+bareLog = [ NOCEvent $ Connected u1
+          , MessageEvent $ Signal (U u1) Nothing m
+          , NOCEvent $ Connected u2
           ]
-          ++ map (\o -> NameChanged o (Claimed u2)) os ++
-          [ MethodCall 0 (U u1) (O (head os)) m ]
+          ++ map (\o -> NOCEvent (NameChanged o (Claimed u2))) os ++
+          [ MessageEvent $ MethodCall 0 (U u1) (O (head os)) m ]
 
 sessionLog = swaddle bareLog [1,3..]
 systemLog  = swaddle bareLog [2,4..]
