@@ -65,6 +65,9 @@ import Bustle.Markup (Markup)
 import Bustle.Util
 import Bustle.Types (ObjectPath, InterfaceName, MemberName)
 
+-- Sorry Mum
+import System.IO.Unsafe (unsafePerformIO)
+
 type Point = (Double, Double)
 type Rect = (Double, Double, Double, Double)
 
@@ -435,12 +438,13 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = saved $ do
     moveTo (if x1 > cx then tx - textWidth else tx) (y2 - 5)
     showLayout l
 
-font :: IO FontDescription
-font = do
+font :: FontDescription
+font = unsafePerformIO $ do
     fd <- fontDescriptionNew
     fontDescriptionSetSize fd 7
     fontDescriptionSetFamily fd "Sans"
     return fd
+{-# NOINLINE font #-}
 
 mkLayout :: (MonadIO m)
          => Markup -> EllipsizeMode -> LayoutAlignment
@@ -449,7 +453,7 @@ mkLayout s e a = liftIO $ do
     ctx <- cairoCreateContext Nothing
     layout <- layoutEmpty ctx
     layoutSetMarkup layout (Markup.unMarkup s)
-    layoutSetFontDescription layout . Just =<< font
+    layoutSetFontDescription layout (Just font)
     layoutSetEllipsize layout e
     layoutSetAlignment layout a
     return layout
