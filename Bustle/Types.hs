@@ -56,15 +56,16 @@ where
 import Data.Word (Word32)
 import DBus.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
 import DBus.Message (ReceivedMessage)
-import qualified Data.Text as T
+import qualified Data.Text as Text
+import Data.Text (Text)
 import Data.Maybe (maybeToList)
 import Data.Either (partitionEithers)
 
 type Serial = Word32
 
-newtype UniqueName = UniqueName { unUniqueName :: String }
+newtype UniqueName = UniqueName { unUniqueName :: Text }
   deriving (Ord, Show, Eq)
-newtype OtherName = OtherName { unOtherName :: String }
+newtype OtherName = OtherName { unOtherName :: Text }
   deriving (Ord, Show, Eq)
 data TaggedBusName =
     U UniqueName
@@ -76,7 +77,7 @@ isUnique (U _) = True
 isUnique (O _) = False
 isOther = not . isUnique
 
-unBusName :: TaggedBusName -> String
+unBusName :: TaggedBusName -> Text
 unBusName (U (UniqueName x)) = x
 unBusName (O (OtherName  x)) = x
 

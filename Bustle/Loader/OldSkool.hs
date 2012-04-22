@@ -55,12 +55,12 @@ nameChars = many1 (noneOf "\t\n")
 parseUniqueName :: Parser UniqueName
 parseUniqueName = do
     char ':'
-    fmap (UniqueName . (':':)) nameChars
+    fmap (UniqueName . T.pack . (':':)) nameChars
   <?> "unique name"
 
 parseOtherName :: Parser OtherName
 parseOtherName =
-    fmap OtherName ((none >> return "") <|> nameChars)
+    fmap (OtherName . T.pack) ((none >> return "") <|> nameChars)
   <?>
     "non-unique name"
 
@@ -181,11 +181,11 @@ perhaps act = (noName >> return Nothing) <|> fmap Just act
 
 sameUnique :: UniqueName -> UniqueName -> Parser ()
 sameUnique u u' = guard (u == u')
-  <?> "owner to be " ++ unUniqueName u ++ ", not " ++ unUniqueName u'
+  <?> "owner to be " ++ T.unpack (unUniqueName u) ++ ", not " ++ T.unpack (unUniqueName u')
 
 atLeastOne :: OtherName -> Parser a
 atLeastOne n = fail ""
-  <?> unOtherName n ++ " to gain or lose an owner"
+  <?> T.unpack (unOtherName n) ++ " to gain or lose an owner"
 
 nameOwnerChanged :: Parser DetailedEvent
 nameOwnerChanged = do

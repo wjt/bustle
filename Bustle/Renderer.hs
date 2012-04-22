@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, OverloadedStrings #-}
 {-
 Bustle.Renderer: render nice Cairo diagrams from a list of D-Bus messages
 Copyright (C) 2008 Collabora Ltd.
@@ -47,6 +47,8 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Text as Text
+import Data.Text (Text)
 import Data.Ratio
 
 import Control.Applicative (Applicative(..), (<$>), (<*>))
@@ -364,13 +366,13 @@ lookupOtherName bus o = do
         -- No matches indicates a corrupt log, which we try to recover from …
         []        -> do
             warn $ concat [ "'"
-                          , unOtherName o
+                          , Text.unpack $ unOtherName o
                           , "' appeared unheralded on the "
                           , describeBus bus
                           , " bus; making something up..."
                           ]
             let namesInUse = Map.keys as
-                candidates = map (UniqueName . (":fake." ++) . show)
+                candidates = map (UniqueName . (Text.append ":fake.") . Text.pack . show)
                                  ([1..] :: [Integer])
                 u = head $ filter (not . (`elem` namesInUse)) candidates
             addUnique bus u
@@ -423,7 +425,7 @@ appCoordinate bus n = do
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
-            let ns = bestNames u os
+            let ns = map Text.unpack $ bestNames u os
                 h  = headerHeight ns
             shape $ Header ns x (currentRow - (10 + h))
             shape $ ClientLine x (currentRow - 5) (currentRow + 15)
@@ -453,7 +455,7 @@ addUnique bus n = do
     case existing of
         Nothing -> return ()
         Just _  -> warn $ concat [ "Unique name '"
-                                 , unUniqueName n
+                                 , Text.unpack $ unUniqueName n
                                  , "' apparently connected to the bus twice"
                                  ]
     modifyApps bus $ Map.insert n ai
@@ -536,7 +538,7 @@ advanceBy d = do
     when (current' - lastLabelling > 400) $ do
         xs <- (++) <$> getsApps Map.toList SessionBus
                    <*> getsApps Map.toList SystemBus
-        let xs' = [ (x, bestNames u os)
+        let xs' = [ (x, map Text.unpack $ bestNames u os)
                   | (u, ApplicationInfo (CurrentColumn x) os _) <- xs
                   ]
         let (height, ss) = headers xs' (current' + 20)
@@ -560,11 +562,11 @@ advanceBy d = do
                | x <- xs
                ]
 
-bestNames :: UniqueName -> Set OtherName -> [String]
+bestNames :: UniqueName -> Set OtherName -> [Text]
 bestNames (UniqueName u) os
     | Set.null os = [u]
-    | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
-  where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
+    | otherwise   = reverse . sortBy (comparing Text.length) . map readable $ Set.toList os
+  where readable = Text.reverse . Text.takeWhile (/= '.') . Text.reverse . unOtherName
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do

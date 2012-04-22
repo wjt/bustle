@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-
 Bustle.UI.FilterDialog: allows the user to filter the displayed log
 Copyright © 2011 Collabora Ltd.
@@ -26,6 +27,8 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Text as Text
+import Data.Text (Text)
 
 import Control.Monad (liftM)
 
@@ -34,10 +37,10 @@ import Graphics.UI.Gtk
 import Bustle.Types
 
 formatNames :: (UniqueName, Set OtherName)
-            -> String
+            -> Text
 formatNames (u, os)
     | Set.null os = unUniqueName u
-    | otherwise = intercalate "\n" . map unOtherName $ Set.toAscList os
+    | otherwise = Text.intercalate "\n" . map unOtherName $ Set.toAscList os
 
 type NameStore = ListStore (Bool, (UniqueName, Set OtherName))
 
@@ -79,7 +82,7 @@ makeView nameStore = do
     treeViewAppendColumn nameView nameColumn
 
     cellLayoutSetAttributes nameColumn nameCell nameStore $ \(_, ns) ->
-        [ cellText := formatNames ns ]
+        [ cellText := Text.unpack (formatNames ns) ]
 
     sw <- scrolledWindowNew Nothing Nothing
     scrolledWindowSetPolicy sw PolicyAutomatic PolicyAutomatic

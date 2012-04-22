@@ -82,7 +82,7 @@ runDot filepath = process filepath makeDigraph id
     makeDigraph log = ["digraph bustle {"] ++ makeDigraph' log ++ ["}"]
 
     makeDigraph' log =
-        [ concat ["  \"", unBusName s, "\" -> \"", unBusName d, "\";"]
+        [ concat ["  \"", T.unpack (unBusName s), "\" -> \"", T.unpack (unBusName d), "\";"]
         | (s, d) <- nub . mapMaybe (methodCall . deEvent) $ log
         ]
 

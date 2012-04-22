@@ -39,6 +39,7 @@ import DBus.Wire
 import DBus.Message
 import DBus.Types
 import qualified Data.Text as T
+import Data.Text (Text)
 
 import qualified Data.ByteString as BS
 import Data.ByteString.Lazy (fromChunks)
@@ -48,21 +49,16 @@ import qualified Bustle.Types as B
 
 -- Conversions from dbus-core's types into Bustle's more stupid types. This
 -- whole section is pretty upsetting.
-stringifyBusName :: BusName
-                 -> String
-stringifyBusName = T.unpack . busNameText
-
-stupifyBusName :: String
+stupifyBusName :: Text
                -> B.TaggedBusName
-stupifyBusName n =
-    case n of
-        (':':_) -> B.U $ B.UniqueName n
-        _       -> B.O $ B.OtherName n
+stupifyBusName n
+    | not (T.null n) && T.head n == ':' = B.U $ B.UniqueName n
+    | otherwise                         = B.O $ B.OtherName n
 
-convertBusName :: String
+convertBusName :: Text
                -> Maybe BusName
                -> B.TaggedBusName
-convertBusName context n = stupifyBusName (maybe context stringifyBusName n)
+convertBusName context n = stupifyBusName (maybe context busNameText n)
 
 convertMember :: (a -> ObjectPath)
               -> (a -> Maybe InterfaceName)
@@ -116,7 +112,7 @@ isNOC (Just sender) s | looksLikeNOC =
     looksLikeNOC =
         and [ sender == dbusName
             , signalInterface s == dbusInterface
-            , memberNameText (signalMember s) == T.pack "NameOwnerChanged"
+            , memberNameText (signalMember s) == "NameOwnerChanged"
             ]
 isNOC _ _ = Nothing
 
@@ -139,8 +135,8 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
     isUnique :: BusName -> Bool
     isUnique n = T.head (busNameText n) == ':'
 
-    uniquify = B.UniqueName . T.unpack . busNameText
-    otherify = B.OtherName . T.unpack . busNameText
+    uniquify = B.UniqueName . busNameText
+    otherify = B.OtherName . busNameText
 
 tryBustlifyGetNameOwnerReply :: Maybe (MethodCall, a)
                              -> MethodReturn
@@ -204,7 +200,7 @@ bustlify µs bytes m = do
             | otherwise                      -> return $ B.MessageEvent $
                 B.Signal { B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
-                         , B.signalDestination = fmap (stupifyBusName . stringifyBusName)
+                         , B.signalDestination = fmap (stupifyBusName . busNameText)
                                                $ signalDestination sig
                          }
 

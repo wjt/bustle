@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-
 Bustle.Upgrade: synthesise information missing from old logs
 Copyright (C) 2009 Collabora Ltd.
@@ -21,6 +22,7 @@ module Bustle.Upgrade (upgrade) where
 import Control.Monad.State
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Bustle.Types
 
@@ -57,6 +59,6 @@ synth n = do
                  ]
 
 fakeName :: OtherName -> UniqueName
-fakeName = UniqueName . (":fake." ++) . unOtherName
+fakeName = UniqueName . Text.append ":fake." . unOtherName
 
 -- vim: sw=2 sts=2
