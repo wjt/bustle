@@ -445,7 +445,7 @@
                         <child>
                           <object class="GtkLayout" id="diagramLayout">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can_focus">True</property>
                           </object>
                         </child>
                       </object>
