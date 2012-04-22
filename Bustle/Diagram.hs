@@ -104,7 +104,9 @@ data Shape = Header { strs :: [String]
                             , shapex :: Double -- The coordinates of the
                             , shapey :: Double -- *centre* of the timestamp
                             }
-           | ClientLine { shapex, shapey1, shapey2 :: Double }
+           | ClientLines { shapexs :: NonEmpty Double -- The x-coordinates of the lines to draw
+                         , shapey1, shapey2 :: Double
+                         }
            | Rule { shapex1, shapex2, shapey :: Double }
            | Arrow { shapecolour :: Maybe Colour
                    , arrowhead :: Arrowhead
@@ -158,13 +160,14 @@ mapX f s = case s of
     Arc {}         -> s { topx = f (topx s)
                         , bottomx = f (bottomx s)
                         }
+    ClientLines {} -> s { shapexs = mapNonEmpty f (shapexs s) }
     _              -> s { shapex = f (shapex s) }
 
 mapY f s = case s of
     Arc {}        -> s { topy = f (topy s)
                        , bottomy = f (bottomy s)
                        }
-    ClientLine {} -> s { shapey1 = f (shapey1 s)
+    ClientLines {} -> s { shapey1 = f (shapey1 s)
                        , shapey2 = f (shapey2 s)
                        }
     _             -> s { shapey = f (shapey s) }
@@ -215,7 +218,9 @@ headerHeight = fromIntegral . (10 *) . length
 
 bounds :: Shape -> Rect
 bounds s = case s of
-  ClientLine {} -> (shapex s, shapey1 s, shapex s, shapey2 s)
+  ClientLines {} ->
+    let xs = nonEmptyToList (shapexs s)
+    in  (minimum xs, shapey1 s, maximum xs, shapey2 s)
   Rule {} -> (shapex1 s, shapey s, shapex2 s, shapey s)
   Arrow {} ->
     let (x1, x2) = xMinMax s
@@ -353,7 +358,7 @@ draw s = draw' s
           TimestampLabel {} -> drawTimestamp <$> str
                                              <*> shapex
                                              <*> shapey
-          ClientLine {} -> drawClientLine <$> shapex <*> shapey1 <*> shapey2
+          ClientLines {} -> drawClientLines <$> shapexs <*> shapey1 <*> shapey2
           Rule {} -> drawRule <$> shapex1
                               <*> shapex2
                               <*> shapey
@@ -487,12 +492,13 @@ drawTimestamp ts x y = do
     moveTo (x - timestampWidth / 2) (y - 10)
     showLayout =<< mkLayout (Markup.escape ts) EllipsizeNone AlignLeft `withWidth` timestampWidth
 
-drawClientLine :: Double -> Double -> Double -> Render ()
-drawClientLine x y1 y2 = saved $ do
+drawClientLines :: NonEmpty Double -> Double -> Double -> Render ()
+drawClientLines xs y1 y2 = saved $ do
     setSourceRGB 0.7 0.7 0.7
-    moveTo x y1
-    lineTo x y2
-    stroke
+    forM_ (nonEmptyToList xs) $ \x -> do
+        moveTo x y1
+        lineTo x y2
+        stroke
 
 drawRule :: Double -> Double -> Double -> Render ()
 drawRule x1 x2 y = saved $ do

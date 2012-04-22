@@ -31,6 +31,10 @@ module Bustle.Util
 
   -- You probably don't actually want to use this function.
   , traceM
+
+  , NonEmpty(..)
+  , mapNonEmpty
+  , nonEmptyToList
   )
 where
 
@@ -90,3 +94,15 @@ getCacheDir = do
     let dir = dotCache </> "bustle"
     createDirectoryIfMissing True dir
     return dir
+
+-- I don't want to depend on 'semigroups' for this.
+data NonEmpty a = a :| [a]
+    deriving (Show, Eq)
+
+mapNonEmpty :: (a -> b)
+            -> NonEmpty a
+            -> NonEmpty b
+mapNonEmpty f (x :| xs) = f x :| map f xs
+
+nonEmptyToList :: NonEmpty a -> [a]
+nonEmptyToList (x :| xs) = x:xs

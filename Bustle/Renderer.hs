@@ -41,7 +41,7 @@ import Prelude hiding (log)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
-import Bustle.Util (maybeM)
+import Bustle.Util (maybeM, NonEmpty(..))
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -428,7 +428,7 @@ appCoordinate bus n = do
             let ns = map Text.unpack $ bestNames u os
                 h  = headerHeight ns
             shape $ Header ns x (currentRow - (10 + h))
-            shape $ ClientLine x (currentRow - 5) (currentRow + 15)
+            shape $ ClientLines (x :| []) (currentRow - 5) (currentRow + 15)
 
             return x
 
@@ -558,9 +558,9 @@ advanceBy d = do
         appColumns = catMaybes . Map.fold ((:) . aiCurrentColumn) []
     xs <- (++) <$> getsApps appColumns SessionBus
                <*> getsApps appColumns SystemBus
-    tellShapes [ ClientLine x (current + 15) (next + 15)
-               | x <- xs
-               ]
+    case xs of
+        (x:xs') -> shape $ ClientLines (x :| xs') (current + 15) (next + 15)
+        _       -> return ()
 
 bestNames :: UniqueName -> Set OtherName -> [Text]
 bestNames (UniqueName u) os
