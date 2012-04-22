@@ -102,8 +102,8 @@ detailsViewNew = do
     widgetShowAll table
     return $ DetailsView table title pathLabel memberLabel view
 
-pickTitle :: DetailedMessage -> Markup
-pickTitle (DetailedMessage _ m _) = case m of
+pickTitle :: Detailed Message -> Markup
+pickTitle (Detailed _ m _) = case m of
     MethodCall {} -> b (escape "Method call")
     MethodReturn {} -> b (escape "Method return")
     Error {} -> b (escape "Error")
@@ -111,25 +111,25 @@ pickTitle (DetailedMessage _ m _) = case m of
         b . escape $ case d of
             Nothing -> "Signal"
             Just _  -> "Directed signal"
-    _ -> escape "I am made of chalk"
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =
     unMarkup $ formatMember (iface m) (membername m)
 
-getMember :: DetailedMessage -> Maybe Member
-getMember (DetailedMessage _ m _) = case m of
+getMember :: Detailed Message -> Maybe Member
+getMember (Detailed _ m _) = case m of
     MethodCall {}   -> Just $ member m
     Signal {}       -> Just $ member m
-    MethodReturn {} -> fmap (member . dmMessage) $ inReplyTo m
-    Error {}        -> fmap (member . dmMessage) $ inReplyTo m
-    _               -> Nothing
+    MethodReturn {} -> callMember
+    Error {}        -> callMember
+  where
+    callMember = fmap (member . deEvent) $ inReplyTo m
 
-formatMessage :: DetailedMessage -> String
-formatMessage (DetailedMessage _ _ Nothing) =
+formatMessage :: Detailed Message -> String
+formatMessage (Detailed _ _ Nothing) =
     "# No message body information is available. Please capture a fresh log\n\
     \# using bustle-pcap if you need it!"
-formatMessage (DetailedMessage _ _ (Just (_size, rm))) =
+formatMessage (Detailed _ _ (Just (_size, rm))) =
     formatArgs $ DBus.Message.receivedBody rm
   where
     formatArgs = intercalate "\n" . map (format_Variant VariantStyleSignature)
@@ -138,7 +138,7 @@ detailsViewGetTop :: DetailsView -> Widget
 detailsViewGetTop = toWidget . detailsTable
 
 detailsViewUpdate :: DetailsView
-                  -> DetailedMessage
+                  -> Detailed Message
                   -> IO ()
 detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d

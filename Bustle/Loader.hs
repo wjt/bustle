@@ -43,7 +43,7 @@ readLog :: MonadIO io
         -> ErrorT LoadError io ([String], Log)
 readLog f = do
     pcapResult <- io $ Pcap.readPcap f
-    liftM (id *** filter (isRelevant . dmMessage)) $ case pcapResult of
+    liftM (id *** filter (isRelevant . deEvent)) $ case pcapResult of
         Right ms -> return ms
         Left _ -> liftM ((,) []) readOldLogFile
   where
@@ -52,16 +52,16 @@ readLog f = do
         let oldResult = fmap upgrade $ Old.readLog input
         toErrorT (\e -> LoadError f ("Parse error " ++ show e)) oldResult
 
-isRelevant :: Message
+isRelevant :: Event
            -> Bool
-isRelevant m = case m of
+isRelevant (NOCEvent _) = True
+isRelevant (MessageEvent m) = case m of
     Signal {}       -> none [ senderIsBus
                             , isDisconnected
                             ]
     MethodCall {}   -> none3
     MethodReturn {} -> none3
     Error {}        -> none3
-    _               -> True
   where
     -- FIXME: really? Maybe we should allow people to be interested in,
     --        say, binding to signals?

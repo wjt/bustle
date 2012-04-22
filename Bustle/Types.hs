@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveFunctor #-}
 {-
 Bustle.Types: defines types used by Bustle
 Copyright (C) 2008 Collabora Ltd.
@@ -42,9 +42,13 @@ module Bustle.Types
 
   , Member(..)
   , Message(..)
-  , DetailedMessage(..)
+  , NOC(..)
+  , Event(..)
+  , Detailed(..)
+  , DetailedEvent
   , Change(..)
-  , isNameOwnerChanged
+  , partitionDetaileds
+  , mentionedNames
   , Log
   )
 where
@@ -53,6 +57,8 @@ import Data.Word (Word32)
 import DBus.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
 import DBus.Message (ReceivedMessage)
 import qualified Data.Text as T
+import Data.Maybe (maybeToList)
+import Data.Either (partitionEithers)
 
 type Serial = Word32
 
@@ -92,12 +98,16 @@ data Member = Member { path :: ObjectPath
                      }
   deriving (Ord, Show, Eq)
 
+data Event = MessageEvent Message
+           | NOCEvent NOC
+  deriving (Show, Eq, Ord)
+
 data Message = MethodCall { serial :: Serial
                           , sender :: TaggedBusName
                           , destination :: TaggedBusName
                           , member :: Member
                           }
-             | MethodReturn { inReplyTo :: Maybe DetailedMessage
+             | MethodReturn { inReplyTo :: Maybe (Detailed Message)
                             , sender :: TaggedBusName
                             , destination :: TaggedBusName
                             }
@@ -105,30 +115,34 @@ data Message = MethodCall { serial :: Serial
                       , signalDestination :: Maybe TaggedBusName
                       , member :: Member
                       }
-             | Error { inReplyTo :: Maybe DetailedMessage
+             | Error { inReplyTo :: Maybe (Detailed Message)
                      , sender :: TaggedBusName
                      , destination :: TaggedBusName
                      }
-             | Connected { actor :: UniqueName
-                         }
-             | Disconnected { actor :: UniqueName
-                            }
-             | NameChanged { changedName :: OtherName
-                           , change :: Change
-                           }
+  deriving (Show, Eq, Ord)
+
+data NOC = Connected { actor :: UniqueName
+                     }
+         | Disconnected { actor :: UniqueName
+                        }
+         | NameChanged { changedName :: OtherName
+                       , change :: Change
+                       }
   deriving (Show, Eq, Ord)
 
 type MessageSize = Int
 
-data DetailedMessage =
-    DetailedMessage { dmTimestamp :: Microseconds
-                    , dmMessage :: Message
-                    , dmDetails :: Maybe (MessageSize, ReceivedMessage)
-                    }
-  deriving (Show, Eq)
+data Detailed e =
+    Detailed { deTimestamp :: Microseconds
+             , deEvent :: e
+             , deDetails :: Maybe (MessageSize, ReceivedMessage)
+             }
+  deriving (Show, Eq, Functor)
 
-instance Ord DetailedMessage where
-    compare (DetailedMessage µs x _) (DetailedMessage µs' y _)
+type DetailedEvent = Detailed Event
+
+instance Ord e => Ord (Detailed e) where
+    compare (Detailed µs x _) (Detailed µs' y _)
         = compare (µs, x) (µs', y)
 
 data Change = Claimed UniqueName
@@ -136,12 +150,22 @@ data Change = Claimed UniqueName
             | Released UniqueName
   deriving (Show, Eq, Ord)
 
-isNameOwnerChanged :: Message -> Bool
-isNameOwnerChanged (Connected {}) = True
-isNameOwnerChanged (Disconnected {}) = True
-isNameOwnerChanged (NameChanged {}) = True
-isNameOwnerChanged _ = False
+partitionDetaileds :: [DetailedEvent]
+                   -> ([Detailed NOC], [Detailed Message])
+partitionDetaileds = partitionEithers . map f
+  where
+    f (Detailed µs e details) =
+        case e of
+            NOCEvent n -> Left $ Detailed µs n details
+            MessageEvent m -> Right $ Detailed µs m details
 
-type Log = [DetailedMessage]
+mentionedNames :: Message -> [TaggedBusName]
+mentionedNames m = sender m:dest
+  where
+    dest = case m of
+        Signal {} -> maybeToList $ signalDestination m
+        _         -> [destination m]
+
+type Log = [DetailedEvent]
 
 -- vim: sw=2 sts=2

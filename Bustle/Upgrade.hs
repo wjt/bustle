@@ -26,32 +26,24 @@ import Bustle.Types
 
 -- Bustle <0.2.0 did not log NameOwnerChanged; this adds fake ones to logs
 -- lacking them
-upgrade :: [DetailedMessage] -> [DetailedMessage]
-upgrade ms =
-        if any (isNameOwnerChanged . dmMessage) ms
-            then ms
-            else concat $ evalState (mapM synthesiseNOC ms) Set.empty
+upgrade :: [DetailedEvent] -> [DetailedEvent]
+upgrade es =
+    case partitionDetaileds es of
+        ([], ms) -> concat $ evalState (mapM synthesiseNOC ms) Set.empty
+        _        -> es
 
-synthesiseNOC :: DetailedMessage -> State (Set TaggedBusName) [DetailedMessage]
-synthesiseNOC dm | isNameOwnerChanged (dmMessage dm) = error "guarded above"
-synthesiseNOC dm = case m of
-    Signal {sender = n} -> do
-        fakes <- synthDM n
-        return ( fakes ++ [dm] )
-    _                   -> do
-        f1 <- synthDM (sender m)
-        f2 <- synthDM (destination m)
-        return ( f1 ++ f2 ++ [dm] )
+synthesiseNOC :: Detailed Message -> State (Set TaggedBusName) [DetailedEvent]
+synthesiseNOC de@(Detailed µs m _) = do
+    fakes <- mapM synthDM $ mentionedNames m
+    return ( concat fakes ++ [fmap MessageEvent de] )
   where
-    m = dmMessage dm
-    µs = dmTimestamp dm
-    synthDM :: TaggedBusName -> State (Set TaggedBusName) [DetailedMessage]
+    synthDM :: TaggedBusName -> State (Set TaggedBusName) [DetailedEvent]
     synthDM n = do
         fakes <- synth n
-        return $ map (\fake -> DetailedMessage µs fake Nothing) fakes
+        return $ map (\fake -> Detailed µs (NOCEvent fake) Nothing) fakes
 
 synth :: TaggedBusName
-      -> State (Set TaggedBusName) [Message]
+      -> State (Set TaggedBusName) [NOC]
 synth n = do
     b <- gets (Set.member n)
     if b

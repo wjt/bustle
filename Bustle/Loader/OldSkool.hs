@@ -40,7 +40,7 @@ infixl 4 <*>
 (<*>) :: Monad m => m (a -> b) -> m a -> m b
 (<*>) = ap
 
-type Parser a = GenParser Char (Map (TaggedBusName, Serial) DetailedMessage) a
+type Parser a = GenParser Char (Map (TaggedBusName, Serial) (Detailed Message)) a
 
 t :: Parser Char
 t = char '\t'
@@ -104,12 +104,12 @@ entireMember = do
     Member <$> p <* t <*> i <* t <*> m
   <?> "member"
 
-addPendingCall :: DetailedMessage -> Parser ()
+addPendingCall :: Detailed Message -> Parser ()
 addPendingCall dm = updateState $ Map.insert (sender m, serial m) dm
   where
-    m = dmMessage dm
+    m = deEvent dm
 
-findPendingCall :: TaggedBusName -> Serial -> Parser (Maybe DetailedMessage)
+findPendingCall :: TaggedBusName -> Serial -> Parser (Maybe (Detailed Message))
 findPendingCall dest s = do
     pending <- getState
     let key = (dest, s)
@@ -117,7 +117,7 @@ findPendingCall dest s = do
     when (isJust ret) $ updateState (Map.delete key)
     return ret
 
-methodCall :: Parser DetailedMessage
+methodCall :: Parser DetailedEvent
 methodCall = do
     char 'c'
     t
@@ -125,14 +125,14 @@ methodCall = do
     t
     m <- MethodCall <$> parseSerial <* t
                     <*> parseBusName <* t <*> parseBusName <* t <*> entireMember
-    let dm = DetailedMessage µs m Nothing
+    let dm = Detailed µs m Nothing
     addPendingCall dm
-    return dm
+    return $ fmap MessageEvent dm
   <?> "method call"
 
 parseReturnOrError :: String
-                   -> (Maybe DetailedMessage -> TaggedBusName -> TaggedBusName -> Message)
-                   -> Parser DetailedMessage
+                   -> (Maybe (Detailed Message) -> TaggedBusName -> TaggedBusName -> Message)
+                   -> Parser DetailedEvent
 parseReturnOrError prefix constructor = do
     string prefix <* t
     ts <- parseTimestamp <* t
@@ -145,17 +145,17 @@ parseReturnOrError prefix constructor = do
     -- and sender for the reply. This might prove unnecessary in the event of
     -- moving the name collapsing into the UI.
     let (s', d') = case call of
-            Just (DetailedMessage _ m _) -> (destination m, sender m)
-            Nothing                      -> (s, d)
+            Just (Detailed _ m _) -> (destination m, sender m)
+            Nothing               -> (s, d)
         message = constructor call s' d'
-    return $ DetailedMessage ts message Nothing
+    return $ Detailed ts (MessageEvent message) Nothing
  <?> "method return or error"
 
-methodReturn, parseError :: Parser DetailedMessage
+methodReturn, parseError :: Parser DetailedEvent
 methodReturn = parseReturnOrError "r" MethodReturn <?> "method return"
 parseError = parseReturnOrError "err" Error <?> "error"
 
-signal :: Parser DetailedMessage
+signal :: Parser DetailedEvent
 signal = do
     string "sig"
     t
@@ -165,10 +165,10 @@ signal = do
     m <- Signal <$> (parseSerial >> t >> parseBusName) <* t
                 <*> return Nothing
                 <*> entireMember
-    return $ DetailedMessage µs m Nothing
+    return $ Detailed µs (MessageEvent m) Nothing
   <?> "signal"
 
-method :: Parser DetailedMessage
+method :: Parser DetailedEvent
 method = char 'm' >> (methodCall <|> methodReturn)
   <?> "method call or return"
 
@@ -187,7 +187,7 @@ atLeastOne :: OtherName -> Parser a
 atLeastOne n = fail ""
   <?> unOtherName n ++ " to gain or lose an owner"
 
-nameOwnerChanged :: Parser DetailedMessage
+nameOwnerChanged :: Parser DetailedEvent
 nameOwnerChanged = do
     string "nameownerchanged"
     t
@@ -196,10 +196,10 @@ nameOwnerChanged = do
     n <- parseBusName
     t
     m <- parseNOCDetails n
-    return $ DetailedMessage ts m Nothing
+    return $ Detailed ts (NOCEvent m) Nothing
 
 parseNOCDetails :: TaggedBusName
-                -> Parser Message
+                -> Parser NOC
 parseNOCDetails n =
     case n of
         U u -> do
@@ -226,13 +226,13 @@ parseNOCDetails n =
                 (Just  a, Just  b) -> return $ Stolen a b
             return $ NameChanged o c
 
-event :: Parser DetailedMessage
+event :: Parser DetailedEvent
 event = method <|> signal <|> nameOwnerChanged <|> parseError
 
-events :: Parser [DetailedMessage]
+events :: Parser [DetailedEvent]
 events = sepEndBy event (char '\n') <* eof
 
-readLog :: String -> Either ParseError [DetailedMessage]
+readLog :: String -> Either ParseError [DetailedEvent]
 readLog filename = runParser events Map.empty "" filename
 
 -- vim: sw=2 sts=2

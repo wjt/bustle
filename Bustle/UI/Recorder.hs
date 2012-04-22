@@ -46,7 +46,7 @@ type RecorderIncomingCallback = RendererResult Participants
 type RecorderFinishedCallback = Bool -- ^ was anything meaningful actually recorded?
                              -> IO ()
 
-processBatch :: MVar [DetailedMessage]
+processBatch :: MVar [DetailedEvent]
              -> MVar Int
              -> Label
              -> RecorderIncomingCallback
@@ -108,7 +108,7 @@ recorderRun filename mwindow incoming finished = handleGError newFailed $ do
         case m of
             Left e -> warn e
             Right message
-              | isRelevant (dmMessage message) -> do
+              | isRelevant (deEvent message) -> do
                     modifyMVar_ pendingRef $ \pending -> return (message:pending)
               | otherwise -> return ()
 

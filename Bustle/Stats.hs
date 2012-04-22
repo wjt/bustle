@@ -30,6 +30,7 @@ module Bustle.Stats
   )
 where
 
+import Control.Monad (guard)
 import Data.List (sort, sortBy)
 import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
@@ -42,9 +43,10 @@ import Bustle.Types
 data TallyType = TallyMethod | TallySignal
     deriving (Eq, Ord, Show)
 
-repr :: DetailedMessage
+repr :: DetailedEvent
      -> Maybe (TallyType, Maybe InterfaceName, MemberName)
-repr (DetailedMessage _ msg _) =
+repr (Detailed _ (NOCEvent _) _) = Nothing
+repr (Detailed _ (MessageEvent msg) _) =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
         Signal     { member = m } -> Just (TallySignal, iface m, membername m)
@@ -91,20 +93,27 @@ methodTimes = reverse
             . foldr (\(i, method, time) ->
                         Map.alter (alt time) (i, method)) Map.empty
             . mapMaybe methodReturn
+            -- Get rid of NOC messages
+            . snd
+            . partitionDetaileds
     where alt newtime Nothing = Just (newtime, [newtime])
           alt newtime (Just (total, times)) =
               Just (newtime + total, newtime : times)
 
-          methodReturn :: DetailedMessage
+          isReturn :: Message -> Bool
+          isReturn (MethodReturn {}) = True
+          isReturn _                 = False
+
+          methodReturn :: Detailed Message
                        -> Maybe (Maybe InterfaceName, MemberName, Microseconds)
-          methodReturn dm = case dmMessage dm of
-              MethodReturn { inReplyTo =
-                                 Just (DetailedMessage start call@(MethodCall {}) _)
-                           } -> Just ( iface (member call)
-                                     , membername (member call)
-                                     , dmTimestamp dm - start
-                                     )
-              _              -> Nothing
+          methodReturn dm = do
+              let m = deEvent dm
+              guard (isReturn m)
+              Detailed start (call@(MethodCall {})) _ <- inReplyTo m
+              return ( iface (member call)
+                     , membername (member call)
+                     , deTimestamp dm - start
+                     )
 
           summarize ((i, method), (total, times)) =
               TimeInfo { tiInterface = i
@@ -145,22 +154,31 @@ messageSizes messages =
     intMean :: [Int] -> Int
     intMean = ceiling . (mean :: [Double] -> Double) . map fromIntegral
 
-    sizeTable = foldr f Map.empty messages
+    sizeTable = foldr f Map.empty . snd . partitionDetaileds $ messages
 
-    f :: DetailedMessage -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
-                         -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
-    f dm = case (sizeKeyRepr dm, dmDetails dm) of
+    f :: Detailed Message
+      -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
+      -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
+    f dm = case (sizeKeyRepr dm, deDetails dm) of
         (Just key, Just (size, _)) -> Map.insertWith' (++) key [size]
         _                          -> id
 
-    sizeKeyRepr :: DetailedMessage
+    callDetails :: Message
+                -> Maybe (Maybe InterfaceName, MemberName)
+    callDetails msg = do
+        Detailed _ msg' _ <- inReplyTo msg
+        return (iface (member msg'), membername (member msg'))
+
+    sizeKeyRepr :: Detailed Message
                 -> Maybe (SizeType, Maybe InterfaceName, MemberName)
-    sizeKeyRepr (DetailedMessage _ msg _) =
+    sizeKeyRepr dm = do
+        let msg = deEvent dm
         case msg of
-            MethodCall { member = m } -> Just (SizeCall, iface m, membername m)
-            Signal     { member = m } -> Just (SizeSignal, iface m, membername m)
-            MethodReturn { inReplyTo = (Just (DetailedMessage _ msg' _)) } ->
-                Just (SizeReturn, iface (member msg'), membername (member msg'))
-            Error { inReplyTo = (Just (DetailedMessage _ msg' _)) } ->
-                Just (SizeError, iface (member msg'), membername (member msg'))
-            _                         -> Nothing
+            MethodCall { member = m } -> return (SizeCall, iface m, membername m)
+            Signal     { member = m } -> return (SizeSignal, iface m, membername m)
+            MethodReturn { } -> do
+                (x, y) <- callDetails msg
+                return (SizeReturn, x, y)
+            Error { } -> do
+                (x, y) <- callDetails msg
+                return (SizeError, x, y)

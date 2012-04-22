@@ -95,7 +95,7 @@ data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
                    , rrTopOffset :: Double -- ^ you shouldn't really need this outside of here.
                    , rrShapes :: [Shape]
-                   , rrRegions :: Regions DetailedMessage
+                   , rrRegions :: Regions (Detailed Message)
                    , rrApplications :: apps
                    , rrWarnings :: [String]
                    }
@@ -188,19 +188,19 @@ processSome sessionBusLog systemBusLog rs = (buildResult output rs', rs')
   where
     log' = combine sessionBusLog systemBusLog
 
-    (output, rs') = runRenderer (mapM_ (uncurry munge) log') rs
+    (output, rs') = runRenderer (mapM_ (uncurry processOne) log') rs
 
 -- Combines a series of messages on the session bus and system bus into a
 -- single ordered list, annotated by timestamp. Assumes both the source lists
 -- are sorted.
 combine :: Log -- ^ session bus messages
         -> Log -- ^ system bus messages
-        -> [(Bus, DetailedMessage)]
+        -> [(Bus, DetailedEvent)]
 combine [] [] = []
 combine xs [] = zip (repeat SessionBus) xs
 combine [] ys = zip (repeat SystemBus) ys
 combine xs@(x:xs') ys@(y:ys') =
-    if dmTimestamp x < dmTimestamp y
+    if deTimestamp x < deTimestamp y
         then (SessionBus, x):combine xs' ys
         else (SystemBus, y):combine xs ys'
 
@@ -227,7 +227,7 @@ runRenderer (Renderer act) st = runIdentity $ runStateT (execWriterT act) st
 
 data RendererOutput =
     RendererOutput ![Shape]
-                   !(Regions DetailedMessage)
+                   !(Regions (Detailed Message))
                    ![String]
   deriving
     (Show)
@@ -319,7 +319,7 @@ type Applications = Map UniqueName ApplicationInfo
 
 -- Map from a method call message to the coordinates at which the arc to its
 -- return should start.
-type Pending = Map DetailedMessage (Double, Double)
+type Pending = Map (Detailed Message) (Double, Double)
 
 getBusState :: Bus -> Renderer BusState
 getBusState = getsBusState id
@@ -350,7 +350,7 @@ lookupUniqueName bus u = do
         Just nameInfo -> return nameInfo
         -- This happens with pcap logs where we don't (currently) have
         -- explicit change notification for unique names in the stream of
-        -- DetailedMessages.
+        -- DetailedEvents.
         Nothing       -> addUnique bus u
 
 lookupOtherName :: Bus
@@ -491,7 +491,7 @@ shape s = tellShapes [s]
 tellShapes :: [Shape] -> Renderer ()
 tellShapes ss = tell $ RendererOutput ss [] []
 
-region :: Stripe -> DetailedMessage -> Renderer ()
+region :: Stripe -> Detailed Message -> Renderer ()
 region r m = tell $ RendererOutput [] [(r, m)] []
 
 warn :: String -> Renderer ()
@@ -504,7 +504,7 @@ modifyPending bus f = modifyBusState bus $ \bs ->
     bs { pending = f (pending bs) }
 
 addPending :: Bus
-           -> DetailedMessage
+           -> Detailed Message
            -> Renderer ()
 addPending bus m = do
     x <- destinationCoordinate bus m
@@ -512,8 +512,8 @@ addPending bus m = do
     modifyPending bus $ Map.insert m (x, y)
 
 findCallCoordinates :: Bus
-                    -> Maybe DetailedMessage
-                    -> Renderer (Maybe (DetailedMessage, (Double, Double)))
+                    -> Maybe (Detailed Message)
+                    -> Renderer (Maybe (Detailed Message, (Double, Double)))
 findCallCoordinates bus = maybe (return Nothing) $ \m -> do
     ret <- getsBusState (Map.lookup m . pending) bus
     modifyPending bus $ Map.delete m
@@ -578,29 +578,29 @@ edgemostApp bus = do
         SystemBus  -> Set.findMin
 
 senderCoordinate :: Bus
-                 -> DetailedMessage
+                 -> Detailed Message
                  -> Renderer Double
-senderCoordinate bus m = appCoordinate bus . sender $ dmMessage m
+senderCoordinate bus de = appCoordinate bus . sender $ deEvent de
 
 destinationCoordinate :: Bus
-                      -> DetailedMessage
+                      -> Detailed Message
                       -> Renderer Double
-destinationCoordinate bus m = appCoordinate bus . destination $ dmMessage m
+destinationCoordinate bus de = appCoordinate bus . destination $ deEvent de
 
 signalDestinationCoordinate :: Bus
-                            -> DetailedMessage
+                            -> Detailed Message
                             -> Renderer (Maybe Double)
 signalDestinationCoordinate bus m =
-    case signalDestination $ dmMessage m of
+    case signalDestination $ deEvent m of
         Nothing -> return Nothing
         Just n  -> Just <$> appCoordinate bus n
 
-memberName :: DetailedMessage
+memberName :: Detailed Message
            -> Bool
            -> Renderer ()
 memberName message isReturn = do
     current <- gets row
-    let Member p i m = member $ dmMessage message
+    let Member p i m = member $ deEvent message
     shape $ memberLabel p i m isReturn current
 
 getTimeOffset :: Microseconds
@@ -614,14 +614,14 @@ getTimeOffset µs = do
       else
         return (µs - base)
 
-relativeTimestamp :: DetailedMessage -> Renderer ()
+relativeTimestamp :: Detailed a -> Renderer ()
 relativeTimestamp dm = do
-    relative <- getTimeOffset (dmTimestamp dm)
+    relative <- getTimeOffset (deTimestamp dm)
     current <- gets row
     shape $ timestampLabel (show (µsToMs relative) ++ "ms") current
 
 returnArc :: Bus
-          -> DetailedMessage
+          -> Detailed Message
           -> Double
           -> Double
           -> Microseconds
@@ -637,23 +637,13 @@ returnArc bus mr callx cally duration = do
                 , caption = show (µsToMs duration) ++ "ms"
                 }
 
-addMessageRegion :: DetailedMessage
+addMessageRegion :: Detailed Message
                  -> Renderer ()
 addMessageRegion m = do
     newRow <- gets row
 
     -- FIXME: wtf. "row" points to the ... middle ... of the current row.
     region (Stripe (newRow - eventHeight / 2) (newRow + eventHeight / 2)) m
-
-mentionedNames :: Message
-               -> [TaggedBusName]
-mentionedNames m = case m of
-    MethodCall { sender = s, destination = d }   -> [s, d]
-    MethodReturn { sender = s, destination = d } -> [s, d]
-    Signal { sender = s, signalDestination = d } -> s:maybeToList d
-    Error { sender = s, destination = d }        -> [s, d]
-    -- We always want to process owner changes.
-    _                                            -> []
 
 shouldShow :: Bus
            -> Message
@@ -663,10 +653,17 @@ shouldShow bus m = do
     names <- mapM (fmap fst . lookupApp bus) (mentionedNames m)
     return $ Set.null (ignored `Set.intersection` Set.fromList names)
 
-munge :: Bus
-      -> DetailedMessage
-      -> Renderer ()
-munge bus dm@(DetailedMessage _ m _) = do
+processOne :: Bus
+           -> Detailed Event
+           -> Renderer ()
+processOne bus de = case deEvent de of
+    NOCEvent n     -> processNOC bus n
+    MessageEvent m -> processMessage bus (fmap (const m) de)
+
+processMessage :: Bus
+               -> Detailed Message
+               -> Renderer ()
+processMessage bus dm@(Detailed _ m _) = do
     orly <- shouldShow bus m
     when orly $ case m of
         Signal {}       -> do
@@ -687,12 +684,6 @@ munge bus dm@(DetailedMessage _ m _) = do
         MethodReturn {} -> returnOrError $ methodReturn bus
         Error {}        -> returnOrError $ errorReturn bus
 
-        Connected { actor = u } -> addUnique bus u >> return ()
-        Disconnected { actor = u } -> remUnique bus u
-        NameChanged { changedName = n
-                    , change = c
-                    } -> updateApps bus n c
-
   where advance = advanceBy eventHeight -- FIXME: use some function of timestamp?
         returnOrError f = do
             call <- findCallCoordinates bus (inReplyTo m)
@@ -703,12 +694,23 @@ munge bus dm@(DetailedMessage _ m _) = do
                     relativeTimestamp dm
                     memberName dm' True
                     f dm
-                    let duration = dmTimestamp dm - dmTimestamp dm'
+                    let duration = deTimestamp dm - deTimestamp dm'
                     returnArc bus dm x y duration
                     addMessageRegion dm
 
+processNOC :: Bus
+           -> NOC
+           -> Renderer ()
+processNOC bus noc =
+    case noc of
+        Connected { actor = u } -> addUnique bus u >> return ()
+        Disconnected { actor = u } -> remUnique bus u
+        NameChanged { changedName = n
+                    , change = c
+                    } -> updateApps bus n c
+
 methodCall, methodReturn, errorReturn :: Bus
-                                      -> DetailedMessage
+                                      -> Detailed Message
                                       -> Renderer ()
 methodCall = methodLike Nothing Above
 methodReturn = methodLike Nothing Below
@@ -717,7 +719,7 @@ errorReturn = methodLike (Just $ Colour 1 0 0) Below
 methodLike :: Maybe Colour
            -> Arrowhead
            -> Bus
-           -> DetailedMessage
+           -> Detailed Message
            -> Renderer ()
 methodLike colour a bus dm = do
     sc <- senderCoordinate bus dm
@@ -725,7 +727,7 @@ methodLike colour a bus dm = do
     t <- gets row
     shape $ Arrow colour a sc dc t
 
-signal :: Bus -> DetailedMessage -> Renderer ()
+signal :: Bus -> Detailed Message -> Renderer ()
 signal bus dm = do
     t <- gets row
     emitter <- senderCoordinate bus dm

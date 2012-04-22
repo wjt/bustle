@@ -89,7 +89,7 @@ data WindowInfo =
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiContentVPaned :: VPaned
-               , wiCanvas :: Canvas DetailedMessage
+               , wiCanvas :: Canvas (Detailed Message)
                , wiDetailsView :: DetailsView
 
                , wiLogDetails :: IORef (Maybe LogDetails)
@@ -174,8 +174,8 @@ loadLog = loadLogWith emptyWindow
 
 openLog :: MonadIO io
         => LogDetails
-        -> ErrorT LoadError io ( ([String], [DetailedMessage])
-                               , ([String], [DetailedMessage])
+        -> ErrorT LoadError io ( ([String], [DetailedEvent])
+                               , ([String], [DetailedEvent])
                                )
 openLog (RecordedLog filepath) = do
     result <- readLog filepath
@@ -405,7 +405,7 @@ emptyWindow = do
   return windowInfo
 
 updateDetailsView :: DetailsView
-                  -> Maybe DetailedMessage
+                  -> Maybe (Detailed Message)
                   -> IO ()
 updateDetailsView detailsView newMessage = do
     case newMessage of

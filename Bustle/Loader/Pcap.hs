@@ -75,12 +75,12 @@ convertMember getObjectPath getInterfaceName getMemberName m =
              (getMemberName m)
 
 type PendingMessages = Map (Maybe BusName, Serial)
-                           (MethodCall, B.DetailedMessage)
+                           (MethodCall, B.Detailed B.Message)
 
 popMatchingCall :: (MonadState PendingMessages m)
                 => Maybe BusName
                 -> Serial
-                -> m (Maybe (MethodCall, B.DetailedMessage))
+                -> m (Maybe (MethodCall, B.Detailed B.Message))
 popMatchingCall name serial = do
     ret <- tryPop (name, serial)
     case (ret, name) of
@@ -100,7 +100,7 @@ insertPending :: (MonadState PendingMessages m)
               => Maybe BusName
               -> Serial
               -> MethodCall
-              -> B.DetailedMessage
+              -> B.Detailed B.Message
               -> m ()
 insertPending n s rawCall b = modify $ Map.insert (n, s) (rawCall, b)
 
@@ -122,7 +122,7 @@ isNOC _ _ = Nothing
 
 
 bustlifyNOC :: (BusName, Maybe BusName, Maybe BusName)
-            -> B.Message
+            -> B.NOC
 bustlifyNOC ns@(name, oldOwner, newOwner)
     | isUnique name =
           case (oldOwner, newOwner) of
@@ -142,14 +142,29 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
     uniquify = B.UniqueName . T.unpack . busNameText
     otherify = B.OtherName . T.unpack . busNameText
 
+tryBustlifyGetNameOwnerReply :: Maybe (MethodCall, a)
+                             -> MethodReturn
+                             -> Maybe B.NOC
+tryBustlifyGetNameOwnerReply maybeCall mr = do
+    -- FIXME: obviously this should be more robust:
+    --  • check that the service really is the bus daemon
+    --  • don't crash if the body of the call or reply doesn't contain one bus name.
+    (rawCall, _) <- maybeCall
+    guard (memberNameText (methodCallMember rawCall) == "GetNameOwner")
+    ownedName <- fromVariant $ (methodCallBody rawCall !! 0)
+    return $ bustlifyNOC ( ownedName
+                         , Nothing
+                         , fromVariant $ (methodReturnBody mr !! 0)
+                         )
+
 bustlify :: Monad m
          => B.Microseconds
          -> Int
          -> ReceivedMessage
-         -> StateT PendingMessages m B.DetailedMessage
+         -> StateT PendingMessages m B.DetailedEvent
 bustlify µs bytes m = do
     bm <- buildBustledMessage
-    return $ B.DetailedMessage µs bm (Just (bytes, m))
+    return $ B.Detailed µs bm (Just (bytes, m))
   where
     buildBustledMessage = case m of
         (ReceivedMethodCall serial sender mc) -> do
@@ -160,25 +175,17 @@ bustlify µs bytes m = do
                              , B.destination = convertBusName "method.call.destination" $ methodCallDestination mc
                              , B.member = convertMember methodCallPath methodCallInterface methodCallMember mc
                              }
-            -- FIXME: we shouldn't need to construct the same DetailedMessage
-            -- both here and 10 lines above.
-            insertPending sender serial mc (B.DetailedMessage µs call (Just (bytes, m)))
-            return call
+            -- FIXME: we shouldn't need to construct almost the same thing here
+            -- and 10 lines above maybe?
+            insertPending sender serial mc (B.Detailed µs call (Just (bytes, m)))
+            return $ B.MessageEvent call
 
         (ReceivedMethodReturn _serial sender mr) -> do
             call <- popMatchingCall (methodReturnDestination mr) (methodReturnSerial mr)
 
-            return $ case call of
-                Just (rawCall, dm)
-                    -- FIXME: obviously this should be more robust:
-                    --  • check that the service really is the bus daemon
-                    --  • don't crash if the body of the call or reply doesn't contain one bus name.
-                    | memberNameText (B.membername (B.member (B.dmMessage dm))) == "GetNameOwner"
-                        -> bustlifyNOC ( fromJust . fromVariant $ (methodCallBody rawCall !! 0)
-                                       , Nothing
-                                       , fromVariant $ (methodReturnBody mr !! 0)
-                                       )
-                _ -> B.MethodReturn
+            return $ case tryBustlifyGetNameOwnerReply call mr of
+                Just noc -> B.NOCEvent noc
+                Nothing  -> B.MessageEvent $ B.MethodReturn
                                { B.inReplyTo = fmap snd call
                                , B.sender = convertBusName "method.return.sender" sender
                                , B.destination = convertBusName "method.return.destination" $ methodReturnDestination mr
@@ -186,15 +193,15 @@ bustlify µs bytes m = do
 
         (ReceivedError _serial sender e) -> do
             call <- popMatchingCall (errorDestination e) (errorSerial e)
-            return $ B.Error
+            return $ B.MessageEvent $ B.Error
                         { B.inReplyTo = fmap snd call
                         , B.sender = convertBusName "method.error.sender" sender
                         , B.destination = convertBusName "method.error.destination" $ errorDestination e
                         }
 
         (ReceivedSignal _serial sender sig)
-            | Just names <- isNOC sender sig -> return $ bustlifyNOC names
-            | otherwise                      -> return $
+            | Just names <- isNOC sender sig -> return $ B.NOCEvent $ bustlifyNOC names
+            | otherwise                      -> return $ B.MessageEvent $
                 B.Signal { B.sender = convertBusName "signal.sender" sender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
                          , B.signalDestination = fmap (stupifyBusName . stringifyBusName)
@@ -206,7 +213,7 @@ bustlify µs bytes m = do
 convert :: Monad m
         => B.Microseconds
         -> BS.ByteString
-        -> StateT PendingMessages m (Either String B.DetailedMessage)
+        -> StateT PendingMessages m (Either String B.DetailedEvent)
 convert µs body =
     case unmarshalMessage body of
         Left unmarshalError -> return $ Left $ show unmarshalError
@@ -245,7 +252,7 @@ mapBodies p f = do
             return $ x:xs
 
 readPcap :: FilePath
-         -> IO (Either IOError ([String], [B.DetailedMessage]))
+         -> IO (Either IOError ([String], [B.DetailedEvent]))
 readPcap path = try $ do
     p <- openOffline path
 

@@ -83,8 +83,8 @@ runDot filepath = process filepath makeDigraph id
 
     makeDigraph' log =
         [ concat ["  \"", unBusName s, "\" -> \"", unBusName d, "\";"]
-        | (s, d) <- nub . mapMaybe (methodCall . dmMessage) $ log
+        | (s, d) <- nub . mapMaybe (methodCall . deEvent) $ log
         ]
 
-    methodCall (MethodCall {sender = s, destination = d}) = Just (s, d)
+    methodCall (MessageEvent (MethodCall {sender = s, destination = d})) = Just (s, d)
     methodCall _ = Nothing
