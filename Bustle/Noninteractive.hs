@@ -66,7 +66,10 @@ runCount filepath = process filepath frequencies format
   where
     format :: FrequencyInfo -> String
     format (FrequencyInfo c t i m) =
-        printf " %4d %6s %s.%s" c (show t) (formatInterface i) (formatMemberName m)
+        printf " %4d %6s %s.%s" c (typeName t) (formatInterface i) (formatMemberName m)
+
+    typeName TallyMethod = "method"
+    typeName TallySignal = "signal"
 
 runTime :: FilePath -> IO ()
 runTime filepath = process filepath methodTimes format
