@@ -235,6 +235,8 @@ readOne p f = do
         then return EOF
         else liftM Packet $ f (fromIntegral (hdrTime hdr)) body
 
+-- This shows up as the biggest thing on the heap profile. Which is kind of a
+-- surprise. It's supposedly the list.
 mapBodies :: (Monad m, MonadIO m)
           => PcapHandle
           -> (B.Microseconds -> BS.ByteString -> StateT s m (Either e a))
