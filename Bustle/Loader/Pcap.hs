@@ -40,7 +40,6 @@ import Data.Text (Text)
 
 import qualified Data.ByteString as BS
 import Data.ByteString.Lazy (fromChunks)
-import qualified Data.Binary.Get as G
 
 import qualified Bustle.Types as B
 
