@@ -1,3 +1,37 @@
+Bustle 0.4.1 (UNRELEASED)
+-------------------------
+
+Some dependency changes:
+
+* Gtk2HS ≥ 0.12 is now required.
+* Bustle now uses the [dbus][] Haskell library (≥ 0.10), which
+  supersedes the [dbus-core][] package.
+* `binary` is no longer required.
+
+Some user-visible changes:
+
+* The front page now has two big buttons rather than some [lame
+  instructions][fdo44889].
+
+* Memory usage should be a bit better, particularly for wide logs
+  showing lots of applications.
+
+Some plumbing changes:
+
+* You can now make a symlink to the launcher script and have it work
+  properly.
+
+* Bustle builds with GHC 7.4.1 (courtesy of Sergei Trofimovich).
+
+* `make clean` [works][fdo47908] in source tarballs.
+
+* `bustle-pcap` now has a man page (courtesy of Alex Merry).
+
+[dbus]: http://hackage.haskell.org/package/dbus-0.10
+[fdo44889]: https://bugs.freedesktop.org/show_bug.cgi?id=44889
+[fdo47908]: https://bugs.freedesktop.org/show_bug.cgi?id=47908
+
+
 Bustle 0.4.0 (2012-01-18)
 -------------------------
 
