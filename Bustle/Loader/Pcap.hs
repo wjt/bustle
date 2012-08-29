@@ -34,10 +34,7 @@ import Control.Monad.State
 
 import Network.Pcap
 
-import DBus.Constants (dbusName, dbusInterface)
-import DBus.Wire
-import DBus.Message
-import DBus.Types
+import DBus
 import qualified Data.Text as T
 import Data.Text (Text)
 
@@ -49,16 +46,22 @@ import qualified Bustle.Types as B
 
 -- Conversions from dbus-core's types into Bustle's more stupid types. This
 -- whole section is pretty upsetting.
-stupifyBusName :: Text
+stupifyBusName :: BusName
                -> B.TaggedBusName
 stupifyBusName n
-    | not (T.null n) && T.head n == ':' = B.U $ B.UniqueName n
-    | otherwise                         = B.O $ B.OtherName n
+    | isUnique n = B.U $ B.UniqueName n
+    | otherwise  = B.O $ B.OtherName n
 
-convertBusName :: Text
+isUnique :: BusName -> Bool
+isUnique n = head (formatBusName n) == ':'
+
+convertBusName :: String
                -> Maybe BusName
                -> B.TaggedBusName
-convertBusName context n = stupifyBusName (maybe context busNameText n)
+convertBusName fallback n =
+    stupifyBusName (fromMaybe fallback_ n)
+  where
+    fallback_ = busName_ fallback
 
 convertMember :: (a -> ObjectPath)
               -> (a -> Maybe InterfaceName)
@@ -110,9 +113,9 @@ isNOC (Just sender) s | looksLikeNOC =
     names = map fromVariant $ signalBody s
 
     looksLikeNOC =
-        and [ sender == dbusName
-            , signalInterface s == dbusInterface
-            , memberNameText (signalMember s) == "NameOwnerChanged"
+        and [ sender == B.dbusName
+            , signalInterface s == B.dbusInterface
+            , formatMemberName (signalMember s) == "NameOwnerChanged"
             ]
 isNOC _ _ = Nothing
 
@@ -132,11 +135,8 @@ bustlifyNOC ns@(name, oldOwner, newOwner)
               (Nothing, Just new)  -> B.Claimed (uniquify new)
               (Nothing, Nothing)   -> error $ "wtf: NOC" ++ show ns
   where
-    isUnique :: BusName -> Bool
-    isUnique n = T.head (busNameText n) == ':'
-
-    uniquify = B.UniqueName . busNameText
-    otherify = B.OtherName . busNameText
+    uniquify = B.UniqueName
+    otherify = B.OtherName
 
 tryBustlifyGetNameOwnerReply :: Maybe (MethodCall, a)
                              -> MethodReturn
@@ -146,7 +146,7 @@ tryBustlifyGetNameOwnerReply maybeCall mr = do
     --  • check that the service really is the bus daemon
     --  • don't crash if the body of the call or reply doesn't contain one bus name.
     (rawCall, _) <- maybeCall
-    guard (memberNameText (methodCallMember rawCall) == "GetNameOwner")
+    guard (formatMemberName (methodCallMember rawCall) == "GetNameOwner")
     ownedName <- fromVariant $ (methodCallBody rawCall !! 0)
     return $ bustlifyNOC ( ownedName
                          , Nothing
@@ -162,12 +162,16 @@ bustlify µs bytes m = do
     bm <- buildBustledMessage
     return $ B.Detailed µs bm (Just (bytes, m))
   where
+    sender = receivedMessageSender m
+    -- FIXME: can we do away with the un-Maybe-ing and just push that Nothing
+    -- means 'the monitor' downwards? Or skip the message if sender is Nothing.
+    wrappedSender = convertBusName "sen.der" sender
+
     buildBustledMessage = case m of
-        (ReceivedMethodCall serial sender mc) -> do
+        (ReceivedMethodCall serial mc) -> do
             let call = B.MethodCall
                              { B.serial = serialValue serial
-                             -- sender may be empty if it's us who sent it
-                             , B.sender = convertBusName "method.call.sender" sender
+                             , B.sender = wrappedSender
                              , B.destination = convertBusName "method.call.destination" $ methodCallDestination mc
                              , B.member = convertMember methodCallPath methodCallInterface methodCallMember mc
                              }
@@ -176,44 +180,44 @@ bustlify µs bytes m = do
             insertPending sender serial mc (B.Detailed µs call (Just (bytes, m)))
             return $ B.MessageEvent call
 
-        (ReceivedMethodReturn _serial sender mr) -> do
+        (ReceivedMethodReturn _serial mr) -> do
             call <- popMatchingCall (methodReturnDestination mr) (methodReturnSerial mr)
 
             return $ case tryBustlifyGetNameOwnerReply call mr of
                 Just noc -> B.NOCEvent noc
                 Nothing  -> B.MessageEvent $ B.MethodReturn
                                { B.inReplyTo = fmap snd call
-                               , B.sender = convertBusName "method.return.sender" sender
+                               , B.sender = wrappedSender
                                , B.destination = convertBusName "method.return.destination" $ methodReturnDestination mr
                                }
 
-        (ReceivedError _serial sender e) -> do
-            call <- popMatchingCall (errorDestination e) (errorSerial e)
+        (ReceivedMethodError _serial e) -> do
+            call <- popMatchingCall (methodErrorDestination e) (methodErrorSerial e)
             return $ B.MessageEvent $ B.Error
                         { B.inReplyTo = fmap snd call
-                        , B.sender = convertBusName "method.error.sender" sender
-                        , B.destination = convertBusName "method.error.destination" $ errorDestination e
+                        , B.sender = wrappedSender
+                        , B.destination = convertBusName "method.error.destination" $ methodErrorDestination e
                         }
 
-        (ReceivedSignal _serial sender sig)
+        (ReceivedSignal _serial sig)
             | Just names <- isNOC sender sig -> return $ B.NOCEvent $ bustlifyNOC names
             | otherwise                      -> return $ B.MessageEvent $
-                B.Signal { B.sender = convertBusName "signal.sender" sender
+                B.Signal { B.sender = wrappedSender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
-                         , B.signalDestination = fmap (stupifyBusName . busNameText)
+                         , B.signalDestination = fmap stupifyBusName
                                                $ signalDestination sig
                          }
 
-        (ReceivedUnknown _ _ _) -> error "wtf"
+        _ -> error "woah there! someone added a new message type."
 
 convert :: Monad m
         => B.Microseconds
         -> BS.ByteString
         -> StateT PendingMessages m (Either String B.DetailedEvent)
 convert µs body =
-    case unmarshalMessage body of
-        Left unmarshalError -> return $ Left $ show unmarshalError
-        Right m             -> liftM Right $ bustlify µs (BS.length body) m
+    case unmarshal body of
+        Left e  -> return $ Left $ unmarshalErrorMessage e
+        Right m -> liftM Right $ bustlify µs (BS.length body) m
 
 data Result e a =
     EOF

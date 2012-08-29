@@ -37,10 +37,10 @@ import Graphics.UI.Gtk
 import Bustle.Types
 
 formatNames :: (UniqueName, Set OtherName)
-            -> Text
+            -> String
 formatNames (u, os)
     | Set.null os = unUniqueName u
-    | otherwise = Text.intercalate "\n" . map unOtherName $ Set.toAscList os
+    | otherwise = intercalate "\n" . map unOtherName $ Set.toAscList os
 
 type NameStore = ListStore (Bool, (UniqueName, Set OtherName))
 
@@ -82,7 +82,7 @@ makeView nameStore = do
     treeViewAppendColumn nameView nameColumn
 
     cellLayoutSetAttributes nameColumn nameCell nameStore $ \(_, ns) ->
-        [ cellText := Text.unpack (formatNames ns) ]
+        [ cellText := formatNames ns ]
 
     sw <- scrolledWindowNew Nothing Nothing
     scrolledWindowSetPolicy sw PolicyAutomatic PolicyAutomatic

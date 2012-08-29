@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 import Data.Monoid
 import Data.List
 import System.Exit (exitFailure)
-import DBus.Types (objectPath_)
+import DBus (objectPath_, busName_)
 
 import Bustle.Types
 import Bustle.Renderer
@@ -60,7 +60,7 @@ u1 = UniqueName ":1.1"
 u2 = UniqueName ":2.2"
 
 -- This is enough names that the log needs to be rejustified to the top
-os = map (OtherName . ("Foo." ++) . (:"potato")) ['a'..'z']
+os = map (OtherName . busName_ . ("Foo." ++) . (:"potato")) ['a'..'z']
 
 m = Member "/" Nothing "Hi"
 

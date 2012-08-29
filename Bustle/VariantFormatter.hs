@@ -30,7 +30,7 @@ import Data.Char (chr, isPrint)
 import Data.Maybe (fromJust)
 import qualified Data.Text.Lazy as Text
 
-import DBus.Types
+import DBus
 
 format_Bool :: Bool -> String
 format_Bool = show
@@ -68,10 +68,10 @@ format_String :: String -> String
 format_String = show
 
 format_Signature :: Signature -> String
-format_Signature = show . signatureText
+format_Signature = show . formatSignature
 
 format_ObjectPath :: ObjectPath -> String
-format_ObjectPath = show . objectPathText
+format_ObjectPath = show . formatObjectPath
 
 format_Array :: Array -> String
 format_Array a = "[" ++ intercalate ", " items ++ "]"

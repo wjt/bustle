@@ -29,8 +29,6 @@ import Control.Monad.Error
 import Control.Arrow ((***))
 
 import qualified Data.Text as Text
-import DBus.Constants (dbusName)
-import DBus.Types (busNameText)
 
 import qualified Bustle.Loader.OldSkool as Old
 import qualified Bustle.Loader.Pcap as Pcap
@@ -69,13 +67,13 @@ isRelevant (MessageEvent m) = case m of
   where
     -- FIXME: really? Maybe we should allow people to be interested in,
     --        say, binding to signals?
-    senderIsBus = sender m == O (OtherName (busNameText dbusName))
-    destIsBus = destination m == O (OtherName (busNameText dbusName))
+    senderIsBus = sender m == busDriver
+    destIsBus = destination m == busDriver
+    busDriver = O (OtherName dbusName)
 
     -- When the monitor is forcibly disconnected from the bus, the
-    -- Disconnected message has no sender, so the logger spits out <none>.
-    -- This gets turned into OtherName ""
-    isDisconnected = sender m == O (OtherName Text.empty)
+    -- Disconnected message has no sender; the old logger spat out <none>.
+    isDisconnected = sender m == O (OtherName Old.senderWhenDisconnected)
 
     none bs = not $ or bs
     none3 = none [senderIsBus, destIsBus, isDisconnected]

@@ -29,9 +29,8 @@ import Data.Maybe (maybe, fromJust)
 import Control.Applicative ((<$>))
 import Graphics.UI.Gtk hiding (Signal, Markup)
 import qualified Data.Text as T
-import qualified DBus.Message
 
-import qualified DBus.Types as D
+import qualified DBus as D
 
 import Bustle.Types
 import Bustle.Markup
@@ -130,7 +129,7 @@ formatMessage (Detailed _ _ Nothing) =
     "# No message body information is available. Please capture a fresh log\n\
     \# using bustle-pcap if you need it!"
 formatMessage (Detailed _ _ (Just (_size, rm))) =
-    formatArgs $ DBus.Message.receivedBody rm
+    formatArgs $ D.receivedMessageBody rm
   where
     formatArgs = intercalate "\n" . map (format_Variant VariantStyleSignature)
 
@@ -144,6 +143,6 @@ detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
     labelSetMarkup (detailsTitle d) (unMarkup $ pickTitle m)
-    labelSetText (detailsPath d) (maybe "Unknown" (T.unpack . D.objectPathText . path) member_)
+    labelSetText (detailsPath d) (maybe "Unknown" (D.formatObjectPath . path) member_)
     labelSetMarkup (detailsMember d) (maybe "Unknown" getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m

@@ -19,13 +19,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Bustle.Types
   ( ObjectPath
-  , objectPathText
+  , formatObjectPath
 
   , InterfaceName
-  , interfaceNameText
+  , formatInterfaceName
 
   , MemberName
-  , memberNameText
+  , formatMemberName
 
   , Serial
 
@@ -34,7 +34,14 @@ module Bustle.Types
   , TaggedBusName(..)
   , isUnique
   , isOther
+  , unUniqueName
+  , unOtherName
   , unBusName
+
+  , dbusName
+  , dbusInterface
+
+  , fakeUniqueName
 
   , Microseconds(..)
   , µsFromPair
@@ -54,8 +61,12 @@ module Bustle.Types
 where
 
 import Data.Word (Word32)
-import DBus.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
-import DBus.Message (ReceivedMessage)
+import DBus ( ObjectPath, formatObjectPath
+            , InterfaceName, formatInterfaceName, interfaceName_
+            , MemberName, formatMemberName
+            , BusName, formatBusName, busName_
+            , ReceivedMessage
+            )
 import qualified Data.Text as Text
 import Data.Text (Text)
 import Data.Maybe (maybeToList)
@@ -63,9 +74,9 @@ import Data.Either (partitionEithers)
 
 type Serial = Word32
 
-newtype UniqueName = UniqueName { unUniqueName :: Text }
+newtype UniqueName = UniqueName BusName
   deriving (Ord, Show, Eq)
-newtype OtherName = OtherName { unOtherName :: Text }
+newtype OtherName = OtherName BusName
   deriving (Ord, Show, Eq)
 data TaggedBusName =
     U UniqueName
@@ -77,9 +88,29 @@ isUnique (U _) = True
 isUnique (O _) = False
 isOther = not . isUnique
 
-unBusName :: TaggedBusName -> Text
-unBusName (U (UniqueName x)) = x
-unBusName (O (OtherName  x)) = x
+unUniqueName :: UniqueName -> String
+unUniqueName (UniqueName x) = formatBusName x
+
+unOtherName :: OtherName -> String
+unOtherName (OtherName x) = formatBusName x
+
+unBusName :: TaggedBusName -> String
+unBusName (U (UniqueName x)) = formatBusName x
+unBusName (O (OtherName  x)) = formatBusName x
+
+-- These useful constants disappeared from dbus in the grand removing of the
+-- -core suffix.
+dbusName :: BusName
+dbusName = busName_ "org.freedesktop.DBus"
+
+dbusInterface :: InterfaceName
+dbusInterface = interfaceName_ "org.freedesktop.DBus"
+
+-- FIXME: nothing stops someone passing in garbage
+-- http://www.youtube.com/watch?v=WorPANO_ANU
+fakeUniqueName :: String
+               -> UniqueName
+fakeUniqueName = UniqueName . busName_ . (":fake." ++)
 
 newtype Microseconds = Microseconds Integer
   deriving (Show, Ord, Eq, Num, Real, Enum, Integral)

@@ -40,7 +40,7 @@ import Graphics.Rendering.Pango.BasicTypes (Weight(..))
 import Graphics.Rendering.Pango.Layout (escapeMarkup)
 import Graphics.Rendering.Pango.Markup (markSpan, SpanAttribute(..))
 
-import Bustle.Types (ObjectPath, objectPathText, InterfaceName, interfaceNameText, MemberName, memberNameText)
+import Bustle.Types (ObjectPath, formatObjectPath, InterfaceName, formatInterfaceName, MemberName, formatMemberName)
 
 newtype Markup = Markup { unMarkup :: String }
     deriving (Show, Read, Ord, Eq)
@@ -93,13 +93,13 @@ instance Unescaped Text where
     toString = T.unpack
 
 instance Unescaped InterfaceName where
-    toString = toString . interfaceNameText
+    toString = formatInterfaceName
 
 instance Unescaped ObjectPath where
-    toString = toString . objectPathText
+    toString = formatObjectPath
 
 instance Unescaped MemberName where
-    toString = toString . memberNameText
+    toString = formatMemberName
 
 escape :: Unescaped s => s -> Markup
 escape = Markup . escapeMarkup . toString

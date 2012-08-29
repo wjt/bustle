@@ -59,6 +59,6 @@ synth n = do
                  ]
 
 fakeName :: OtherName -> UniqueName
-fakeName = UniqueName . Text.append ":fake." . unOtherName
+fakeName = fakeUniqueName . unOtherName
 
 -- vim: sw=2 sts=2

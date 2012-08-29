@@ -63,8 +63,6 @@ import System.FilePath ( splitFileName, takeFileName, takeDirectory
                        )
 import System.Directory (renameFile)
 
-import qualified DBus.Message
-
 type B a = Bustle BConfig BState a
 
 data LogDetails =

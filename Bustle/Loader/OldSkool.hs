@@ -19,11 +19,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
 module Bustle.Loader.OldSkool
   ( readLog
+  , senderWhenDisconnected
   )
 where
 
 import Bustle.Types
-import qualified DBus.Types as D
+import qualified DBus as D
 import qualified Data.Text as T
 import Text.ParserCombinators.Parsec hiding (Parser)
 import Data.Map (Map)
@@ -55,12 +56,30 @@ nameChars = many1 (noneOf "\t\n")
 parseUniqueName :: Parser UniqueName
 parseUniqueName = do
     char ':'
-    fmap (UniqueName . T.pack . (':':)) nameChars
+    rest <- nameChars
+    case D.parseBusName (':':rest) of
+        Just n  -> return $ UniqueName n
+        Nothing -> fail $ "':" ++ rest ++ "' is not a valid unique name"
   <?> "unique name"
 
+-- FIXME: this shouldn't exist.
+senderWhenDisconnected :: D.BusName
+senderWhenDisconnected = D.busName_ "org.freedesktop.DBus.Local"
+
+parseMissingName :: Parser OtherName
+parseMissingName = do
+    none
+    return $ OtherName senderWhenDisconnected
+
+parseSpecifiedOtherName :: Parser OtherName
+parseSpecifiedOtherName = do
+    x <- nameChars
+    case D.parseBusName x of
+        Just n  -> return $ OtherName n
+        Nothing -> fail $ "'" ++ x ++ "' is not a valid name"
+
 parseOtherName :: Parser OtherName
-parseOtherName =
-    fmap (OtherName . T.pack) ((none >> return "") <|> nameChars)
+parseOtherName = parseMissingName <|> parseSpecifiedOtherName
   <?>
     "non-unique name"
 
@@ -84,15 +103,15 @@ none = do
     return Nothing
 
 pathify :: String -> D.ObjectPath
-pathify s = case D.objectPath (T.pack s) of
+pathify s = case D.parseObjectPath s of
     Just p -> p
     Nothing -> D.objectPath_ "/unparseable/object/path"
 
 interfacify :: String -> Maybe D.InterfaceName
-interfacify = D.interfaceName . T.pack
+interfacify = D.parseInterfaceName
 
 memberNamify :: String -> D.MemberName
-memberNamify s = case D.memberName (T.pack s) of
+memberNamify s = case D.parseMemberName s of
     Just m -> m
     Nothing -> D.memberName_ "UnparseableMemberName"
 
@@ -181,11 +200,11 @@ perhaps act = (noName >> return Nothing) <|> fmap Just act
 
 sameUnique :: UniqueName -> UniqueName -> Parser ()
 sameUnique u u' = guard (u == u')
-  <?> "owner to be " ++ T.unpack (unUniqueName u) ++ ", not " ++ T.unpack (unUniqueName u')
+  <?> "owner to be " ++ unUniqueName u ++ ", not " ++ unUniqueName u'
 
 atLeastOne :: OtherName -> Parser a
 atLeastOne n = fail ""
-  <?> T.unpack (unOtherName n) ++ " to gain or lose an owner"
+  <?> unOtherName n ++ " to gain or lose an owner"
 
 nameOwnerChanged :: Parser DetailedEvent
 nameOwnerChanged = do

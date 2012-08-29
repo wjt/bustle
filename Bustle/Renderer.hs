@@ -366,13 +366,13 @@ lookupOtherName bus o = do
         -- No matches indicates a corrupt log, which we try to recover from …
         []        -> do
             warn $ concat [ "'"
-                          , Text.unpack $ unOtherName o
+                          , unOtherName o
                           , "' appeared unheralded on the "
                           , describeBus bus
                           , " bus; making something up..."
                           ]
             let namesInUse = Map.keys as
-                candidates = map (UniqueName . (Text.append ":fake.") . Text.pack . show)
+                candidates = map (fakeUniqueName . show)
                                  ([1..] :: [Integer])
                 u = head $ filter (not . (`elem` namesInUse)) candidates
             addUnique bus u
@@ -425,7 +425,7 @@ appCoordinate bus n = do
 
             -- FIXME: Does this really live here?
             currentRow <- gets row
-            let ns = map Text.unpack $ bestNames u os
+            let ns = bestNames u os
                 h  = headerHeight ns
             shape $ Header ns x (currentRow - (10 + h))
             shape $ ClientLines (x :| []) (currentRow - 5) (currentRow + 15)
@@ -455,7 +455,7 @@ addUnique bus n = do
     case existing of
         Nothing -> return ()
         Just _  -> warn $ concat [ "Unique name '"
-                                 , Text.unpack $ unUniqueName n
+                                 , unUniqueName n
                                  , "' apparently connected to the bus twice"
                                  ]
     modifyApps bus $ Map.insert n ai
@@ -538,7 +538,7 @@ advanceBy d = do
     when (current' - lastLabelling > 400) $ do
         xs <- (++) <$> getsApps Map.toList SessionBus
                    <*> getsApps Map.toList SystemBus
-        let xs' = [ (x, map Text.unpack $ bestNames u os)
+        let xs' = [ (x, bestNames u os)
                   | (u, ApplicationInfo (CurrentColumn x) os _) <- xs
                   ]
         let (height, ss) = headers xs' (current' + 20)
@@ -562,11 +562,11 @@ advanceBy d = do
         (x:xs') -> shape $ ClientLines (x :| xs') (current + 15) (next + 15)
         _       -> return ()
 
-bestNames :: UniqueName -> Set OtherName -> [Text]
-bestNames (UniqueName u) os
-    | Set.null os = [u]
-    | otherwise   = reverse . sortBy (comparing Text.length) . map readable $ Set.toList os
-  where readable = Text.reverse . Text.takeWhile (/= '.') . Text.reverse . unOtherName
+bestNames :: UniqueName -> Set OtherName -> [String]
+bestNames u os
+    | Set.null os = [unUniqueName u]
+    | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
+  where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
 edgemostApp bus = do

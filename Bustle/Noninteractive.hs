@@ -29,7 +29,6 @@ import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (nub)
-import qualified Data.Text as T
 import Control.Monad.Error
 import Text.Printf
 
@@ -56,10 +55,7 @@ process filepath analyze format = do
             mapM_ (putStrLn . format) $ analyze log
 
 formatInterface :: Maybe InterfaceName -> String
-formatInterface = maybe "(no interface)" (T.unpack . interfaceNameText)
-
-formatMemberName :: MemberName -> String
-formatMemberName = T.unpack . memberNameText
+formatInterface = maybe "(no interface)" formatInterfaceName
 
 runCount :: FilePath -> IO ()
 runCount filepath = process filepath frequencies format
@@ -85,7 +81,7 @@ runDot filepath = process filepath makeDigraph id
     makeDigraph log = ["digraph bustle {"] ++ makeDigraph' log ++ ["}"]
 
     makeDigraph' log =
-        [ concat ["  \"", T.unpack (unBusName s), "\" -> \"", T.unpack (unBusName d), "\";"]
+        [ concat ["  \"", unBusName s, "\" -> \"", unBusName d, "\";"]
         | (s, d) <- nub . mapMaybe (methodCall . deEvent) $ log
         ]
 
