@@ -18,11 +18,14 @@ Now click **File → New…** to start recording session bus traffic. When you'r
 done, click **Stop**, and explore the log.
 
 If you want to record traffic without running the UI (maybe on an embedded
-platform which doesn't have Gtk+), you can use the stand-alone logger:
+platform which doesn't have Gtk+ and/or a Haskell compiler), you can use the
+stand-alone logger:
 
     bustle-pcap logfile.bustle
 
-You can then open `logfile.bustle` in Bustle. You can also get some ASCII-art
+You can then open `logfile.bustle` in Bustle.
+
+You can also get some ASCII-art
 version of the statistics shown in the UI:
 
     bustle --count logfile.bustle
