@@ -25,21 +25,23 @@ module Bustle.Loader
   )
 where
 
+import Control.Exception
 import Control.Monad.Error
 import Control.Arrow ((***))
-
-import qualified Data.Text as Text
 
 import qualified Bustle.Loader.OldSkool as Old
 import qualified Bustle.Loader.Pcap as Pcap
 import Bustle.Upgrade (upgrade)
 import Bustle.Types
-import Bustle.Util (io, toErrorT, handleIOExceptions)
+import Bustle.Util (io)
 
 data LoadError = LoadError FilePath String
 instance Error LoadError where
     strMsg = LoadError ""
 
+-- this nested case stuff is ugly, but it's less ugly than it looked with
+-- combinators to turn IO (Either a b) into ErrorT LoadError IO b using various
+-- a -> LoadError functions.
 readLog :: MonadIO io
         => FilePath
         -> ErrorT LoadError io ([String], Log)
@@ -50,9 +52,14 @@ readLog f = do
         Left _ -> liftM ((,) []) readOldLogFile
   where
     readOldLogFile = do
-        input <- handleIOExceptions (LoadError f . show) $ readFile f
-        let oldResult = fmap upgrade $ Old.readLog input
-        toErrorT (\e -> LoadError f ("Parse error " ++ show e)) oldResult
+        result <- liftIO $ try $ readFile f
+        case result of
+            Left e      -> throwError $ LoadError f (show (e :: IOException))
+            Right input -> do
+                let oldResult = fmap upgrade $ Old.readLog input
+                case oldResult of
+                    Left e  -> throwError $ LoadError f ("Parse error " ++ show e)
+                    Right r -> return r
 
 isRelevant :: Event
            -> Bool

@@ -27,7 +27,7 @@ import Prelude hiding (log)
 
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.List (nub)
 import Control.Monad.Error
 import Text.Printf

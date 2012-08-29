@@ -22,13 +22,11 @@ module Bustle.UI
   )
 where
 
-import Control.Monad (when)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
 import Data.IORef
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.List (intercalate)
 import Data.Time
@@ -39,7 +37,6 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
-import Bustle.Regions
 import Bustle.Util
 import Bustle.UI.AboutDialog
 import Bustle.UI.Canvas
@@ -51,7 +48,8 @@ import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Loader
 
-import System.Glib.GError (GError(..), catchGError, failOnGError)
+import qualified Control.Exception as C
+import System.Glib.GError (GError(..), failOnGError)
 
 import Graphics.UI.Gtk
 
@@ -534,8 +532,8 @@ withProgramIcon f = asks bustleIcon >>= io . f
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
   iconName <- getDataFileName $ "data/" ++ filename
-  (fmap Just (pixbufNewFromFile iconName)) `catchGError`
-    \(GError _ _ msg) -> warn msg >> return Nothing
+  C.catch (fmap Just (pixbufNewFromFile iconName))
+          (\(GError _ _ msg) -> warn msg >> return Nothing)
 
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do

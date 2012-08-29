@@ -70,7 +70,6 @@ Executable bustle
                , Bustle.VariantFormatter
   Ghc-options: -threaded
                -Wall
-               -fno-warn-unused-imports
                -fno-warn-unused-do-bind
   C-sources: c-sources/pcap-monitor.c
   pkgconfig-depends: glib-2.0

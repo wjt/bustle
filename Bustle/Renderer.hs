@@ -47,20 +47,16 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
-import qualified Data.Text as Text
-import Data.Text (Text)
-import Data.Ratio
 
 import Control.Applicative (Applicative(..), (<$>), (<*>))
-import Control.Arrow ((&&&), (***))
+import Control.Arrow ((***))
 import Control.Monad.Error
 import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Monad (forM_)
 
-import Data.List (isPrefixOf, stripPrefix, sort, sortBy)
-import Data.Maybe (fromJust, maybe, fromMaybe, catMaybes, maybeToList)
+import Data.List (sort, sortBy)
+import Data.Maybe (fromJust, fromMaybe, catMaybes)
 import Data.Ord (comparing)
 
 data Bus = SessionBus

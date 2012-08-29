@@ -25,12 +25,6 @@ where
 import Data.List (intercalate)
 import qualified Data.Set as Set
 import Data.Set (Set)
-import qualified Data.Map as Map
-import Data.Map (Map)
-import qualified Data.Text as Text
-import Data.Text (Text)
-
-import Control.Monad (liftM)
 
 import Graphics.UI.Gtk
 
@@ -70,8 +64,7 @@ makeView nameStore = do
     cellLayoutSetAttributes tickyColumn tickyCell nameStore $ \(ticked, _) ->
         [ cellToggleActive := ticked ]
 
-    -- This is deprecated but 'on obj cellToggled' needs 0.12.
-    onCellToggled tickyCell $ \pathstr -> do
+    on tickyCell cellToggled $ \pathstr -> do
         let [i] = stringToTreePath pathstr
         (v, ns) <- listStoreGetValue nameStore i
         listStoreSetValue nameStore i (not v, ns)

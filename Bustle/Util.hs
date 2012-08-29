@@ -22,9 +22,6 @@ module Bustle.Util
     io
   , warn
 
-  , toErrorT
-  , handleIOExceptions
-
   , maybeM
 
   , getCacheDir
@@ -38,8 +35,6 @@ module Bustle.Util
   )
 where
 
-import Control.Exception
-import Control.Monad.Error
 import Control.Monad.Trans (MonadIO, liftIO)
 import Debug.Trace (trace)
 import System.IO (hPutStrLn, stderr)
@@ -59,24 +54,6 @@ warn = hPutStrLn stderr . ("Warning: " ++)
 -- Shorthand for liftIO.
 io :: MonadIO m => IO a -> m a
 io = liftIO
-
--- Converts an Either to an action in an ErrorT.
-toErrorT :: (Monad m, Error e')
-         => (e -> e')     -- ^ Convert a Left value to the error type e'
-         -> Either e a    -- ^ A possibly-erroneous value
-         -> ErrorT e' m a -- ^ A happily-tranformed value
-toErrorT f = either (throwError . f) return
-
--- Catches IOExceptions , and maps them into ErrorT. Need a better name.
-
-handleIOExceptions :: (Error e', MonadIO io)
-                   => (IOException -> e') -- ^ Transform an IO exception to our
-                                          --   error type
-                   -> IO a -- ^ an action which may throw an IOException
-                   -> ErrorT e' io a -- ^ woo yay
-handleIOExceptions f act = do
-    result <- io $ try act
-    toErrorT f result
 
 maybeM :: Monad m
        => Maybe a

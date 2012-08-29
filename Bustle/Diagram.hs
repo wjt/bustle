@@ -47,11 +47,9 @@ module Bustle.Diagram
   )
 where
 
-import Data.Maybe (maybe, listToMaybe)
 import Data.List (unzip4)
 import Control.Arrow ((&&&))
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad (forM_)
 
 import Control.Monad.Reader
 

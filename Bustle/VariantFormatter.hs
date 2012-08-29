@@ -28,7 +28,6 @@ import Data.List (intercalate)
 import Data.Char (chr, isPrint)
 -- :'(
 import Data.Maybe (fromJust)
-import qualified Data.Text.Lazy as Text
 
 import DBus
 

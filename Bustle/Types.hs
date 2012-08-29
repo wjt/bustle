@@ -67,8 +67,6 @@ import DBus ( ObjectPath, formatObjectPath
             , BusName, formatBusName, busName_
             , ReceivedMessage
             )
-import qualified Data.Text as Text
-import Data.Text (Text)
 import Data.Maybe (maybeToList)
 import Data.Either (partitionEithers)
 

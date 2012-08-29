@@ -25,7 +25,6 @@ where
 
 import Bustle.Types
 import qualified DBus as D
-import qualified Data.Text as T
 import Text.ParserCombinators.Parsec hiding (Parser)
 import Data.Map (Map)
 import Data.Maybe (isJust)

@@ -33,9 +33,6 @@ module Bustle.Monitor
   )
 where
 
-import System.FilePath
-import Control.Monad (liftM)
-
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.C

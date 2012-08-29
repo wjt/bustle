@@ -26,10 +26,10 @@ where
 import Control.Monad (when, liftM)
 import Control.Concurrent.MVar
 import qualified Data.Map as Map
-import Data.Map (Map)
 import Data.Monoid
 import Control.Monad.State (runStateT)
 
+import qualified Control.Exception as C
 import System.Glib.GError
 import Graphics.UI.Gtk
 
@@ -88,7 +88,7 @@ recorderRun :: FilePath
             -> RecorderIncomingCallback
             -> RecorderFinishedCallback
             -> IO ()
-recorderRun filename mwindow incoming finished = handleGError newFailed $ do
+recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     monitor <- monitorNew BusTypeSession filename NoDebugOutput
     dialog <- dialogNew
 

@@ -27,7 +27,6 @@ import Control.Monad (when)
 
 import Graphics.UI.Gtk
 
-import Paths_bustle (getDataFileName)
 import Bustle.Util
 
 -- Propagates changes to d1's currently-selected folder to d2, if and only if

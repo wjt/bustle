@@ -25,7 +25,7 @@ module Bustle.Loader.Pcap
   )
 where
 
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -35,11 +35,8 @@ import Control.Monad.State
 import Network.Pcap
 
 import DBus
-import qualified Data.Text as T
-import Data.Text (Text)
 
 import qualified Data.ByteString as BS
-import Data.ByteString.Lazy (fromChunks)
 
 import qualified Bustle.Types as B
 

@@ -25,10 +25,7 @@ module Bustle.UI.DetailsView
 where
 
 import Data.List (intercalate)
-import Data.Maybe (maybe, fromJust)
-import Control.Applicative ((<$>))
 import Graphics.UI.Gtk hiding (Signal, Markup)
-import qualified Data.Text as T
 
 import qualified DBus as D
 
