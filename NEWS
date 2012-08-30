@@ -21,7 +21,8 @@ Some plumbing changes:
 * You can now make a symlink to the launcher script and have it work
   properly.
 
-* Bustle builds with GHC 7.4.1 (courtesy of Sergei Trofimovich).
+* Bustle [builds with GHC 7.4.1][fdo47013] (courtesy of Sergei
+  Trofimovich).
 
 * `make clean` [works][fdo47908] in source tarballs.
 
@@ -29,6 +30,7 @@ Some plumbing changes:
 
 [dbus]: http://hackage.haskell.org/package/dbus-0.10
 [fdo44889]: https://bugs.freedesktop.org/show_bug.cgi?id=44889
+[fdo47013]: https://bugs.freedesktop.org/show_bug.cgi?id=47013
 [fdo47908]: https://bugs.freedesktop.org/show_bug.cgi?id=47908
 
 
