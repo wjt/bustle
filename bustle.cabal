@@ -82,7 +82,7 @@ Executable bustle
                , directory
                , filepath
                , glib
-               , gtk > 0.12
+               , gtk >= 0.12.3
                , mtl
                , pango
                , parsec
