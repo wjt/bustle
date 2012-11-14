@@ -1,3 +1,25 @@
+Bustle 0.4.2 (2012-11-14)
+-------------------------
+
+This release is all about build fixes; nothing user-visible has changed.
+
+* The Makefile now respects the `DESTDIR` variable.
+* No more deprecation warnings about `g_thread_create()`!
+* We explicitly check for GLib ≥ 2.26.
+
+Also, there's now a `threaded` Cabal flag you can turn off if you're
+building for some platform where the threaded GHC runtime isn't
+available (such as S/390, MIPS or Sparc). This is the same approach used
+to make several other packages build for those architectures in Debian,
+as per [bug 541848][]. You can do something like this in your packaging:
+
+    DEB_SETUP_GHC_CONFIGURE_ARGS := $(shell test -e /usr/lib/ghc-$(GHC_VERSION)/libHSrts_thr.a || echo --flags=-threaded)
+
+Bustle doesn't directly use Haskell-land threads, but I don't trust it
+not to break in this configuration, so it's not the default.
+
+[bug 541848]: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=541848#33
+
 Bustle 0.4.1 (2012-08-29)
 -------------------------
 
