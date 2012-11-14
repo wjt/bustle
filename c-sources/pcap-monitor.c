@@ -444,7 +444,7 @@ initable_init (
       return FALSE;
     }
 
-  priv->thread = g_thread_try_new ("monitor", log_thread, &priv->td, error);
+  priv->thread = g_thread_create (log_thread, &priv->td, TRUE, error);
   if (priv->thread == NULL)
     {
       g_prefix_error (error, "Couldn't spawn logging thread: ");
