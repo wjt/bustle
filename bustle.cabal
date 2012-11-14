@@ -18,6 +18,7 @@ Extra-source-files:
                   -- C bits
                     c-sources/bustle-pcap.c,
                     c-sources/pcap-monitor.h,
+                    c-sources/config.h,
                     Makefile,
 
                   -- Stuff for nerds
