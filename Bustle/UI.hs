@@ -507,9 +507,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     statsPaneSetMessages statsPane sessionMessages systemMessages
 
     widgetSetSensitivity viewStatistics True
-    -- the version of gtk2hs I'm using has a checkMenuItemToggled which is a
-    -- method not a signal.
-    connectGeneric "toggled" False viewStatistics $ do
+    viewStatistics `on` checkMenuItemToggled $ do
         active <- checkMenuItemGetActive viewStatistics
         if active
             then widgetShow statsBook
