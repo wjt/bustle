@@ -48,7 +48,7 @@ showAboutDialog window icon = do
                  , aboutDialogComments := "Someone's favourite D-Bus profiler"
                  , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
                  , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2012 Collabora Ltd."
+                 , aboutDialogCopyright := "© 2008–2013 Will Thompson, Collabora Ltd. and contributors"
                  , aboutDialogLicense := license
                  ]
     dialog `afterResponse` \resp ->
@@ -60,7 +60,7 @@ showAboutDialog window icon = do
     widgetShowAll dialog
 
 authors :: [String]
-authors = [ "Will Thompson <will.thompson@collabora.co.uk>"
+authors = [ "Will Thompson <will@willthompson.co.uk>"
           , "Dafydd Harries"
           , "Chris Lamb"
           , "Marc Kleine-Budde"
