@@ -89,7 +89,7 @@ recorderRun :: FilePath
             -> RecorderFinishedCallback
             -> IO ()
 recorderRun filename mwindow incoming finished = C.handle newFailed $ do
-    monitor <- monitorNew BusTypeSession filename NoDebugOutput
+    monitor <- monitorNew BusTypeSession filename
     dialog <- dialogNew
 
     maybe (return ()) (windowSetTransientFor dialog) mwindow

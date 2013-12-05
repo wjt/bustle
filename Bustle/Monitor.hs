@@ -22,7 +22,6 @@ module Bustle.Monitor
 -- * Types
     Monitor
   , BusType(..)
-  , DebugOutput(..)
 
 -- * Methods
   , monitorNew
@@ -60,7 +59,6 @@ instance GObjectClass Monitor where
 foreign import ccall "bustle_pcap_monitor_new"
     bustle_pcap_monitor_new :: CInt
                     -> CString
-                    -> CInt
                     -> Ptr (Ptr ())
                     -> IO (Ptr Monitor)
 foreign import ccall "bustle_pcap_monitor_stop"
@@ -74,23 +72,16 @@ data BusType = BusTypeNone
   deriving
     Enum
 
-data DebugOutput = NoDebugOutput
-                 | DebugOutput
-  deriving
-    Enum
-
 -- Throws a GError if the file can't be opened, we can't get on the bus, or whatever.
 monitorNew :: BusType
            -> FilePath
-           -> DebugOutput
            -> IO Monitor
-monitorNew busType filename debugOutput =
+monitorNew busType filename =
     wrapNewGObject mkMonitor $
       propagateGError $ \gerrorPtr ->
         withCString filename $ \c_filename ->
           bustle_pcap_monitor_new (fromIntegral $ fromEnum busType)
                                   c_filename
-                                  (fromIntegral $ fromEnum debugOutput)
                                   gerrorPtr
 
 monitorStop :: Monitor
