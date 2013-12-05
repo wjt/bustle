@@ -411,6 +411,7 @@ initable_init (
 {
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (initable);
   BustlePcapMonitorPrivate *priv = self->priv;
+  gchar *address;
   GDBusProxy *bus;
 
   if (priv->bus_type == G_BUS_TYPE_NONE)
@@ -451,19 +452,27 @@ initable_init (
       return FALSE;
     }
 
-  priv->connection = g_bus_get_sync (priv->bus_type, NULL, error);
+  address = g_dbus_address_get_for_bus_sync (priv->bus_type, NULL, error);
+  if (address == NULL)
+    {
+      g_prefix_error (error, "Couldn't get %s bus address: ",
+          priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system");
+      return FALSE;
+    }
+
+  priv->connection = g_dbus_connection_new_for_address_sync (address,
+      G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+      G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+      NULL, /* auth observer */
+      NULL, /* cancellable */
+      error);
+  g_free (address);
   if (priv->connection == NULL)
     {
       g_prefix_error (error, "Couldn't connect to %s bus: ",
           priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system");
       return FALSE;
     }
-
-  /* Work around <https://bugzilla.gnome.org/show_bug.cgi?id=662100>. With glib
-   * 2.30.1, the client closing the connection erroneously triggers the
-   * (implicitly enabled) exit-on-close logic.
-   */
-  g_dbus_connection_set_exit_on_close (priv->connection, FALSE);
 
   priv->caps = g_dbus_connection_get_capabilities (priv->connection);
 
