@@ -1,6 +1,6 @@
 Name:           bustle
 Category:       Network, Desktop
-Version:        0.4.2.1
+Version:        0.4.3
 Cabal-Version:  >= 1.8
 Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
@@ -88,7 +88,7 @@ Executable bustle
                , directory
                , filepath
                , glib
-               , gtk >= 0.12.3
+               , gtk >= 0.12.4
                , mtl
                , pango
                , parsec
