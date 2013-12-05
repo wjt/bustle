@@ -460,6 +460,20 @@ initable_init (
       return FALSE;
     }
 
+  if (*address == '\0')
+    {
+      g_set_error (error,
+          G_IO_ERROR,
+          G_IO_ERROR_FAILED,
+          "Failed to look up the %s bus address. %s",
+          priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system",
+          priv->bus_type == G_BUS_TYPE_SESSION
+              ? "Is DBUS_SESSION_BUS_ADDRESS properly set?"
+              : "");
+      g_free (address);
+      return FALSE;
+    }
+
   priv->connection = g_dbus_connection_new_for_address_sync (address,
       G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
       G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
