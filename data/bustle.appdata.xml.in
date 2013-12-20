@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application>
+	<id type="desktop">bustle.desktop</id>
+	<licence>CC BY-SA</licence>
+	<description>
+		<!-- Translators: These are the application description paragraphs in the AppData file. -->
+		<_p>Bustle draws sequence diagrams of D-Bus activity.</_p>
+		<_p>It shows signal emissions, method calls and their
+		    corresponding returns, with time stamps for each individual
+		    event and the duration of each method call. This can help
+		    you check for unwanted D-Bus traffic, and pinpoint why your
+		    D-Bus-based application isn't performing as well as you
+		    like. It also provides statistics like signal frequencies
+		    and average method call times.</_p>
+	</description>
+	<screenshots>
+		<!-- Translators: This should be the URI of a 691×510 pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
+		<_screenshot type="default" width="691" height="510">http://willthompson.co.uk/bustle/bustle-0.3.1.png</_screenshot>
+	</screenshots>
+	<url type="homepage">http://willthompson.co.uk/bustle/</url>
+	<updatecontact>philip_at_tecnocode.co.uk</updatecontact>
+</application>

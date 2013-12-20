@@ -7,3 +7,5 @@ Setup
 tags
 bustle-pcap.1
 cabal-dev/
+bustle.appdata.xml
+bustle.desktop
