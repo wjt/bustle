@@ -29,10 +29,13 @@ import Control.Exception
 import Control.Monad.Error
 import Control.Arrow ((***))
 
+import Text.Printf
+
 import qualified Bustle.Loader.OldSkool as Old
 import qualified Bustle.Loader.Pcap as Pcap
 import Bustle.Upgrade (upgrade)
 import Bustle.Types
+import Bustle.Translation (__)
 import Bustle.Util (io)
 
 data LoadError = LoadError FilePath String
@@ -58,7 +61,7 @@ readLog f = do
             Right input -> do
                 let oldResult = fmap upgrade $ Old.readLog input
                 case oldResult of
-                    Left e  -> throwError $ LoadError f ("Parse error " ++ show e)
+                    Left e  -> throwError $ LoadError f (printf (__ "Parse error %s") (show e))
                     Right r -> return r
 
 isRelevant :: Event

@@ -31,6 +31,7 @@ import qualified Data.Set as Set
 import Data.List (intercalate)
 import Data.Time
 import Data.Monoid (mempty)
+import Text.Printf
 
 import Paths_bustle
 import Bustle.Application.Monad
@@ -46,6 +47,7 @@ import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
 import Bustle.UI.Recorder
 import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
+import Bustle.Translation (__)
 import Bustle.Loader
 
 import qualified Control.Exception as C
@@ -205,7 +207,7 @@ loadLogWith getWindow logDetails = do
 
     case ret of
       Left (LoadError f e) -> io $
-          displayError Nothing ("Could not read '" ++ f ++ "'") (Just e)
+          displayError Nothing (printf (__ "Could not read ‘%s’") f) (Just e)
       Right () -> return ()
 
 startRecording :: B ()
@@ -281,15 +283,15 @@ promptToSave wi = io $ do
     case mdetails of
         Just (RecordedLog tempFilePath) -> do
             let tempFileName = takeFileName tempFilePath
-                title = "Save log “" ++ tempFileName ++ "” before closing?"
+                title = printf (__ "Save log “%s” before closing?") tempFileName
             prompt <- messageDialogNew (Just (wiWindow wi))
                                        [DialogModal]
                                        MessageWarning
                                        ButtonsNone
                                        title
             messageDialogSetSecondaryText prompt
-                "If you don’t save, this log will be lost forever."
-            dialogAddButton prompt "Close _without saving" ResponseClose
+                (__ "If you don’t save, this log will be lost forever.")
+            dialogAddButton prompt (__ "Close _Without Saving") ResponseClose
             dialogAddButton prompt stockCancel ResponseCancel
             dialogAddButton prompt stockSave ResponseYes
 
@@ -462,7 +464,7 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi) (logWindowTitle logDetails ++ " — Bustle")
+    windowSetTitle (wiWindow wi) (printf (__ "%s — Bustle") (logWindowTitle logDetails))
 
 setPage :: MonadIO io
         => WindowInfo

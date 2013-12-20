@@ -30,6 +30,7 @@ import Control.Monad (when)
 
 import Graphics.UI.Gtk
 
+import Bustle.Translation (__)
 import Bustle.Util
 import Paths_bustle
 
@@ -43,9 +44,9 @@ showAboutDialog window icon = do
     license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
                `catch` (\e -> warn (show (e :: IOException)) >> return Nothing)
 
-    dialog `set` [ aboutDialogName := "Bustle"
+    dialog `set` [ aboutDialogName := __ "Bustle"
                  , aboutDialogVersion := showVersion version
-                 , aboutDialogComments := "Someone's favourite D-Bus profiler"
+                 , aboutDialogComments := __ "Someone's favourite D-Bus profiler"
                  , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
                  , aboutDialogAuthors := authors
                  , aboutDialogCopyright := "© 2008–2013 Will Thompson, Collabora Ltd. and contributors"

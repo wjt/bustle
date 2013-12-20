@@ -28,6 +28,7 @@ import Data.Set (Set)
 
 import Graphics.UI.Gtk
 
+import Bustle.Translation (__)
 import Bustle.Types
 
 formatNames :: (UniqueName, Set OtherName)
@@ -101,10 +102,10 @@ runFilterDialog parent names currentlyHidden = do
     instructions <- labelNew Nothing
     widgetSetSizeRequest instructions 600 (-1)
     labelSetMarkup instructions
-        "Unticking a service hides its column in the diagram, \
+        (__ "Unticking a service hides its column in the diagram, \
         \and all messages it is involved in. That is, all methods it calls \
         \or are called on it, the corresponding returns, and all signals it \
-        \emits will be hidden."
+        \emits will be hidden.")
     labelSetLineWrap instructions True
     boxPackStart vbox instructions PackNatural 0
 

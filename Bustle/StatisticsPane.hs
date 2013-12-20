@@ -28,6 +28,7 @@ import Control.Monad (forM_)
 import Text.Printf
 import Graphics.UI.Gtk hiding (Markup)
 import Bustle.Stats
+import Bustle.Translation (__)
 import Bustle.Types (Log)
 import qualified Bustle.Markup as Markup
 import Bustle.Markup (Markup)
@@ -152,7 +153,7 @@ newCountView method signal = do
   set countView [ treeViewHeadersVisible := False ]
 
   nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Name"
+  treeViewColumnSetTitle nameColumn (__ "Name")
   set nameColumn [ treeViewColumnResizable := True
                  , treeViewColumnExpand := True
                  ]
@@ -167,7 +168,7 @@ newCountView method signal = do
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
-  treeViewColumnSetTitle countColumn "Frequency"
+  treeViewColumnSetTitle countColumn (__ "Frequency")
   treeViewColumnSetMinWidth countColumn 120
 
   -- Using a progress bar here is not really ideal, but I CBA to do anything
@@ -196,7 +197,7 @@ newTimeView = do
   set timeView [ treeViewHeadersVisible := True ]
 
   nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Method"
+  treeViewColumnSetTitle nameColumn (__ "Method")
   set nameColumn [ treeViewColumnResizable := True
                  , treeViewColumnExpand := True
                  ]
@@ -205,11 +206,11 @@ newTimeView = do
       Markup.formatMember (tiInterface ti) (tiMethodName ti)
   treeViewAppendColumn timeView nameColumn
 
-  addTextStatColumn timeView timeStore "Total"
-                (printf "%.1f ms" . tiTotalTime)
-  addTextStatColumn timeView timeStore "Calls" (show . tiCallFrequency)
-  addTextStatColumn timeView timeStore "Mean"
-                (printf "%.1f ms" . tiMeanCallTime)
+  addTextStatColumn timeView timeStore (__ "Total")
+                (printf (__ "%.1f ms") . tiTotalTime)
+  addTextStatColumn timeView timeStore (__ "Calls") (show . tiCallFrequency)
+  addTextStatColumn timeView timeStore (__ "Mean")
+                (printf (__ "%.1f ms") . tiMeanCallTime)
 
   return (timeStore, timeView)
 
@@ -224,9 +225,9 @@ formatSizeInfoMember si =
 
 formatSize :: Int -> Markup
 formatSize s
-    | s < maxB = value 1 `mappend` units "B"
-    | s < maxKB = value 1024 `mappend` units "KB"
-    | otherwise = value (1024 * 1024) `mappend` units "MB"
+    | s < maxB = value 1 `mappend` units (__ "B")
+    | s < maxKB = value 1024 `mappend` units (__ "KB")
+    | otherwise = value (1024 * 1024) `mappend` units (__ "MB")
   where
     maxB = 10000
     maxKB = 10000 * 1024
@@ -245,7 +246,7 @@ newSizeView methodIcon_ signalIcon_ = do
   set sizeView [ treeViewHeadersVisible := True ]
 
   nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn "Member"
+  treeViewColumnSetTitle nameColumn (__ "Member")
   set nameColumn [ treeViewColumnResizable := True
                  , treeViewColumnExpand := True
                  ]
@@ -258,8 +259,8 @@ newSizeView methodIcon_ signalIcon_ = do
   addMemberRenderer nameColumn sizeStore True formatSizeInfoMember
   treeViewAppendColumn sizeView nameColumn
 
-  addStatColumn sizeView sizeStore "Smallest" (formatSize . siMinSize)
-  addStatColumn sizeView sizeStore "Mean" (formatSize . siMeanSize)
-  addStatColumn sizeView sizeStore "Largest" (formatSize . siMaxSize)
+  addStatColumn sizeView sizeStore (__ "Smallest") (formatSize . siMinSize)
+  addStatColumn sizeView sizeStore (__ "Mean") (formatSize . siMeanSize)
+  addStatColumn sizeView sizeStore (__ "Largest") (formatSize . siMaxSize)
 
   return (sizeStore, sizeView)

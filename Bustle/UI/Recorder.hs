@@ -28,6 +28,7 @@ import Control.Concurrent.MVar
 import qualified Data.Map as Map
 import Data.Monoid
 import Control.Monad.State (runStateT)
+import Text.Printf
 
 import qualified Control.Exception as C
 import System.Glib.GError
@@ -37,6 +38,7 @@ import Bustle.Loader.Pcap (convert)
 import Bustle.Loader (isRelevant)
 import Bustle.Monitor
 import Bustle.Renderer
+import Bustle.Translation (__)
 import Bustle.Types
 import Bustle.UI.Util (displayError)
 import Bustle.Util
@@ -76,7 +78,7 @@ processBatch pendingRef n label incoming = do
                 i <- takeMVar n
                 let j = i + (length pending)
                 labelSetMarkup label $
-                    "Logged <b>" ++ show j ++ "</b> messages…"
+                    printf (__ "Logged <b>%u</b> messages…") j
                 putMVar n j
 
                 incoming rr'
@@ -96,7 +98,7 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     dialog `set` [ windowModal := True ]
 
     label <- labelNew Nothing
-    labelSetMarkup label "Logged <b>0</b> messages…"
+    labelSetMarkup label $ printf (__ "Logged <b>%u</b> messages…") (0 :: Int)
     loaderStateRef <- newMVar Map.empty
     pendingRef <- newMVar []
     let updateLabel µs body = do

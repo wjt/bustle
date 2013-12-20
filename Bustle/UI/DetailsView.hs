@@ -29,6 +29,7 @@ import Graphics.UI.Gtk hiding (Signal, Markup)
 
 import qualified DBus as D
 
+import Bustle.Translation (__)
 import Bustle.Types
 import Bustle.Markup
 import Bustle.VariantFormatter
@@ -80,10 +81,10 @@ detailsViewNew = do
     miscSetAlignment title 0 0
     tableAttach table title 0 2 0 1 [Fill] [Fill] 0 0
 
-    pathLabel <- addField table "Path:" 1
-    memberLabel <- addField table "Member:" 2
+    pathLabel <- addField table (__ "Path:") 1
+    memberLabel <- addField table (__ "Member:") 2
 
-    addTitle table "Arguments:" 3
+    addTitle table (__ "Arguments:") 3
 
     view <- textViewNew
     textViewSetWrapMode view WrapWordChar
@@ -100,13 +101,13 @@ detailsViewNew = do
 
 pickTitle :: Detailed Message -> Markup
 pickTitle (Detailed _ m _) = case m of
-    MethodCall {} -> b (escape "Method call")
-    MethodReturn {} -> b (escape "Method return")
-    Error {} -> b (escape "Error")
+    MethodCall {} -> b (escape (__ "Method call"))
+    MethodReturn {} -> b (escape (__ "Method return"))
+    Error {} -> b (escape (__ "Error"))
     Signal { signalDestination = d } ->
         b . escape $ case d of
-            Nothing -> "Signal"
-            Just _  -> "Directed signal"
+            Nothing -> (__ "Signal")
+            Just _  -> (__ "Directed signal")
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =

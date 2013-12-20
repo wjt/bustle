@@ -33,6 +33,7 @@ import Control.Monad.Error
 import Text.Printf
 
 import Bustle.Loader
+import Bustle.Translation (__)
 import Bustle.Types
 import Bustle.Stats
 
@@ -44,18 +45,14 @@ process filepath analyze format = do
     ret <- runErrorT $ readLog filepath
     case ret of
         Left (LoadError _ err) -> do
-            warn $ concat [ "Couldn't parse "
-                          , filepath
-                          , ": "
-                          , err
-                          ]
+            warn $ printf (__ "Couldn't parse ‘%s’: %s") filepath err
             exitFailure
         Right (warnings, log) -> do
             mapM warn warnings
             mapM_ (putStrLn . format) $ analyze log
 
 formatInterface :: Maybe InterfaceName -> String
-formatInterface = maybe "(no interface)" formatInterfaceName
+formatInterface = maybe (__ "(no interface)") formatInterfaceName
 
 runCount :: FilePath -> IO ()
 runCount filepath = process filepath frequencies format
