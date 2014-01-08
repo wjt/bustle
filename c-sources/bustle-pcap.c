@@ -127,9 +127,9 @@ parse_arguments (
   if (version)
     {
       fprintf (stdout, "bustle-pcap " BUSTLE_VERSION "\n\n");
-      fprintf (stdout, "Copyright 2011 Will Thompson <will.thompson@collabora.co.uk>\n");
+      fprintf (stdout, "Copyright 2011 Will Thompson <will@willthompson.co.uk>\n");
       fprintf (stdout, "This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n");
-      fprintf (stdout, "Written by Will Thompson <will.thompson@collabora.co.uk>\n");
+      fprintf (stdout, "Written by Will Thompson <will@willthompson.co.uk>\n");
       exit (0);
     }
   else if (session_specified && system_specified)

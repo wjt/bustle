@@ -6,8 +6,8 @@ Synopsis:       Draw pretty sequence diagrams of D-Bus traffic
 Description:    Draw pretty sequence diagrams of D-Bus traffic
 License:        OtherLicense
 License-file:   LICENSE
-Author:         Will Thompson <will.thompson@collabora.co.uk>
-Maintainer:     Will Thompson <will.thompson@collabora.co.uk>
+Author:         Will Thompson <will@willthompson.co.uk>
+Maintainer:     Will Thompson <will@willthompson.co.uk>
 Data-files:     data/bustle.png,
                 data/dfeet-method.png,
                 data/dfeet-signal.png,
