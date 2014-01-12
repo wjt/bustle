@@ -341,8 +341,8 @@ draw s = draw' s
                     in drawArc cx cy dx dy <$>
                           topx <*> topy <*> bottomx <*> bottomy <*> caption
           SignalArrow {} -> drawSignalArrow <$> epicentre
-                                            <*> Just . shapex1
-                                            <*> Just . shapex2
+                                            <*> (Just . shapex1)
+                                            <*> (Just . shapex2)
                                             <*> shapey
           DirectedSignalArrow { } -> drawDirectedSignalArrow <$> epicentre
                                                              <*> shapex
