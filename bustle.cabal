@@ -13,7 +13,7 @@ Data-files:     data/bustle.png,
                 data/dfeet-signal.png,
                 data/bustle.ui,
                 LICENSE
-Build-type:     Simple
+Build-type:     Custom
 Extra-source-files:
                   -- C bits
                     c-sources/bustle-pcap.c,
@@ -34,6 +34,12 @@ Extra-source-files:
                   , ldd-me-up.sh
                   , LICENSE.bundled-libraries
 
+                  -- wow many translate
+                  , po/*.po
+                  , po/*.pot
+
+x-gettext-po-files:     po/*.po
+x-gettext-domain-name:  bustle
 
 Source-Repository head
   Type:           git
@@ -61,6 +67,7 @@ Executable bustle
                , Bustle.Renderer
                , Bustle.StatisticsPane
                , Bustle.Stats
+               , Bustle.Translation
                , Bustle.Types
                , Bustle.UI
                , Bustle.UI.AboutDialog
@@ -89,6 +96,7 @@ Executable bustle
                , filepath
                , glib
                , gtk >= 0.12.4
+               , hgettext >= 0.1.5
                , mtl
                , pango
                , parsec

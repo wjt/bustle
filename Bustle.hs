@@ -25,6 +25,7 @@ import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import Control.Monad (when)
 import Bustle.Noninteractive
+import Bustle.Translation
 import Bustle.UI
 
 usage :: Bool
@@ -49,6 +50,7 @@ runOne _ _ = usage True
 
 main :: IO ()
 main = do
+    initTranslation
     args <- getArgs
 
     case args of
