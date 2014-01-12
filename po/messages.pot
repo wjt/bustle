@@ -1,0 +1,147 @@
+# Translation file
+
+msgid ""
+msgstr ""
+
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-01-13 06:05-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: Bustle/Loader.hs:0
+msgid "Parse error %s"
+msgstr ""
+
+#: Bustle/Noninteractive.hs:0
+msgid "Couldn't parse \8216%s\8217: %s"
+msgstr ""
+
+#: Bustle/Noninteractive.hs:0
+msgid "(no interface)"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Name"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Frequency"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Method"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Total"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "%.1f ms"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Calls"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Mean"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "B"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "KB"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "MB"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Member"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Smallest"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:0
+msgid "Largest"
+msgstr ""
+
+#: Bustle/UI/AboutDialog.hs:0
+msgid "Bustle"
+msgstr ""
+
+#: Bustle/UI/AboutDialog.hs:0
+msgid "Someone's favourite D-Bus profiler"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Path:"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Member:"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Arguments:"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Method call"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Method return"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Error"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Signal"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:0
+msgid "Directed signal"
+msgstr ""
+
+#: Bustle/UI/FilterDialog.hs:0
+msgid "Unticking a service hides its column in the diagram, and all messages it is involved in. That is, all methods it calls or are called on it, the corresponding returns, and all signals it emits will be hidden."
+msgstr ""
+
+#: Bustle/UI.hs:0
+msgid "Could not read \8216%s\8217"
+msgstr ""
+
+#: Bustle/UI.hs:0
+msgid "Save log \8220%s\8221 before closing?"
+msgstr ""
+
+#: Bustle/UI.hs:0
+msgid "If you don\8217t save, this log will be lost forever."
+msgstr ""
+
+#: Bustle/UI.hs:0
+msgid "Close _Without Saving"
+msgstr ""
+
+#: Bustle/UI.hs:0
+msgid "%s \8212 Bustle"
+msgstr ""
+
+#: Bustle/Util.hs:0
+msgid "Warning: "
+msgstr ""
+
