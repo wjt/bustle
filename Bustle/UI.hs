@@ -207,7 +207,7 @@ loadLogWith getWindow logDetails = do
 
     case ret of
       Left (LoadError f e) -> io $
-          displayError Nothing (printf (__ "Could not read ‘%s’") f) (Just e)
+          displayError Nothing (printf (__ "Could not read '%s'") f) (Just e)
       Right () -> return ()
 
 startRecording :: B ()
@@ -283,14 +283,14 @@ promptToSave wi = io $ do
     case mdetails of
         Just (RecordedLog tempFilePath) -> do
             let tempFileName = takeFileName tempFilePath
-                title = printf (__ "Save log “%s” before closing?") tempFileName
+                title = printf (__ "Save log '%s' before closing?") tempFileName
             prompt <- messageDialogNew (Just (wiWindow wi))
                                        [DialogModal]
                                        MessageWarning
                                        ButtonsNone
                                        title
             messageDialogSetSecondaryText prompt
-                (__ "If you don’t save, this log will be lost forever.")
+                (__ "If you don't save, this log will be lost forever.")
             dialogAddButton prompt (__ "Close _Without Saving") ResponseClose
             dialogAddButton prompt stockCancel ResponseCancel
             dialogAddButton prompt stockSave ResponseYes
@@ -464,7 +464,7 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi) (printf (__ "%s — Bustle") (logWindowTitle logDetails))
+    windowSetTitle (wiWindow wi) (printf (__ "%s - Bustle") (logWindowTitle logDetails))
 
 setPage :: MonadIO io
         => WindowInfo

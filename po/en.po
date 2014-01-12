@@ -1,85 +1,86 @@
 # Translation file
-
 msgid ""
 msgstr ""
-
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2009-01-13 06:05-0800\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"PO-Revision-Date: 2014-01-12 14:19+0000\n"
+"Last-Translator: Will Thompson <will@willthompson.co.uk>\n"
+"Language-Team: English\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: Bustle/Loader.hs:0
 msgid "Parse error %s"
-msgstr ""
+msgstr "Parse error %s"
 
 #: Bustle/Noninteractive.hs:0
 msgid "Couldn't parse '%s': %s"
-msgstr ""
+msgstr "Couldn’t parse ‘%s’: %s"
 
 #: Bustle/Noninteractive.hs:0
 msgid "(no interface)"
-msgstr ""
+msgstr "(no interface)"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Frequency"
-msgstr ""
+msgstr "Frequency"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Method"
-msgstr ""
+msgstr "Method"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Total"
-msgstr ""
+msgstr "Total"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "%.1f ms"
-msgstr ""
+msgstr "%.1f ms"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Calls"
-msgstr ""
+msgstr "Calls"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Mean"
-msgstr ""
+msgstr "Mean"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "B"
-msgstr ""
+msgstr "B"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "KB"
-msgstr ""
+msgstr "KB"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "MB"
-msgstr ""
+msgstr "MB"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Member"
-msgstr ""
+msgstr "Member"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Smallest"
-msgstr ""
+msgstr "Smallest"
 
 #: Bustle/StatisticsPane.hs:0
 msgid "Largest"
-msgstr ""
+msgstr "Largest"
 
 #: Bustle/UI/AboutDialog.hs:0
+#, fuzzy
 msgid "Bustle"
-msgstr ""
+msgstr "%s – Bustle"
 
 #: Bustle/UI/AboutDialog.hs:0
 msgid "Someone's favourite D-Bus profiler"
@@ -90,20 +91,23 @@ msgid "Path:"
 msgstr ""
 
 #: Bustle/UI/DetailsView.hs:0
+#, fuzzy
 msgid "Member:"
-msgstr ""
+msgstr "Member"
 
 #: Bustle/UI/DetailsView.hs:0
 msgid "Arguments:"
 msgstr ""
 
 #: Bustle/UI/DetailsView.hs:0
+#, fuzzy
 msgid "Method call"
-msgstr ""
+msgstr "Method"
 
 #: Bustle/UI/DetailsView.hs:0
+#, fuzzy
 msgid "Method return"
-msgstr ""
+msgstr "Method"
 
 #: Bustle/UI/DetailsView.hs:0
 msgid "Error"
@@ -118,30 +122,32 @@ msgid "Directed signal"
 msgstr ""
 
 #: Bustle/UI/FilterDialog.hs:0
-msgid "Unticking a service hides its column in the diagram, and all messages it is involved in. That is, all methods it calls or are called on it, the corresponding returns, and all signals it emits will be hidden."
+msgid ""
+"Unticking a service hides its column in the diagram, and all messages it is "
+"involved in. That is, all methods it calls or are called on it, the "
+"corresponding returns, and all signals it emits will be hidden."
 msgstr ""
 
 #: Bustle/UI.hs:0
 msgid "Could not read '%s'"
-msgstr ""
+msgstr "Could not read ‘%s’"
 
 #: Bustle/UI.hs:0
 msgid "Save log '%s' before closing?"
-msgstr ""
+msgstr "Save log ‘%s’ before closing?"
 
 #: Bustle/UI.hs:0
 msgid "If you don't save, this log will be lost forever."
-msgstr ""
+msgstr "If you don’t save, this log will be lost forever."
 
 #: Bustle/UI.hs:0
 msgid "Close _Without Saving"
-msgstr ""
+msgstr "Close _Without Saving"
 
 #: Bustle/UI.hs:0
 msgid "%s - Bustle"
-msgstr ""
+msgstr "%s – Bustle"
 
 #: Bustle/Util.hs:0
 msgid "Warning: "
-msgstr ""
-
+msgstr "Warning: "

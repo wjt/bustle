@@ -45,7 +45,7 @@ process filepath analyze format = do
     ret <- runErrorT $ readLog filepath
     case ret of
         Left (LoadError _ err) -> do
-            warn $ printf (__ "Couldn't parse ‘%s’: %s") filepath err
+            warn $ printf (__ "Couldn't parse '%s': %s") filepath err
             exitFailure
         Right (warnings, log) -> do
             mapM warn warnings
