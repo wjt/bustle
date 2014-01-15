@@ -102,6 +102,7 @@ Executable bustle
                , parsec
                , pcap
                , process
+               , setlocale
                , text
                , time
 
@@ -126,10 +127,12 @@ Executable test-monitor
                , filepath
                , gtk > 0.12
                , glib
+               , hgettext
                , mtl
                , pango
                , parsec
                , pcap
+               , setlocale
                , text
 
 Executable dump-messages

@@ -6,14 +6,14 @@ module Bustle.Translation
 where
 
 import Text.I18N.GetText
--- import System.Locale.SetLocale
+import System.Locale.SetLocale
 import System.IO.Unsafe
 
 import GetText_bustle
 
 initTranslation :: IO ()
 initTranslation = do
-    -- setLocale LC_ALL (Just "")
+    setLocale LC_ALL (Just "")
     domain <- getMessageCatalogDomain
     dir <- getMessageCatalogDir
     bindTextDomain domain (Just dir)
