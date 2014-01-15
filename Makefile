@@ -87,4 +87,4 @@ maintainer-binary-tarball: all
 	cd $(TARBALL_PARENT_DIR) && tar cjf $(TARBALL) $(TARBALL_DIR)
 
 maintainer-update-messages-pot:
-	hgettext -k __ -o po/messages.pot **/*.hs
+	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot

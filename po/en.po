@@ -13,141 +13,137 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: Bustle/Loader.hs:0
-msgid "Parse error %s"
-msgstr "Parse error %s"
+#: Bustle/UI.hs:210
+msgid "Could not read '%s'"
+msgstr "Could not read ‘%s’"
 
-#: Bustle/Noninteractive.hs:0
-msgid "Couldn't parse '%s': %s"
-msgstr "Couldn’t parse ‘%s’: %s"
+#: Bustle/UI.hs:286
+msgid "Save log '%s' before closing?"
+msgstr "Save log ‘%s’ before closing?"
 
-#: Bustle/Noninteractive.hs:0
-msgid "(no interface)"
-msgstr "(no interface)"
+#: Bustle/UI.hs:293
+msgid "If you don't save, this log will be lost forever."
+msgstr "If you don’t save, this log will be lost forever."
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/UI.hs:294
+msgid "Close _Without Saving"
+msgstr "Close _Without Saving"
+
+#: Bustle/UI.hs:467
+msgid "%s - Bustle"
+msgstr "%s – Bustle"
+
+#: Bustle/Util.hs:53
+msgid "Warning: "
+msgstr "Warning: "
+
+#: Bustle/StatisticsPane.hs:156
 msgid "Name"
 msgstr "Name"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:171
 msgid "Frequency"
 msgstr "Frequency"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:200
 msgid "Method"
 msgstr "Method"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:209
 msgid "Total"
 msgstr "Total"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:210
 msgid "%.1f ms"
 msgstr "%.1f ms"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:211
 msgid "Calls"
 msgstr "Calls"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:212
 msgid "Mean"
 msgstr "Mean"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:228
 msgid "B"
 msgstr "B"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:229
 msgid "KB"
 msgstr "KB"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:230
 msgid "MB"
 msgstr "MB"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:249
 msgid "Member"
 msgstr "Member"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:262
 msgid "Smallest"
 msgstr "Smallest"
 
-#: Bustle/StatisticsPane.hs:0
+#: Bustle/StatisticsPane.hs:264
 msgid "Largest"
 msgstr "Largest"
 
-#: Bustle/UI/AboutDialog.hs:0
-#, fuzzy
+#: Bustle/UI/AboutDialog.hs:47
 msgid "Bustle"
-msgstr "%s – Bustle"
+msgstr "Bustle"
 
-#: Bustle/UI/AboutDialog.hs:0
+#: Bustle/UI/AboutDialog.hs:49
 msgid "Someone's favourite D-Bus profiler"
-msgstr ""
+msgstr "Someone's favourite D-Bus profiler"
 
-#: Bustle/UI/DetailsView.hs:0
+#: Bustle/UI/DetailsView.hs:84
 msgid "Path:"
-msgstr ""
+msgstr "Path:"
 
-#: Bustle/UI/DetailsView.hs:0
-#, fuzzy
+#: Bustle/UI/DetailsView.hs:85
 msgid "Member:"
-msgstr "Member"
+msgstr "Member:"
 
-#: Bustle/UI/DetailsView.hs:0
+#: Bustle/UI/DetailsView.hs:87
 msgid "Arguments:"
-msgstr ""
+msgstr "Arguments:"
 
-#: Bustle/UI/DetailsView.hs:0
-#, fuzzy
+#: Bustle/UI/DetailsView.hs:104
 msgid "Method call"
-msgstr "Method"
+msgstr "Method call"
 
-#: Bustle/UI/DetailsView.hs:0
-#, fuzzy
+#: Bustle/UI/DetailsView.hs:105
 msgid "Method return"
-msgstr "Method"
+msgstr "Method return"
 
-#: Bustle/UI/DetailsView.hs:0
+#: Bustle/UI/DetailsView.hs:106
 msgid "Error"
-msgstr ""
+msgstr "Error"
 
-#: Bustle/UI/DetailsView.hs:0
+#: Bustle/UI/DetailsView.hs:109
 msgid "Signal"
-msgstr ""
+msgstr "Signal"
 
-#: Bustle/UI/DetailsView.hs:0
+#: Bustle/UI/DetailsView.hs:110
 msgid "Directed signal"
-msgstr ""
+msgstr "Directed signal"
 
-#: Bustle/UI/FilterDialog.hs:0
+#: Bustle/UI/FilterDialog.hs:105
 msgid ""
 "Unticking a service hides its column in the diagram, and all messages it is "
 "involved in. That is, all methods it calls or are called on it, the "
 "corresponding returns, and all signals it emits will be hidden."
-msgstr ""
+msgstr "Unticking a service hides its column in the diagram, and all messages it is involved in. That is, all methods it calls or are called on it, the corresponding returns, and all signals it emits will be hidden."
 
-#: Bustle/UI.hs:0
-msgid "Could not read '%s'"
-msgstr "Could not read ‘%s’"
+#: Bustle/Noninteractive.hs:48
+msgid "Couldn't parse '%s': %s"
+msgstr "Couldn’t parse ‘%s’: %s"
 
-#: Bustle/UI.hs:0
-msgid "Save log '%s' before closing?"
-msgstr "Save log ‘%s’ before closing?"
+#: Bustle/Noninteractive.hs:55
+msgid "(no interface)"
+msgstr "(no interface)"
 
-#: Bustle/UI.hs:0
-msgid "If you don't save, this log will be lost forever."
-msgstr "If you don’t save, this log will be lost forever."
-
-#: Bustle/UI.hs:0
-msgid "Close _Without Saving"
-msgstr "Close _Without Saving"
-
-#: Bustle/UI.hs:0
-msgid "%s - Bustle"
-msgstr "%s – Bustle"
-
-#: Bustle/Util.hs:0
-msgid "Warning: "
-msgstr "Warning: "
+#: Bustle/Loader.hs:64
+msgid "Parse error %s"
+msgstr "Parse error %s"
