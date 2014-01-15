@@ -13,100 +13,90 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: Bustle/UI.hs:210
-msgid "Could not read '%s'"
-msgstr ""
-
-#: Bustle/UI.hs:286
-msgid "Save log '%s' before closing?"
-msgstr ""
-
-#: Bustle/UI.hs:293
-msgid "If you don't save, this log will be lost forever."
-msgstr ""
-
-#: Bustle/UI.hs:294
-msgid "Close _Without Saving"
+#: Bustle/StatisticsPane.hs:210
+#: Bustle/StatisticsPane.hs:213
+msgid "%.1f ms"
 msgstr ""
 
 #: Bustle/UI.hs:467
 msgid "%s - Bustle"
 msgstr ""
 
-#: Bustle/Util.hs:53
-msgid "Warning: "
+#: Bustle/Noninteractive.hs:55
+msgid "(no interface)"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:156
-msgid "Name"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:171
-msgid "Frequency"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:200
-msgid "Method"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:209
-msgid "Total"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:210
-msgid "%.1f ms"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:211
-msgid "Calls"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:212
-msgid "Mean"
+#: Bustle/UI/DetailsView.hs:87
+msgid "Arguments:"
 msgstr ""
 
 #: Bustle/StatisticsPane.hs:228
 msgid "B"
 msgstr ""
 
+#: Bustle/UI/AboutDialog.hs:47
+msgid "Bustle"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:211
+msgid "Calls"
+msgstr ""
+
+#: Bustle/UI.hs:294
+msgid "Close _Without Saving"
+msgstr ""
+
+#: Bustle/UI.hs:210
+msgid "Could not read '%s'"
+msgstr ""
+
+#: Bustle/Noninteractive.hs:48
+msgid "Couldn't parse '%s': %s"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:110
+msgid "Directed signal"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:106
+msgid "Error"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:171
+msgid "Frequency"
+msgstr ""
+
+#: Bustle/UI.hs:293
+msgid "If you don't save, this log will be lost forever."
+msgstr ""
+
 #: Bustle/StatisticsPane.hs:229
 msgid "KB"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:230
-msgid "MB"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:249
-msgid "Member"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:262
-msgid "Smallest"
 msgstr ""
 
 #: Bustle/StatisticsPane.hs:264
 msgid "Largest"
 msgstr ""
 
-#: Bustle/UI/AboutDialog.hs:47
-msgid "Bustle"
+#: Bustle/StatisticsPane.hs:230
+msgid "MB"
 msgstr ""
 
-#: Bustle/UI/AboutDialog.hs:49
-msgid "Someone's favourite D-Bus profiler"
+#: Bustle/StatisticsPane.hs:212
+#: Bustle/StatisticsPane.hs:263
+msgid "Mean"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:84
-msgid "Path:"
+#: Bustle/StatisticsPane.hs:249
+msgid "Member"
 msgstr ""
 
 #: Bustle/UI/DetailsView.hs:85
 msgid "Member:"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:87
-msgid "Arguments:"
+#: Bustle/StatisticsPane.hs:200
+msgid "Method"
 msgstr ""
 
 #: Bustle/UI/DetailsView.hs:104
@@ -117,31 +107,43 @@ msgstr ""
 msgid "Method return"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:106
-msgid "Error"
+#: Bustle/StatisticsPane.hs:156
+msgid "Name"
+msgstr ""
+
+#: Bustle/Loader.hs:64
+msgid "Parse error %s"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:84
+msgid "Path:"
+msgstr ""
+
+#: Bustle/UI.hs:286
+msgid "Save log '%s' before closing?"
 msgstr ""
 
 #: Bustle/UI/DetailsView.hs:109
 msgid "Signal"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:110
-msgid "Directed signal"
+#: Bustle/StatisticsPane.hs:262
+msgid "Smallest"
+msgstr ""
+
+#: Bustle/UI/AboutDialog.hs:49
+msgid "Someone's favourite D-Bus profiler"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:209
+msgid "Total"
 msgstr ""
 
 #: Bustle/UI/FilterDialog.hs:105
 msgid "Unticking a service hides its column in the diagram, and all messages it is involved in. That is, all methods it calls or are called on it, the corresponding returns, and all signals it emits will be hidden."
 msgstr ""
 
-#: Bustle/Noninteractive.hs:48
-msgid "Couldn't parse '%s': %s"
-msgstr ""
-
-#: Bustle/Noninteractive.hs:55
-msgid "(no interface)"
-msgstr ""
-
-#: Bustle/Loader.hs:64
-msgid "Parse error %s"
+#: Bustle/Util.hs:53
+msgid "Warning: "
 msgstr ""
 
