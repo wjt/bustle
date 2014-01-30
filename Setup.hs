@@ -53,7 +53,11 @@ writeGetTextConstantsFile pkg lbi flags = do
 getTextConstantsModuleName :: PackageDescription -> ModuleName
 getTextConstantsModuleName pkg_descr =
   ModuleName.fromString $
-    "GetText_" ++ map fixchar (display (packageName pkg_descr))
+    "GetText_" ++ fixedPackageName pkg_descr
+
+-- Cargo-culted from two separate places in Cabal!
+fixedPackageName :: PackageDescription -> String
+fixedPackageName = map fixchar . display . packageName
   where fixchar '-' = '_'
         fixchar c   = c
 
@@ -68,14 +72,22 @@ generateModule pkg lbi =
         "    getMessageCatalogDomain,\n" ++
         "    getMessageCatalogDir\n" ++
         ") where\n"++
-        "\n"
+        "\n" ++
+        "import qualified Control.Exception as Exception\n" ++
+        "import System.Environment (getEnv)\n"
 
     body =
+        "catchIO :: IO a -> (Exception.IOException -> IO a) -> IO a\n" ++
+        "catchIO = Exception.catch\n" ++
+        "\n" ++
         "getMessageCatalogDomain :: IO String\n" ++
         "getMessageCatalogDomain = return " ++ show dom ++ "\n" ++
         "\n" ++
+        "messageCatalogDir :: String\n" ++
+        "messageCatalogDir = " ++ show tar ++ "\n" ++
+        "\n" ++
         "getMessageCatalogDir :: IO FilePath\n" ++
-        "getMessageCatalogDir = return " ++ show tar ++ "\n"
+        "getMessageCatalogDir = catchIO (getEnv \"" ++ fixedPackageName pkg ++ "_localedir\") (\\_ -> return messageCatalogDir)\n"
 
     sMap = customFieldsPD (localPkgDescr lbi)
     dom = getDomainNameDefault sMap (getPackageName lbi)

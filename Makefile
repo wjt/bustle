@@ -71,10 +71,8 @@ TARBALL_FULL_DIR := $(TARBALL_PARENT_DIR)/$(TARBALL_DIR)
 TARBALL := $(TARBALL_DIR).tar.bz2
 maintainer-binary-tarball: all
 	mkdir -p $(TARBALL_FULL_DIR)
-	cabal-dev configure --prefix=$(TOP)/$(TARBALL_FULL_DIR) \
+	cabal-dev install --prefix=$(TOP)/$(TARBALL_FULL_DIR) \
 		--datadir=$(TOP)/$(TARBALL_FULL_DIR) --datasubdir=.
-	cabal-dev build
-	cabal-dev copy
 	cp bustle.sh README $(TARBALL_FULL_DIR)
 	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
 		-e  's{^    bustle}     {    ./bustle.sh};' \
