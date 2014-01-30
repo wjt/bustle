@@ -26,6 +26,10 @@ msgstr ""
 msgid "(no interface)"
 msgstr ""
 
+#: Bustle/UI/DetailsView.hs:148
+msgid "<unknown>"
+msgstr ""
+
 #: Bustle/UI/DetailsView.hs:87
 msgid "Arguments:"
 msgstr ""
@@ -109,6 +113,10 @@ msgstr ""
 
 #: Bustle/StatisticsPane.hs:156
 msgid "Name"
+msgstr ""
+
+#: Bustle/UI/DetailsView.hs:127
+msgid "No message body information is available. Please capture a fresh log using a recent version of Bustle!"
 msgstr ""
 
 #: Bustle/Loader.hs:64

@@ -124,8 +124,8 @@ getMember (Detailed _ m _) = case m of
 
 formatMessage :: Detailed Message -> String
 formatMessage (Detailed _ _ Nothing) =
-    "# No message body information is available. Please capture a fresh log\n\
-    \# using bustle-pcap if you need it!"
+    __ "No message body information is available. Please capture a fresh log \
+       \using a recent version of Bustle!"
 formatMessage (Detailed _ _ (Just (_size, rm))) =
     formatArgs $ D.receivedMessageBody rm
   where
@@ -141,6 +141,8 @@ detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
     labelSetMarkup (detailsTitle d) (unMarkup $ pickTitle m)
-    labelSetText (detailsPath d) (maybe "Unknown" (D.formatObjectPath . path) member_)
-    labelSetMarkup (detailsMember d) (maybe "Unknown" getMemberMarkup member_)
+    labelSetText (detailsPath d) (maybe unknown (D.formatObjectPath . path) member_)
+    labelSetMarkup (detailsMember d) (maybe unknown getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m
+  where
+    unknown = __ "<unknown>"
