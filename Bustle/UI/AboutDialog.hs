@@ -49,7 +49,7 @@ showAboutDialog window icon = do
                  , aboutDialogComments := __ "Someone's favourite D-Bus profiler"
                  , aboutDialogWebsite := "http://willthompson.co.uk/bustle"
                  , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2013 Will Thompson, Collabora Ltd. and contributors"
+                 , aboutDialogCopyright := "© 2008–2014 Will Thompson, Collabora Ltd. and contributors"
                  , aboutDialogLicense := license
                  ]
     dialog `afterResponse` \resp ->
@@ -68,4 +68,5 @@ authors = [ "Will Thompson <will@willthompson.co.uk>"
           , "Cosimo Alfarano"
           , "Sergei Trofimovich"
           , "Alex Merry"
+          , "Philip Withnall"
           ]

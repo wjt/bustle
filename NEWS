@@ -1,3 +1,14 @@
+Bustle 0.4.4 (2014-01-30)
+-------------------------
+
+Wow, I can't believe the first release was in 2008!
+
+* Bustle's now translatable. It only ships with an English translation,
+  but others are more than welcome! Thanks to Philip Withnall for
+  getting this started.
+* Add an AppData and .desktop file. (Philip Withnall)
+
+
 Bustle 0.4.3 (2013-12-05)
 -------------------------
 
