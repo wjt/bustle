@@ -38,6 +38,10 @@ Extra-source-files:
                   , po/*.po
                   , po/*.pot
 
+                  -- intl bits
+                  , data/bustle.appdata.xml.in
+                  , data/bustle.desktop.in
+
 x-gettext-po-files:     po/*.po
 x-gettext-domain-name:  bustle
 
