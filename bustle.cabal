@@ -183,6 +183,8 @@ Test-suite test-renderer
                  , mtl
                  , text
                  , pango
+                 , hgettext
+                 , setlocale
                  , test-framework
                  , test-framework-hunit
                  , HUnit
