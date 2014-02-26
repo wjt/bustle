@@ -1,3 +1,12 @@
+Bustle 0.4.5 (2014-02-26)
+-------------------------
+
+* Fix build failure with tests enabled due to translation files.
+* Distribute appdata and desktop files in source tarballs.
+
+Thanks to Sergei Trofimovich for catching and fixing these!
+
+
 Bustle 0.4.4 (2014-01-30)
 -------------------------
 
