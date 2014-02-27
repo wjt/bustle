@@ -58,24 +58,25 @@ newtype Bustle config state a = B (ReaderT (BustleEnv config state) IO a)
   deriving (Functor, Monad, MonadIO)
 
 newtype BustleEnv config state =
-    BustleEnv { unBustleEnv :: IORef (config, state) }
+    BustleEnv { unBustleEnv :: (config, IORef state) }
 
 readConfig :: MonadIO m
            => BustleEnv config state
            -> m config
-readConfig = liftM fst . liftIO . readIORef . unBustleEnv
+readConfig = return . fst . unBustleEnv
 
 readState :: MonadIO m
           => BustleEnv config state
           -> m state
-readState  = liftM snd . liftIO . readIORef . unBustleEnv
+readState  = liftIO . readIORef . snd . unBustleEnv
 
 putState :: MonadIO m
          => state
          -> BustleEnv config state
          -> m ()
 putState new e = liftIO $ do
-    modifyIORef (unBustleEnv e) $ \(conf, _) -> (conf, new)
+    let (_, r) = unBustleEnv e
+    liftIO $ writeIORef r new
 
 instance MonadState state (Bustle config state) where
   get = B $ ask >>= readState
@@ -83,13 +84,9 @@ instance MonadState state (Bustle config state) where
 
 instance MonadReader config (Bustle config state) where
     ask = B $ ask >>= readConfig
-    -- FIXME: I don't actually think it's possible to implement local without
-    -- keeping two refs or something. I guess I could make a temporary ioref,
-    -- and propagate any changes to the actual state part of the ref to the
-    -- outside world. This would break horribly in the face of threads. Or we
-    -- could do something like:
-    --   MVar (BConfig, MVar BState)
-    local = error "Sorry, Dave, I can't let you do that."
+    local f (B act) = B $ local (mapBustleEnv (\(e, r) -> (f e, r))) act
+      where
+        mapBustleEnv g = BustleEnv . g . unBustleEnv
 
 embedIO :: (BustleEnv config state -> IO a) -> Bustle config state a
 embedIO act = B $ do
@@ -101,5 +98,5 @@ makeCallback (B act) x = runReaderT act x
 
 runB :: config -> state -> Bustle config state a -> IO a
 runB config s (B act) = do
-    r <- newIORef (config, s)
-    runReaderT act $ BustleEnv r
+    r <- newIORef s
+    runReaderT act $ BustleEnv (config, r)
