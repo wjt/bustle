@@ -5,6 +5,7 @@
     <property name="can_focus">False</property>
     <property name="default_width">900</property>
     <property name="default_height">700</property>
+    <property name="icon-name">bustle</property>
     <child>
       <object class="GtkVBox" id="box1">
         <property name="visible">True</property>
@@ -496,6 +497,7 @@
     <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="type_hint">dialog</property>
+    <property name="icon-name">bustle</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="dialog-vbox1">
         <property name="visible">True</property>

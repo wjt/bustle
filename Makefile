@@ -15,8 +15,13 @@ BINARIES = \
 MANPAGE = bustle-pcap.1
 DESKTOP_FILE = bustle.desktop
 APPDATA_FILE = bustle.appdata.xml
+ICON_SIZES = 16x16 22x22 32x32 48x48 256x256
+ICONS = \
+	data/icons/scalable/bustle.svg \
+	$(foreach size,$(ICON_SIZES),data/icons/$(size)/bustle.png) \
+	$(NULL)
 
-all: $(BINARIES) $(MANPAGE) $(DESKTOP_FILE) $(APPDATA_FILE)
+all: $(BINARIES) $(MANPAGE) $(DESKTOP_FILE) $(APPDATA_FILE) $(ICONS)
 
 BUSTLE_PCAP_SOURCES = c-sources/pcap-monitor.c c-sources/bustle-pcap.c
 BUSTLE_PCAP_GENERATED_HEADERS = dist/build/autogen/version.h
@@ -51,17 +56,34 @@ install: all
 	cp $(DESKTOP_FILE) $(DATADIR)/applications
 	mkdir -p $(DATADIR)/appdata
 	cp $(APPDATA_FILE) $(DATADIR)/appdata
+	$(foreach size,$(ICON_SIZES),mkdir -p $(DATADIR)/icons/hicolor/$(size)/apps; )
+	$(foreach size,$(ICON_SIZES),cp data/icons/$(size)/bustle.png $(DATADIR)/icons/hicolor/$(size)/apps; )
+	$(MAKE) update-icon-cache
 
 uninstall:
 	rm -f $(BINDIR)/$(notdir $(BINARIES))
 	rm -f $(MAN1DIR)/$(MANPAGE)
 	rm -f $(DATADIR)/applications/$(DESKTOP_FILE)
 	rm -f $(DATADIR)/appdata/$(APPDATA_FILE)
+	$(foreach size,$(ICON_SIZES),rm -f $(DATADIR)/icons/hicolor/$(size)/apps/bustle.png)
+	$(MAKE) update-icon-cache
 
 clean:
 	rm -f $(BINARIES) $(MANPAGE) $(BUSTLE_PCAP_GENERATED_HEADERS) $(DESKTOP_FILE) $(APPDATA_FILE)
 	if test -d ./$(TARBALL_DIR); then rm -r ./$(TARBALL_DIR); fi
 	rm -f ./$(TARBALL)
+
+# Icon cache stuff
+gtk_update_icon_cache = gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor
+
+update-icon-cache:
+	@-if test -z "$(DESTDIR)"; then \
+		echo "Updating GTK+ icon cache."; \
+		$(gtk_update_icon_cache); \
+	else \
+		echo "*** Icon cache not updated.  After (un)install, run this:"; \
+		echo "***   $(gtk_update_icon_cache)"; \
+	fi
 
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
