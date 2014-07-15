@@ -354,8 +354,7 @@ emptyWindow = do
       onActivateLeaf openTwoItem $ widgetShowAll openTwoDialog
 
   -- Help menu
-  embedIO $ \r -> do
-      onActivateLeaf aboutItem $ showAboutDialog window
+  io $ onActivateLeaf aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
