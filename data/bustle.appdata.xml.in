@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2014 Philip Withnall <philip@tecnocode.co.uk> -->
 <application>
 	<id type="desktop">bustle.desktop</id>
-	<licence>CC BY-SA</licence>
+	<metadata_license>CC-BY-SA-3.0</metadata_license>
+	<project_license>LGPL-2.1+ and GPL-2.0+ and GPL-3.0</project_license>
 	<description>
 		<!-- Translators: These are the application description paragraphs in the AppData file. -->
 		<_p>Bustle draws sequence diagrams of D-Bus activity.</_p>
