@@ -8,8 +8,7 @@ License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will@willthompson.co.uk>
 Maintainer:     Will Thompson <will@willthompson.co.uk>
-Data-files:     data/bustle.png,
-                data/dfeet-method.png,
+Data-files:     data/dfeet-method.png,
                 data/dfeet-signal.png,
                 data/bustle.ui,
                 LICENSE

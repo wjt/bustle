@@ -5,6 +5,8 @@
     <property name="can_focus">False</property>
     <property name="default_width">900</property>
     <property name="default_height">700</property>
+    <property name="icon-name">bustle</property>
+    <property name="title" translatable="yes">Bustle</property>
     <child>
       <object class="GtkVBox" id="box1">
         <property name="visible">True</property>
@@ -52,7 +54,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="tooltip_text" translatable="yes">Display two logs—one for the session bus, one for the system bus—side by side.</property>
-                        <property name="label" translatable="yes">O_pen a pair of logs…</property>
+                        <property name="label" translatable="yes">O_pen a Pair of Logs…</property>
                         <property name="use_underline">True</property>
                       </object>
                     </child>
@@ -119,7 +121,7 @@
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">_Filter visible services…</property>
+                        <property name="label" translatable="yes">_Filter Visible Services…</property>
                         <property name="use_underline">True</property>
                         <accelerator key="f" signal="activate" modifiers="GDK_CONTROL_MASK"/>
                       </object>
@@ -224,7 +226,7 @@
                                   <object class="GtkLabel" id="balahah">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
-                                    <property name="label" translatable="yes">Record a new log</property>
+                                    <property name="label" translatable="yes">Record a New Log</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -270,7 +272,7 @@
                                   <object class="GtkLabel" id="balahah1">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
-                                    <property name="label" translatable="yes">Open an existing log</property>
+                                    <property name="label" translatable="yes">Open an Existing Log</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -367,7 +369,7 @@
                       <object class="GtkLabel" id="label6">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Message frequencies</property>
+                        <property name="label" translatable="yes">Message Frequencies</property>
                       </object>
                       <packing>
                         <property name="tab_fill">False</property>
@@ -392,7 +394,7 @@
                       <object class="GtkLabel" id="label7">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Method durations</property>
+                        <property name="label" translatable="yes">Method Durations</property>
                       </object>
                       <packing>
                         <property name="position">1</property>
@@ -418,7 +420,7 @@
                       <object class="GtkLabel" id="label8">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Message sizes</property>
+                        <property name="label" translatable="yes">Message Sizes</property>
                       </object>
                       <packing>
                         <property name="position">2</property>
@@ -492,10 +494,11 @@
   <object class="GtkDialog" id="openTwoDialog">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
-    <property name="title" translatable="yes">Open a pair of logs</property>
+    <property name="title" translatable="yes">Open a Pair of Logs</property>
     <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="type_hint">dialog</property>
+    <property name="icon-name">bustle</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="dialog-vbox1">
         <property name="visible">True</property>

@@ -36,9 +36,8 @@ import Paths_bustle
 
 
 showAboutDialog :: Window
-                -> Maybe Pixbuf
                 -> IO ()
-showAboutDialog window icon = do
+showAboutDialog window = do
     dialog <- aboutDialogNew
 
     license <- (Just `fmap` (readFile =<< getDataFileName "LICENSE"))
@@ -56,7 +55,7 @@ showAboutDialog window icon = do
         when (resp == ResponseCancel) (widgetDestroy dialog)
     windowSetTransientFor dialog window
     windowSetModal dialog True
-    aboutDialogSetLogo dialog icon
+    aboutDialogSetLogoIconName dialog (Just "bustle")
 
     widgetShowAll dialog
 

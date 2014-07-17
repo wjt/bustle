@@ -95,7 +95,6 @@ data WindowInfo =
 
 data BConfig =
     BConfig { debugEnabled :: Bool
-            , bustleIcon :: Maybe Pixbuf
             , methodIcon :: Maybe Pixbuf
             , signalIcon :: Maybe Pixbuf
             }
@@ -120,11 +119,10 @@ uiMain = failOnGError $ do
     -- FIXME: get a real option parser
     let debug = any isDebug args
 
-    [bustle, method, signal] <- mapM loadPixbuf
-        ["bustle.png", "dfeet-method.png", "dfeet-signal.png"]
+    [method, signal] <- mapM loadPixbuf
+        ["dfeet-method.png", "dfeet-signal.png"]
 
     let config = BConfig { debugEnabled = debug
-                         , bustleIcon = bustle
                          , methodIcon = method
                          , signalIcon = signal
                          }
@@ -339,10 +337,8 @@ emptyWindow = do
   openTwoDialog <- embedIO $ \r ->
       setupOpenTwoDialog builder window $ \f1 f2 ->
           makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
-  withProgramIcon (windowSetIcon openTwoDialog)
 
   -- Set up the window itself
-  withProgramIcon (windowSetIcon window)
   embedIO $ onDestroy window . makeCallback maybeQuit
 
   -- File menu and related buttons
@@ -358,8 +354,7 @@ emptyWindow = do
       onActivateLeaf openTwoItem $ widgetShowAll openTwoDialog
 
   -- Help menu
-  withProgramIcon $ \icon -> io $
-      onActivateLeaf aboutItem $ showAboutDialog window icon
+  io $ onActivateLeaf aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
@@ -525,9 +520,6 @@ displayLog wi@(WindowInfo { wiWindow = window
         updateDisplayedLog wi rr'
 
   return ()
-
-withProgramIcon :: (Maybe Pixbuf -> IO a) -> B a
-withProgramIcon f = asks bustleIcon >>= io . f
 
 loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
