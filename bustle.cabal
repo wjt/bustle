@@ -41,6 +41,14 @@ Extra-source-files:
                   , data/bustle.appdata.xml.in
                   , data/bustle.desktop.in
 
+                  -- icons
+                  , data/icons/16x16/bustle.png
+                  , data/icons/22x22/bustle.png
+                  , data/icons/32x32/bustle.png
+                  , data/icons/48x48/bustle.png
+                  , data/icons/256x256/bustle.png
+                  , data/icons/scalable/bustle.svg
+
 x-gettext-po-files:     po/*.po
 x-gettext-domain-name:  bustle
 
