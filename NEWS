@@ -1,3 +1,16 @@
+Bustle 0.4.7 (2014-07-19)
+-------------------------
+
+* Ship the icons in the tarball! Thanks again, Sergei Trofimovich.
+
+
+Bustle 0.4.6 (2014-07-17)
+-------------------------
+
+* Icons! Thanks to Αποστολίδου Χρυσαφή for redrawing the icon as an SVG, and to
+  Philip Withnall for the build system goop.
+* More appdata! Thanks again, Philip.
+
 Bustle 0.4.5 (2014-02-26)
 -------------------------
 
