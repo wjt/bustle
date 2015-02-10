@@ -21,10 +21,10 @@ Extra-source-files:
                     Makefile,
 
                   -- Stuff for nerds
-                    README,
-                    NEWS,
-                    HACKING,
-                    INSTALL,
+                    README.md,
+                    NEWS.md,
+                    HACKING.md,
+                    INSTALL.md,
                     run-uninstalled.sh
                   , Test/data/log-with-h.bustle
 

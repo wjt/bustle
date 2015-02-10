@@ -95,10 +95,10 @@ maintainer-binary-tarball: all
 	mkdir -p $(TARBALL_FULL_DIR)
 	cabal-dev install --prefix=$(TOP)/$(TARBALL_FULL_DIR) \
 		--datadir=$(TOP)/$(TARBALL_FULL_DIR) --datasubdir=.
-	cp bustle.sh README $(TARBALL_FULL_DIR)
+	cp bustle.sh README.md $(TARBALL_FULL_DIR)
 	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
 		-e  's{^    bustle}     {    ./bustle.sh};' \
-		$(TARBALL_FULL_DIR)/README
+		$(TARBALL_FULL_DIR)/README.md
 	cp $(BINARIES) $(MANPAGE) $(DESKTOP_FILE) $(APPDATA_FILE) $(TARBALL_FULL_DIR)
 	mkdir -p $(TARBALL_FULL_DIR)/lib
 	cp LICENSE.bundled-libraries $(TARBALL_FULL_DIR)/lib
