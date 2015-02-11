@@ -53,7 +53,7 @@ import Control.Applicative ((<$>), (<*>))
 
 import Control.Monad.Reader
 
-import Graphics.Rendering.Cairo
+import Graphics.Rendering.Cairo (Operator(..), Render, arc, curveTo, fill, getCurrentPoint, lineTo, moveTo, newPath, paint, rectangle, restore, save, setDash, setLineWidth, setOperator, setSourceRGB, stroke)
 import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
 import Graphics.Rendering.Pango.Layout
 import Graphics.Rendering.Pango.Font
