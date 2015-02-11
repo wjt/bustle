@@ -78,7 +78,7 @@ processBatch pendingRef n label incoming = do
                 i <- takeMVar n
                 let j = i + (length pending)
                 labelSetMarkup label $
-                    printf (__ "Logged <b>%u</b> messages…") j
+                    (printf (__ "Logged <b>%u</b> messages…") j :: String)
                 putMVar n j
 
                 incoming rr'
@@ -97,8 +97,9 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     maybe (return ()) (windowSetTransientFor dialog) mwindow
     dialog `set` [ windowModal := True ]
 
-    label <- labelNew Nothing
-    labelSetMarkup label $ printf (__ "Logged <b>%u</b> messages…") (0 :: Int)
+    label <- labelNew (Nothing :: Maybe String)
+    labelSetMarkup label $
+        (printf (__ "Logged <b>%u</b> messages…") (0 :: Int) :: String)
     loaderStateRef <- newMVar Map.empty
     pendingRef <- newMVar []
     let updateLabel µs body = do
@@ -142,7 +143,7 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     widgetShowAll dialog
   where
     newFailed (GError _ _ message) = do
-        displayError mwindow message Nothing
+        displayError mwindow (show message) Nothing
 
 recorderChooseFile :: FilePath
                    -> Maybe Window

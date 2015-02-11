@@ -450,7 +450,13 @@ mkLayout :: (MonadIO m)
 mkLayout s e a = liftIO $ do
     ctx <- cairoCreateContext Nothing
     layout <- layoutEmpty ctx
-    layoutSetMarkup layout (Markup.unMarkup s)
+    -- layoutSetMarkup returns the un-marked-up text. We don't care about it,
+    -- but recent versions of Pango give it the type
+    --    GlibString string => ... -> IO string
+    -- which we need to disambiguate between Text and String. Old versions were
+    --    .. -> IO String
+    -- so go with that.
+    layoutSetMarkup layout (Markup.unMarkup s) :: IO String
     layoutSetFontDescription layout (Just font)
     layoutSetEllipsize layout e
     layoutSetAlignment layout a

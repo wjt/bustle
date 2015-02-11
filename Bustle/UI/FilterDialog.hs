@@ -99,7 +99,7 @@ runFilterDialog parent names currentlyHidden = do
     nameStore <- makeStore names currentlyHidden
     sw <- makeView nameStore
 
-    instructions <- labelNew Nothing
+    instructions <- labelNew (Nothing :: Maybe String)
     widgetSetSizeRequest instructions 600 (-1)
     labelSetMarkup instructions
         (__ "Unticking a service hides its column in the diagram, \

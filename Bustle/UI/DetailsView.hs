@@ -55,7 +55,7 @@ addValue :: Table
          -> Int
          -> IO Label
 addValue table row = do
-    label <- labelNew Nothing
+    label <- labelNew (Nothing :: Maybe String)
     miscSetAlignment label 0 0
     labelSetEllipsize label EllipsizeStart
     labelSetSelectable label True
@@ -77,7 +77,7 @@ detailsViewNew = do
                 , tableColumnSpacing := 6
                 ]
 
-    title <- labelNew Nothing
+    title <- labelNew (Nothing :: Maybe String)
     miscSetAlignment title 0 0
     tableAttach table title 0 2 0 1 [Fill] [Fill] 0 0
 

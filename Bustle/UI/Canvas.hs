@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module Bustle.UI.Canvas
   (
     Canvas
@@ -58,7 +59,7 @@ canvasNew :: Eq a
           -> (Maybe a -> IO ())
           -> IO (Canvas a)
 canvasNew builder showBounds selectionChangedCb = do
-    layout <- builderGetObject builder castToLayout "diagramLayout"
+    layout <- builderGetObject builder castToLayout ("diagramLayout" :: String)
     idRef <- newIORef Nothing
     shapesRef <- newIORef []
     widthRef <- newIORef 0

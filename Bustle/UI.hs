@@ -281,7 +281,7 @@ promptToSave wi = io $ do
     case mdetails of
         Just (RecordedLog tempFilePath) -> do
             let tempFileName = takeFileName tempFilePath
-                title = printf (__ "Save log '%s' before closing?") tempFileName
+                title = printf (__ "Save log '%s' before closing?") tempFileName :: String
             prompt <- messageDialogNew (Just (wiWindow wi))
                                        [DialogModal]
                                        MessageWarning
@@ -459,7 +459,8 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi) (printf (__ "%s - Bustle") (logWindowTitle logDetails))
+    windowSetTitle (wiWindow wi)
+        (printf (__ "%s - Bustle") (logWindowTitle logDetails) :: String)
 
 setPage :: MonadIO io
         => WindowInfo
@@ -525,7 +526,7 @@ loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
   iconName <- getDataFileName $ "data/" ++ filename
   C.catch (fmap Just (pixbufNewFromFile iconName))
-          (\(GError _ _ msg) -> warn msg >> return Nothing)
+          (\(GError _ _ msg) -> warn (show msg) >> return Nothing)
 
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do
