@@ -58,8 +58,8 @@ import Graphics.UI.Gtk.Cairo (cairoCreateContext, showLayout)
 import Graphics.Rendering.Pango.Layout
 import Graphics.Rendering.Pango.Font
 
-import qualified Bustle.Markup as Markup
-import Bustle.Markup (Markup)
+import qualified Bustle.Marquee as Marquee
+import Bustle.Marquee (Marquee)
 import Bustle.Util
 import Bustle.Types (ObjectPath, InterfaceName, MemberName)
 
@@ -430,7 +430,7 @@ drawArc cx cy dx dy x1 y1 x2 y2 cap = saved $ do
     stroke
 
     setSourceRGB 0 0 0
-    l <- mkLayout (Markup.escape cap) EllipsizeNone AlignLeft
+    l <- mkLayout (Marquee.escape cap) EllipsizeNone AlignLeft
     (PangoRectangle _ _ textWidth _, _) <- liftIO $ layoutGetExtents l
     let tx = min x2 dx + abs (x2 - dx) / 2
     moveTo (if x1 > cx then tx - textWidth else tx) (y2 - 5)
@@ -445,7 +445,7 @@ font = unsafePerformIO $ do
 {-# NOINLINE font #-}
 
 mkLayout :: (MonadIO m)
-         => Markup -> EllipsizeMode -> LayoutAlignment
+         => Marquee -> EllipsizeMode -> LayoutAlignment
          -> m PangoLayout
 mkLayout s e a = liftIO $ do
     ctx <- cairoCreateContext Nothing
@@ -456,7 +456,7 @@ mkLayout s e a = liftIO $ do
     -- which we need to disambiguate between Text and String. Old versions were
     --    .. -> IO String
     -- so go with that.
-    layoutSetMarkup layout (Markup.unMarkup s) :: IO String
+    layoutSetMarkup layout (Marquee.toPangoMarkup s) :: IO String
     layoutSetFontDescription layout (Just font)
     layoutSetEllipsize layout e
     layoutSetAlignment layout a
@@ -470,7 +470,7 @@ withWidth m w = do
 
 drawHeader :: [String] -> Double -> Double -> Render ()
 drawHeader names x y = forM_ (zip [0..] names) $ \(i, name) -> do
-    l <- mkLayout (Markup.escape name) EllipsizeEnd AlignCenter `withWidth` columnWidth
+    l <- mkLayout (Marquee.escape name) EllipsizeEnd AlignCenter `withWidth` columnWidth
     moveTo (x - (columnWidth / 2)) (y + i * h)
     showLayout l
   where h = 10
@@ -491,14 +491,14 @@ drawMember p i m isReturn x y = do
       moveTo (x - memberWidth / 2) y'
       showLayout l
 
-    path = (if isReturn then id else Markup.b) $ Markup.escape p
+    path = (if isReturn then id else Marquee.b) $ Marquee.escape p
     fullMethod =
-        (if isReturn then Markup.i else id) $ Markup.formatMember i m
+        (if isReturn then Marquee.i else id) $ Marquee.formatMember i m
 
 drawTimestamp :: String -> Double -> Double -> Render ()
 drawTimestamp ts x y = do
     moveTo (x - timestampWidth / 2) (y - 10)
-    showLayout =<< mkLayout (Markup.escape ts) EllipsizeNone AlignLeft `withWidth` timestampWidth
+    showLayout =<< mkLayout (Marquee.escape ts) EllipsizeNone AlignLeft `withWidth` timestampWidth
 
 drawClientLines :: NonEmpty Double -> Double -> Double -> Render ()
 drawClientLines xs y1 y2 = saved $ do

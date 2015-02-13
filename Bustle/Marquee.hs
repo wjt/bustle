@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-
-Bustle.Diagram: My First Type-Safe Markup Library
+Bustle.Marquee: My First Type-Safe Markup Library With A Cutesy Name To Not Collide With Pango's 'Markup' Which Is A Synonym For String
 Copyright © 2011 Will Thompson
 
 This library is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-module Bustle.Markup
-  ( Markup
-  , unMarkup
+module Bustle.Marquee
+  ( Marquee
+  , toPangoMarkup
   , tag
   , b
   , i
@@ -29,6 +29,8 @@ module Bustle.Markup
   , escape
 
   , formatMember
+
+  , toString
   )
 where
 
@@ -42,44 +44,44 @@ import Graphics.Rendering.Pango.Markup (markSpan, SpanAttribute(..))
 
 import Bustle.Types (ObjectPath, formatObjectPath, InterfaceName, formatInterfaceName, MemberName, formatMemberName)
 
-newtype Markup = Markup { unMarkup :: String }
+newtype Marquee = Marquee { unMarquee :: String }
     deriving (Show, Read, Ord, Eq)
 
-instance Monoid Markup where
-    mempty = Markup ""
-    mappend x y = Markup (unMarkup x `mappend` unMarkup y)
-    mconcat = Markup . mconcat . map unMarkup
+toPangoMarkup :: Marquee -> String
+toPangoMarkup = unMarquee
 
---raw :: String -> Markup
---raw = Markup
+instance Monoid Marquee where
+    mempty = Marquee ""
+    mappend x y = Marquee (unMarquee x `mappend` unMarquee y)
+    mconcat = Marquee . mconcat . map unMarquee
 
-tag :: String -> Markup -> Markup
+tag :: String -> Marquee -> Marquee
 tag name contents =
-    Markup $ concat [ "<", name, ">"
-                    , unMarkup contents
+    Marquee $ concat [ "<", name, ">"
+                    , unMarquee contents
                     , "</", name, ">"
                     ]
 
-b, i :: Markup -> Markup
+b, i :: Marquee -> Marquee
 b = tag "b"
 i = tag "i"
 
 a :: String
   -> String
-  -> Markup
+  -> Marquee
 a href contents =
-  Markup $ concat [ "<a href=\"", escapeMarkup href, "\">"
+  Marquee $ concat [ "<a href=\"", escapeMarkup href, "\">"
                   , escapeMarkup contents
                   , "</a>"
                   ]
 
-span_ :: [SpanAttribute] -> Markup -> Markup
-span_ attrs = Markup . markSpan attrs . unMarkup
+span_ :: [SpanAttribute] -> Marquee -> Marquee
+span_ attrs = Marquee . markSpan attrs . unMarquee
 
-light :: Markup -> Markup
+light :: Marquee -> Marquee
 light = span_ [FontWeight WeightLight]
 
-red :: Markup -> Markup
+red :: Marquee -> Marquee
 red = span_ [FontForeground "#ff0000"]
 
 -- Kind of a transitional measure because some strings are Strings, and some are Text.
@@ -101,12 +103,12 @@ instance Unescaped ObjectPath where
 instance Unescaped MemberName where
     toString = formatMemberName
 
-escape :: Unescaped s => s -> Markup
-escape = Markup . escapeMarkup . toString
+escape :: Unescaped s => s -> Marquee
+escape = Marquee . escapeMarkup . toString
 
-formatMember :: Maybe InterfaceName -> MemberName -> Markup
+formatMember :: Maybe InterfaceName -> MemberName -> Marquee
 formatMember iface member = iface' `mappend` b (escape member)
   where
     iface' = case iface of
-        Just ifaceName -> escape ifaceName `mappend` Markup "."
+        Just ifaceName -> escape ifaceName `mappend` Marquee "."
         Nothing        -> light (escape "(no interface) ")

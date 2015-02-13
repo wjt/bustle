@@ -25,13 +25,13 @@ module Bustle.UI.DetailsView
 where
 
 import Data.List (intercalate)
-import Graphics.UI.Gtk hiding (Signal, Markup)
+import Graphics.UI.Gtk hiding (Signal)
 
 import qualified DBus as D
 
 import Bustle.Translation (__)
 import Bustle.Types
-import Bustle.Markup
+import Bustle.Marquee
 import Bustle.VariantFormatter
 
 data DetailsView =
@@ -99,7 +99,7 @@ detailsViewNew = do
     widgetShowAll table
     return $ DetailsView table title pathLabel memberLabel view
 
-pickTitle :: Detailed Message -> Markup
+pickTitle :: Detailed Message -> Marquee
 pickTitle (Detailed _ m _) = case m of
     MethodCall {} -> b (escape (__ "Method call"))
     MethodReturn {} -> b (escape (__ "Method return"))
@@ -111,7 +111,7 @@ pickTitle (Detailed _ m _) = case m of
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =
-    unMarkup $ formatMember (iface m) (membername m)
+    toPangoMarkup $ formatMember (iface m) (membername m)
 
 getMember :: Detailed Message -> Maybe Member
 getMember (Detailed _ m _) = case m of
@@ -140,7 +140,7 @@ detailsViewUpdate :: DetailsView
 detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
-    labelSetMarkup (detailsTitle d) (unMarkup $ pickTitle m)
+    labelSetMarkup (detailsTitle d) (toPangoMarkup $ pickTitle m)
     labelSetText (detailsPath d) (maybe unknown (D.formatObjectPath . path) member_)
     labelSetMarkup (detailsMember d) (maybe unknown getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m

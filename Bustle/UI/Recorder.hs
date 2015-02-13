@@ -36,6 +36,7 @@ import Graphics.UI.Gtk
 
 import Bustle.Loader.Pcap (convert)
 import Bustle.Loader (isRelevant)
+import Bustle.Marquee (toString)
 import Bustle.Monitor
 import Bustle.Renderer
 import Bustle.Translation (__)
@@ -143,7 +144,7 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     widgetShowAll dialog
   where
     newFailed (GError _ _ message) = do
-        displayError mwindow (show message) Nothing
+        displayError mwindow (toString message) Nothing
 
 recorderChooseFile :: FilePath
                    -> Maybe Window

@@ -71,7 +71,7 @@ Executable bustle
                , Bustle.Loader
                , Bustle.Loader.OldSkool
                , Bustle.Loader.Pcap
-               , Bustle.Markup
+               , Bustle.Marquee
                , Bustle.Monitor
                , Bustle.Noninteractive
                , Bustle.Regions

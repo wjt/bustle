@@ -26,12 +26,12 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad (forM_)
 import Text.Printf
-import Graphics.UI.Gtk hiding (Markup)
+import Graphics.UI.Gtk
 import Bustle.Stats
 import Bustle.Translation (__)
 import Bustle.Types (Log)
-import qualified Bustle.Markup as Markup
-import Bustle.Markup (Markup)
+import qualified Bustle.Marquee as Marquee
+import Bustle.Marquee (Marquee)
 import Data.Monoid
 
 data StatsPane =
@@ -83,20 +83,20 @@ statsPaneSetMessages sp sessionMessages systemMessages = do
 addTextRenderer :: TreeViewColumn
                 -> ListStore a
                 -> Bool
-                -> (a -> Markup)
+                -> (a -> Marquee)
                 -> IO CellRendererText
 addTextRenderer col store expand f = do
     renderer <- cellRendererTextNew
     cellLayoutPackStart col renderer expand
     set renderer [ cellTextSizePoints := 7 ]
     cellLayoutSetAttributes col renderer store $ \x ->
-        [ cellTextMarkup := (Just . Markup.unMarkup) $ f x ]
+        [ cellTextMarkup := (Just . Marquee.toPangoMarkup) $ f x ]
     return renderer
 
 addMemberRenderer :: TreeViewColumn
                   -> ListStore a
                   -> Bool
-                  -> (a -> Markup)
+                  -> (a -> Marquee)
                   -> IO CellRendererText
 addMemberRenderer col store expand f = do
     renderer <- addTextRenderer col store expand f
@@ -110,7 +110,7 @@ addMemberRenderer col store expand f = do
 addStatColumn :: TreeView
               -> ListStore a
               -> String
-              -> (a -> Markup)
+              -> (a -> Marquee)
               -> IO ()
 addStatColumn view store title f = do
     col <- treeViewColumnNew
@@ -126,7 +126,7 @@ addTextStatColumn :: TreeView
                   -> (a -> String)
                   -> IO ()
 addTextStatColumn view store title f =
-    addStatColumn view store title (Markup.escape . f)
+    addStatColumn view store title (Marquee.escape . f)
 
 -- If we managed to load the method and signal icons...
 maybeAddTypeIconColumn :: CellLayoutClass layout
@@ -164,7 +164,7 @@ newCountView method signal = do
           TallySignal -> False
 
   addMemberRenderer nameColumn countStore True $ \fi ->
-      Markup.formatMember (fiInterface fi) (fiMember fi)
+      Marquee.formatMember (fiInterface fi) (fiMember fi)
   treeViewAppendColumn countView nameColumn
 
   countColumn <- treeViewColumnNew
@@ -203,7 +203,7 @@ newTimeView = do
                  ]
 
   addMemberRenderer nameColumn timeStore True $ \ti ->
-      Markup.formatMember (tiInterface ti) (tiMethodName ti)
+      Marquee.formatMember (tiInterface ti) (tiMethodName ti)
   treeViewAppendColumn timeView nameColumn
 
   addTextStatColumn timeView timeStore (__ "Total")
@@ -214,16 +214,16 @@ newTimeView = do
 
   return (timeStore, timeView)
 
-formatSizeInfoMember :: SizeInfo -> Markup
+formatSizeInfoMember :: SizeInfo -> Marquee
 formatSizeInfoMember si =
-    f (Markup.formatMember (siInterface si) (siName si))
+    f (Marquee.formatMember (siInterface si) (siName si))
   where
     f = case siType si of
-            SizeReturn -> Markup.i
-            SizeError  -> Markup.red
+            SizeReturn -> Marquee.i
+            SizeError  -> Marquee.red
             _          -> id
 
-formatSize :: Int -> Markup
+formatSize :: Int -> Marquee
 formatSize s
     | s < maxB = value 1 `mappend` units (__ "B")
     | s < maxKB = value 1024 `mappend` units (__ "KB")
@@ -232,9 +232,9 @@ formatSize s
     maxB = 10000
     maxKB = 10000 * 1024
 
-    units = Markup.escape . (' ':)
+    units = Marquee.escape . (' ':)
 
-    value factor = Markup.escape (show (s `div` factor))
+    value factor = Marquee.escape (show (s `div` factor))
 
 newSizeView :: Maybe Pixbuf
             -> Maybe Pixbuf

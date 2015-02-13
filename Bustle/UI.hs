@@ -38,6 +38,7 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Marquee (toString)
 import Bustle.Util
 import Bustle.UI.AboutDialog
 import Bustle.UI.Canvas
@@ -526,7 +527,7 @@ loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
 loadPixbuf filename = do
   iconName <- getDataFileName $ "data/" ++ filename
   C.catch (fmap Just (pixbufNewFromFile iconName))
-          (\(GError _ _ msg) -> warn (show msg) >> return Nothing)
+          (\(GError _ _ msg) -> warn (toString msg) >> return Nothing)
 
 openDialogue :: Window -> B ()
 openDialogue window = embedIO $ \r -> do
