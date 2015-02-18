@@ -4,14 +4,9 @@ import Test.QuickCheck.All
 
 import Data.List (sort, group)
 import Data.Maybe (isNothing, isJust)
+import Control.Applicative ((<$>), (<*>))
 
 import Bustle.Regions
-
-instance Arbitrary Stripe where
-    arbitrary = do
-        top <- fmap abs arbitrary
-        bottom <- arbitrary `suchThat` (>= top)
-        return $ Stripe top bottom
 
 newtype NonOverlappingStripes = NonOverlappingStripes [Stripe]
   deriving
@@ -19,8 +14,17 @@ newtype NonOverlappingStripes = NonOverlappingStripes [Stripe]
 
 instance Arbitrary NonOverlappingStripes where
     arbitrary = do
-        -- there is no orderedList1 sadly
-        stripes <- fmap sort (listOf1 arbitrary) `suchThat` nonOverlapping
+        -- listOf2
+        tops <- sort <$> ((:) <$> arbitrary <*> (listOf1 arbitrary))
+
+        -- Generate dense stripes sometimes
+        let g :: Gen Double
+            g = frequency [(1, return 1.0), (7, choose (0.0, 1.0))]
+
+        rs <- vectorOf (length tops) (choose (0.0, 1.0))
+
+        let stripes = zipWith3 (\t1 t2 r -> Stripe t1 (t1 + ((t2 - t1) * r)))
+                               tops (tail tops) rs
         return $ NonOverlappingStripes stripes
 
 newtype ValidRegions a = ValidRegions (Regions a)
@@ -39,6 +43,8 @@ instance (Eq a, Arbitrary a) => Arbitrary (RegionSelection a) where
     arbitrary = do
         ValidRegions rs <- arbitrary
         return $ regionSelectionNew rs
+
+prop_NonOverlapping_generator_works (NonOverlappingStripes ss) = nonOverlapping ss
 
 prop_InitiallyUnselected = \rs -> isNothing $ rsCurrent rs
 prop_UpDoesNothing = \rs -> isNothing $ rsCurrent $ regionSelectionUp rs
