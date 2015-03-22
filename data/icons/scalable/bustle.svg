@@ -203,10 +203,7 @@
        style="fill:none;stroke:#74b674;stroke-width:27.59247017;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:82.77741051, 27.59247017;stroke-dashoffset:27.59247017"
        d="m 70.761814,288.36996 c -0.01207,-1.2669 -0.02449,-2.53589 -0.02449,-3.80671 0,-159.41492 129.271656,-288.6461129 288.736206,-288.6461129 159.46457,0 288.73621,129.2311929 288.73621,288.6461129 l 0,0 0,0 c 0,1.27082 -0.009,2.53969 -0.0245,3.80671"
        id="path3802-8"
-       inkscape:connector-curvature="0"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       inkscape:connector-curvature="0" />
     <path
        sodipodi:type="arc"
        style="fill:none;stroke:#000000;stroke-width:34.42315674;stroke-miterlimit:10;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
@@ -217,9 +214,7 @@
        sodipodi:ry="118.57143"
        d="m 511.42856,433.79074 a 130,118.57143 0 1 1 -260,0 130,118.57143 0 1 1 260,0 z"
        transform="matrix(0.50880116,0,0,0.55776489,164.13818,45.848517)"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       />
     <path
        style="fill:none;stroke:#000000;stroke-width:18.45480156;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="m 417.41556,287.80173 211.44171,0"
@@ -227,9 +222,7 @@
        inkscape:path-effect="#path-effect3759-7"
        inkscape:original-d="m 417.41556,287.80173 211.44171,0"
        inkscape:connector-curvature="0"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       />
     <path
        style="fill:none;stroke:#000000;stroke-width:18.17925262;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="m 294.08479,287.66116 -211.718251,0.2812"
@@ -237,9 +230,7 @@
        inkscape:path-effect="#path-effect3763-2"
        inkscape:original-d="m 294.08479,287.66116 -211.718251,0.2812"
        inkscape:connector-curvature="0"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       />
     <path
        style="fill:none;stroke:#000000;stroke-width:18.33793068;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="M 200.97285,226.67532 77.897224,289.6408 200.97285,348.92819"
@@ -248,9 +239,7 @@
        inkscape:original-d="M 200.97285,226.67532 77.897224,289.6408 200.97285,348.92819"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="ccc"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       />
     <path
        style="fill:none;stroke:#000000;stroke-width:18.33793068;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="M 520.66838,225.39683 643.74401,288.36232 520.66838,347.6497"
@@ -259,8 +248,6 @@
        inkscape:original-d="M 520.66838,225.39683 643.74401,288.36232 520.66838,347.6497"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="ccc"
-       inkscape:export-filename="/home/ziz-2/Desktop/kkkkkkkk.png"
-       inkscape:export-xdpi="8.2586517"
-       inkscape:export-ydpi="8.2586517" />
+       />
   </g>
 </svg>
