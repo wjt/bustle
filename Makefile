@@ -18,6 +18,7 @@ APPDATA_FILE = bustle.appdata.xml
 ICON_SIZES = 16x16 22x22 32x32 48x48 256x256
 ICONS = \
 	data/icons/scalable/bustle.svg \
+	data/icons/scalable/bustle-symbolic.svg \
 	$(foreach size,$(ICON_SIZES),data/icons/$(size)/bustle.png) \
 	$(NULL)
 
@@ -58,6 +59,8 @@ install: all
 	cp $(APPDATA_FILE) $(DATADIR)/appdata
 	$(foreach size,$(ICON_SIZES),mkdir -p $(DATADIR)/icons/hicolor/$(size)/apps; )
 	$(foreach size,$(ICON_SIZES),cp data/icons/$(size)/bustle.png $(DATADIR)/icons/hicolor/$(size)/apps; )
+	mkdir -p $(DATADIR)/icons/hicolor/scalable/apps
+	cp data/icons/scalable/bustle-symbolic.svg $(DATADIR)/icons/hicolor/scalable/apps
 	$(MAKE) update-icon-cache
 
 uninstall:
@@ -66,6 +69,7 @@ uninstall:
 	rm -f $(DATADIR)/applications/$(DESKTOP_FILE)
 	rm -f $(DATADIR)/appdata/$(APPDATA_FILE)
 	$(foreach size,$(ICON_SIZES),rm -f $(DATADIR)/icons/hicolor/$(size)/apps/bustle.png)
+	rm -f $(DATADIR)/icons/hicolor/scalable/apps/bustle-symbolic.svg
 	$(MAKE) update-icon-cache
 
 clean:

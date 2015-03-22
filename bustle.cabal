@@ -48,6 +48,7 @@ Extra-source-files:
                   , data/icons/48x48/bustle.png
                   , data/icons/256x256/bustle.png
                   , data/icons/scalable/bustle.svg
+                  , data/icons/scalable/bustle-symbolic.svg
 
 x-gettext-po-files:     po/*.po
 x-gettext-domain-name:  bustle
