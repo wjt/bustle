@@ -112,3 +112,10 @@ maintainer-binary-tarball: all
 
 maintainer-update-messages-pot:
 	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
+
+maintainer-make-release: bustle.cabal
+	cabal test
+	cabal sdist
+	git tag -s -m 'Bustle '`perl -nle 'm/^Version:\s+(.*)$$/ and print qq($$1)' bustle.cabal` \
+		bustle-`perl -nle 'm/^Version:\s+(.*)$$/ and print qq($$1)' bustle.cabal`
+	make maintainer-binary-tarball
