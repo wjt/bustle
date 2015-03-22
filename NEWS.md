@@ -1,3 +1,14 @@
+Bustle 0.4.8 (2015-03-22)
+-------------------------
+
+* Be compatible with recent versions of Gtk2HS which use Text rather
+  than Strings in many places. Should still build against older
+  releases. Let me know if not.
+* [#89712][]: Add symbolic icon. (Arnaud Bonatti)
+
+[#89712]: https://bugs.freedesktop.org/show_bug.cgi?id=89712
+
+
 Bustle 0.4.7 (2014-07-19)
 -------------------------
 
