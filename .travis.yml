@@ -6,8 +6,10 @@ ghc:
 before_install:
  - sudo apt-get update -qq
  - sudo apt-get install -qq libpcap-dev libgtk2.0-dev libcairo2-dev
+ - which cabal
  # Look I know this seems ridiculous but cairo seems to fail to build unless Cabal-the-library >= 1.18 is installed, but not depend on it (?)
  - cabal install Cabal
+ - which cabal
  # https://github.com/gtk2hs/gtk2hs/issues/73
  - cabal install alex happy
  - cabal install gtk2hs-buildtools
