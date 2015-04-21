@@ -50,12 +50,12 @@ showAboutDialog window = do
                  , aboutDialogAuthors := authors
                  , aboutDialogCopyright := "© 2008–2014 Will Thompson, Collabora Ltd. and contributors"
                  , aboutDialogLicense := license
+                 , aboutDialogLogoIconName := Just "bustle"
+                 , windowModal := True
+                 , windowTransientFor := window
                  ]
-    dialog `afterResponse` \resp ->
+    dialog `after` response $ \resp ->
         when (resp == ResponseCancel) (widgetDestroy dialog)
-    windowSetTransientFor dialog window
-    windowSetModal dialog True
-    aboutDialogSetLogoIconName dialog (Just "bustle")
 
     widgetShowAll dialog
 

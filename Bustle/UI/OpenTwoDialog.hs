@@ -37,7 +37,7 @@ propagateCurrentFolder :: FileChooserClass chooser
                        => chooser
                        -> chooser
                        -> IO (ConnectId chooser)
-propagateCurrentFolder d1 d2 = d1 `onCurrentFolderChanged` do
+propagateCurrentFolder d1 d2 = d1 `on` currentFolderChanged $ do
     f1 <- fileChooserGetCurrentFolder d1
     f2 <- fileChooserGetCurrentFolder d2
     otherFile <- fileChooserGetFilename d2
@@ -59,14 +59,14 @@ setupOpenTwoDialog builder parent callback = do
             ["sessionBusChooser", "systemBusChooser"]
     openTwoOpenButton <- builderGetObject builder castToButton "openTwoOpenButton"
 
-    windowSetTransientFor dialog parent
+    dialog `set` [ windowTransientFor := parent ]
     dialog `on` deleteEvent $ tryEvent $ io $ widgetHide dialog
 
     propagateCurrentFolder sessionBusChooser systemBusChooser
     propagateCurrentFolder systemBusChooser sessionBusChooser
 
     let hideMyself = do
-            widgetHideAll dialog
+            widgetHide dialog
             fileChooserUnselectAll sessionBusChooser
             fileChooserUnselectAll systemBusChooser
 
@@ -82,7 +82,7 @@ setupOpenTwoDialog builder parent callback = do
     connectGeneric "file-set" False systemBusChooser updateOpenSensitivity
     updateOpenSensitivity
 
-    dialog `afterResponse` \resp -> do
+    dialog `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just f1 <- fileChooserGetFilename sessionBusChooser
           Just f2 <- fileChooserGetFilename systemBusChooser

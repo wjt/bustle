@@ -91,9 +91,9 @@ runFilterDialog :: WindowClass parent
                 -> IO (Set UniqueName) -- ^ The set of names to *hide*
 runFilterDialog parent names currentlyHidden = do
     d <- dialogNew
-    windowSetTransientFor d parent
+    d `set` [ windowTransientFor := parent ]
     dialogAddButton d stockClose ResponseClose
-    vbox <- dialogGetUpper d
+    vbox <- fmap castToBox $ dialogGetContentArea d
     boxSetSpacing vbox 6
 
     nameStore <- makeStore names currentlyHidden

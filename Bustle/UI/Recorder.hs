@@ -27,6 +27,7 @@ import Control.Monad (when, liftM)
 import Control.Concurrent.MVar
 import qualified Data.Map as Map
 import Data.Monoid
+import Data.Maybe (maybeToList)
 import Control.Monad.State (runStateT)
 import Text.Printf
 
@@ -95,7 +96,7 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     monitor <- monitorNew BusTypeSession filename
     dialog <- dialogNew
 
-    maybe (return ()) (windowSetTransientFor dialog) mwindow
+    dialog `set` (map (windowTransientFor :=) (maybeToList mwindow))
     dialog `set` [ windowModal := True ]
 
     label <- labelNew (Nothing :: Maybe String)
@@ -124,13 +125,13 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     bar <- progressBarNew
     pulseId <- timeoutAdd (progressBarPulse bar >> return True) 100
 
-    vbox <- dialogGetUpper dialog
+    vbox <- fmap castToBox $ dialogGetContentArea dialog
     boxPackStart vbox label PackGrow 0
     boxPackStart vbox bar PackNatural 0
 
     dialogAddButton dialog "gtk-media-stop" ResponseClose
 
-    dialog `afterResponse` \_ -> do
+    dialog `after` response $ \_ -> do
         monitorStop monitor
         signalDisconnect handlerId
         timeoutRemove pulseId
@@ -161,7 +162,7 @@ recorderChooseFile name mwindow callback = do
                   , fileChooserDoOverwriteConfirmation := True
                   ]
 
-    chooser `afterResponse` \resp -> do
+    chooser `after` response $ \resp -> do
         when (resp == ResponseAccept) $ do
             Just fn <- fileChooserGetFilename chooser
             callback fn

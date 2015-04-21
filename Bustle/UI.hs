@@ -235,6 +235,13 @@ aChallengerAppears wi rr = do
     canvasScrollToBottom (wiCanvas wi)
     setPage wi CanvasPage
 
+onMenuItemActivate :: MenuItemClass menuItem
+                   => menuItem
+                   -> IO ()
+                   -> IO (ConnectId menuItem)
+onMenuItemActivate mi act =
+    on mi menuItemActivate act
+
 finishedRecording :: WindowInfo
                   -> FilePath
                   -> Bool
@@ -250,7 +257,7 @@ finishedRecording wi tempFilePath producedOutput = do
 
         io $ do
             widgetSetSensitivity saveItem True
-            onActivateLeaf saveItem $ showSaveDialog wi (return ())
+            onMenuItemActivate saveItem $ showSaveDialog wi (return ())
         return ()
       else do
         setPage wi InstructionsPage
@@ -295,7 +302,7 @@ promptToSave wi = io $ do
             dialogAddButton prompt stockSave ResponseYes
 
             widgetShowAll prompt
-            prompt `afterResponse` \resp -> do
+            prompt `after` response $ \resp -> do
                 let closeUp = widgetDestroy (wiWindow wi)
                 case resp of
                     ResponseYes -> showSaveDialog wi closeUp
@@ -340,22 +347,22 @@ emptyWindow = do
           makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
 
   -- Set up the window itself
-  embedIO $ onDestroy window . makeCallback maybeQuit
+  embedIO $ (window `on` objectDestroy) . makeCallback maybeQuit
 
   -- File menu and related buttons
   embedIO $ \r -> do
       let new = makeCallback startRecording r
-      onActivateLeaf newItem new
-      onClicked newButton new
+      onMenuItemActivate newItem new
+      newButton `on` buttonActivated $ new
 
       let open = makeCallback (openDialogue window) r
-      onActivateLeaf openItem open
-      onClicked openButton open
+      onMenuItemActivate openItem open
+      openButton `on` buttonActivated $ open
 
-      onActivateLeaf openTwoItem $ widgetShowAll openTwoDialog
+      onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
   -- Help menu
-  io $ onActivateLeaf aboutItem $ showAboutDialog window
+  io $ onMenuItemActivate aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
@@ -460,8 +467,7 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi)
-        (printf (__ "%s - Bustle") (logWindowTitle logDetails) :: String)
+    (wiWindow wi) `set` [ windowTitle := (printf (__ "%s - Bustle") (logWindowTitle logDetails) :: String) ]
 
 setPage :: MonadIO io
         => WindowInfo
@@ -495,7 +501,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     updateDisplayedLog wi rr
 
     widgetSetSensitivity exportItem True
-    onActivateLeaf exportItem $ do
+    onMenuItemActivate exportItem $ do
         shapes <- canvasGetShapes canvas
         saveToPDFDialogue wi shapes
 
@@ -513,7 +519,7 @@ displayLog wi@(WindowInfo { wiWindow = window
             else widgetHide statsBook
 
     widgetSetSensitivity filterNames True
-    onActivateLeaf filterNames $ do
+    onMenuItemActivate filterNames $ do
         hidden <- readIORef hiddenRef
         hidden' <- runFilterDialog window (sessionParticipants $ rrApplications rr) hidden
         writeIORef hiddenRef hidden'
@@ -539,7 +545,7 @@ openDialogue window = embedIO $ \r -> do
                 , fileChooserLocalOnly := True
                 ]
 
-  chooser `afterResponse` \resp -> do
+  chooser `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
           makeCallback (loadInInitialWindow (SingleLog fn)) r
@@ -574,7 +580,7 @@ saveToPDFDialogue wi shapes = do
           TwoLogs p _   -> Just $ takeDirectory p
   maybeM mdirectory $ fileChooserSetCurrentFolder chooser
 
-  chooser `afterResponse` \resp -> do
+  chooser `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- io $ fileChooserGetFilename chooser
           let (width, height) = diagramDimensions shapes
