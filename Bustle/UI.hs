@@ -38,6 +38,7 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Gtk (b_windowSetTitlebar, b_headerBarSetSubtitle)
 import Bustle.Marquee (toString)
 import Bustle.Util
 import Bustle.UI.AboutDialog
@@ -80,8 +81,9 @@ data Page =
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
-               , wiSave :: ImageMenuItem
-               , wiExport :: MenuItem
+               , wiHeaderBar :: Widget -- TODO
+               , wiSave :: Button
+               , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
@@ -257,7 +259,7 @@ finishedRecording wi tempFilePath producedOutput = do
 
         io $ do
             widgetSetSensitivity saveItem True
-            onMenuItemActivate saveItem $ showSaveDialog wi (return ())
+            saveItem `on` buttonActivated $ showSaveDialog wi (return ())
         return ()
       else do
         setPage wi InstructionsPage
@@ -273,6 +275,7 @@ showSaveDialog wi savedCb = do
         tempFileName = takeFileName tempFilePath
 
     recorderChooseFile tempFileName mwindow $ \newFilePath -> do
+        -- TODO: crashes if these are on two different filesystems, sigh
         renameFile tempFilePath newFilePath
         widgetSetSensitivity (wiSave wi) False
         wiSetLogDetails wi (SingleLog newFilePath)
@@ -327,15 +330,16 @@ emptyWindow = do
   let getW cast name = io $ builderGetObject builder cast name
 
   window <- getW castToWindow "diagramWindow"
-  [newItem, openItem, saveItem, closeItem, aboutItem] <-
-      mapM (getW castToImageMenuItem)
-          ["new", "open", "save", "close", "about"]
-  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
-  exportItem <- getW castToMenuItem "export"
-  openTwoItem <- getW castToMenuItem "openTwo"
+  header <- getW castToWidget "header"
+
+  io $ b_windowSetTitlebar window header
+  [openItem, openTwoItem] <- mapM (getW castToMenuItem) ["open", "openTwo"]
+  [headerNew, headerSave, headerExport] <- mapM (getW castToButton) ["headerNew", "headerSave", "headerExport"]
+
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
 
+  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
 
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
@@ -352,8 +356,8 @@ emptyWindow = do
   -- File menu and related buttons
   embedIO $ \r -> do
       let new = makeCallback startRecording r
-      onMenuItemActivate newItem new
-      newButton `on` buttonActivated $ new
+      forM [headerNew, newButton] $ \button ->
+          button `on` buttonActivated $ new
 
       let open = makeCallback (openDialogue window) r
       onMenuItemActivate openItem open
@@ -361,8 +365,8 @@ emptyWindow = do
 
       onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
-  -- Help menu
-  io $ onMenuItemActivate aboutItem $ showAboutDialog window
+  -- TODO: this needs GtkApplication to put it in the app menu
+  -- io $ onMenuItemActivate aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
@@ -384,8 +388,9 @@ emptyWindow = do
 
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
-                              , wiSave = saveItem
-                              , wiExport = exportItem
+                              , wiHeaderBar = header
+                              , wiSave = headerSave
+                              , wiExport = headerExport
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
                               , wiNotebook = nb
@@ -398,9 +403,6 @@ emptyWindow = do
                               }
 
   io $ window `on` deleteEvent $ promptToSave windowInfo
-  io $ closeItem `on` menuItemActivate $ do
-      prompted <- promptToSave windowInfo
-      when (not prompted) (widgetDestroy window)
   incWindows
   io $ widgetShow window
   return windowInfo
@@ -429,30 +431,27 @@ updateDisplayedLog wi rr = io $ do
 
     canvasSetShapes canvas shapes regions (rrCentreOffset rr) windowWidth
 
-prettyDirectory :: String
-                -> String
-prettyDirectory s = "(" ++ dropTrailingPathSeparator s ++ ")"
+splitFileName_ :: String
+               -> (String, String)
+splitFileName_ s = (dropTrailingPathSeparator d, f)
+  where
+      (d, f) = splitFileName s
 
 logWindowTitle :: LogDetails
-               -> String
-logWindowTitle (RecordedLog filepath) = "(*) " ++ takeFileName filepath
-logWindowTitle (SingleLog   filepath) =
-    intercalate " " [name, prettyDirectory directory]
+               -> (String, Maybe String)
+logWindowTitle (RecordedLog filepath) = ("*" ++ takeFileName filepath, Nothing)
+logWindowTitle (SingleLog   filepath) = (name, Just directory)
   where
-    (directory, name) = splitFileName filepath
+    (directory, name) = splitFileName_ filepath
 logWindowTitle (TwoLogs sessionPath systemPath) =
-    intercalate " " $ filter (not . null)
-           [ sessionName, sessionDirectory'
-           , "&"
-           , systemName,  prettyDirectory systemDirectory
-           ]
+    -- TODO: this looks terrible, need a custom widget
+    (sessionName ++ " & " ++ systemName,
+     Just $ if sessionDirectory == systemDirectory
+        then sessionDirectory
+        else sessionDirectory ++ " & " ++ systemDirectory)
   where
-    (sessionDirectory, sessionName) = splitFileName sessionPath
-    (systemDirectory,  systemName ) = splitFileName systemPath
-    sessionDirectory' =
-      if sessionDirectory == systemDirectory
-        then ""
-        else prettyDirectory sessionDirectory
+    (sessionDirectory, sessionName) = splitFileName_ sessionPath
+    (systemDirectory,  systemName ) = splitFileName_ systemPath
 
 logTitle :: LogDetails
          -> String
@@ -467,7 +466,9 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    (wiWindow wi) `set` [ windowTitle := (printf (__ "%s - Bustle") (logWindowTitle logDetails) :: String) ]
+    let (title, subtitle) = logWindowTitle logDetails
+    (wiWindow wi) `set` [ windowTitle := title ]
+    b_headerBarSetSubtitle (wiHeaderBar wi) subtitle
 
 setPage :: MonadIO io
         => WindowInfo
@@ -501,7 +502,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     updateDisplayedLog wi rr
 
     widgetSetSensitivity exportItem True
-    onMenuItemActivate exportItem $ do
+    exportItem `on` buttonActivated $ do
         shapes <- canvasGetShapes canvas
         saveToPDFDialogue wi shapes
 
