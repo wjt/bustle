@@ -35,6 +35,7 @@ import Data.IORef
 import Control.Monad (when)
 
 import Graphics.UI.Gtk
+import Graphics.Rendering.Cairo (Render, translate)
 
 import Bustle.Diagram
 import Bustle.Regions
@@ -131,11 +132,7 @@ setupCanvas canvas = do
         "End"       -> updateWith regionSelectionLast
         _           -> stopEvent
 
-    -- Expose events
-    -- I think we could speed things up by only showing the revealed area
-    -- rather than everything that's visible.
-    layout `on` exposeEvent $ tryEvent $ io $ canvasUpdate canvas
-
+    layout `on` draw $ canvasDraw canvas
     return ()
 
 canvasInvalidateArea :: Canvas a
@@ -257,30 +254,30 @@ canvasGetShapes :: Canvas a
 canvasGetShapes = readIORef . canvasShapes
 
 -- | Redraws the currently-visible area of the canvas
-canvasUpdate :: Canvas a
-             -> IO ()
-canvasUpdate canvas = do
-    current <- canvasGetSelection canvas
-    shapes <- canvasGetShapes canvas
-    width <- readIORef $ canvasWidth canvas
+canvasDraw :: Canvas a
+           -> Render ()
+canvasDraw canvas = do
+    current <- io $ canvasGetSelection canvas
+    shapes <- io $ canvasGetShapes canvas
+    width <- io $ readIORef $ canvasWidth canvas
     let shapes' = case current of
             Nothing     -> shapes
             Just (Stripe y1 y2, _) -> Highlight (0, y1, width, y2):shapes
 
     let layout = canvasLayout canvas
 
-    hadj <- layoutGetHAdjustment layout
-    hpos <- adjustmentGetValue hadj
-    hpage <- adjustmentGetPageSize hadj
+    hadj <- io $ layoutGetHAdjustment layout
+    hpos <- io $ adjustmentGetValue hadj
+    hpage <- io $ adjustmentGetPageSize hadj
 
-    vadj <- layoutGetVAdjustment layout
-    vpos <- adjustmentGetValue vadj
-    vpage <- adjustmentGetPageSize vadj
+    vadj <- io $ layoutGetVAdjustment layout
+    vpos <- io $ adjustmentGetValue vadj
+    vpage <- io $ adjustmentGetPageSize vadj
 
     let r = (hpos, vpos, hpos + hpage, vpos + vpage)
 
-    win <- layoutGetDrawWindow layout
-    renderWithDrawable win $ drawRegion r (canvasShowBounds canvas) shapes'
+    translate (-hpos) (-vpos)
+    drawRegion r (canvasShowBounds canvas) shapes'
 
 canvasFocus :: Canvas a
             -> IO ()

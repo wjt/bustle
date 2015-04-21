@@ -107,7 +107,7 @@ Executable bustle
                , directory
                , filepath
                , glib
-               , gtk >= 0.12.4
+               , gtk3
                , hgettext >= 0.1.5
                , mtl
                , pango
@@ -137,7 +137,7 @@ Executable test-monitor
                , dbus
                , directory
                , filepath
-               , gtk > 0.12
+               , gtk3
                , glib
                , hgettext
                , mtl
@@ -191,7 +191,7 @@ Test-suite test-renderer
                  , dbus >= 0.10
                  , directory
                  , filepath
-                 , gtk
+                 , gtk3
                  , mtl
                  , text
                  , pango
