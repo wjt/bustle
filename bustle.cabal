@@ -11,6 +11,7 @@ Maintainer:     Will Thompson <will@willthompson.co.uk>
 Data-files:     data/dfeet-method.png,
                 data/dfeet-signal.png,
                 data/bustle.ui,
+                data/OpenTwoDialog.ui,
                 LICENSE
 Build-type:     Custom
 Extra-source-files:

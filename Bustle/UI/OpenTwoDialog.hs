@@ -28,6 +28,7 @@ import Control.Monad (when)
 import Graphics.UI.Gtk
 
 import Bustle.Util
+import Paths_bustle
 
 -- Propagates changes to d1's currently-selected folder to d2, if and only if
 -- d2 doesn't have a currently-selected file (otherwise, choosing a file
@@ -48,11 +49,13 @@ propagateCurrentFolder d1 d2 = d1 `on` currentFolderChanged $ do
         fileChooserSetCurrentFolder d2 (fromJust f1)
         return ()
 
-setupOpenTwoDialog :: Builder
-                   -> Window
+setupOpenTwoDialog :: Window
                    -> (FilePath -> FilePath -> IO ())
                    -> IO Dialog
-setupOpenTwoDialog builder parent callback = do
+setupOpenTwoDialog parent callback = do
+    builder <- builderNew
+    builderAddFromFile builder =<< getDataFileName "data/OpenTwoDialog.ui"
+
     dialog <- builderGetObject builder castToDialog "openTwoDialog"
     [sessionBusChooser, systemBusChooser] <-
         mapM (builderGetObject builder castToFileChooserButton)
