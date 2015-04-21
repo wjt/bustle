@@ -91,6 +91,8 @@ runFilterDialog :: WindowClass parent
                 -> IO (Set UniqueName) -- ^ The set of names to *hide*
 runFilterDialog parent names currentlyHidden = do
     d <- dialogNew
+    (windowWidth, windowHeight) <- windowGetSize parent
+    windowSetDefaultSize d (windowWidth * 7 `div` 8) (windowHeight `div` 2)
     d `set` [ windowTransientFor := parent ]
     dialogAddButton d stockClose ResponseClose
     vbox <- fmap castToBox $ dialogGetContentArea d
@@ -109,7 +111,7 @@ runFilterDialog parent names currentlyHidden = do
     labelSetLineWrap instructions True
     boxPackStart vbox instructions PackNatural 0
 
-    containerAdd vbox sw
+    boxPackStart vbox sw PackGrow 0
     widgetShowAll vbox
 
     _ <- dialogRun d
