@@ -97,7 +97,10 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     dialog <- dialogNew
 
     dialog `set` (map (windowTransientFor :=) (maybeToList mwindow))
-    dialog `set` [ windowModal := True ]
+    dialog `set` [ windowModal := True
+                 , windowTitle := ""
+                 ]
+
 
     label <- labelNew (Nothing :: Maybe String)
     labelSetMarkup label $
@@ -122,19 +125,21 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     processor <- processBatch pendingRef n label incoming
     processorId <- timeoutAdd processor 200
 
-    bar <- progressBarNew
-    pulseId <- timeoutAdd (progressBarPulse bar >> return True) 100
+    spinner <- spinnerNew
+    spinnerStart spinner
 
     vbox <- fmap castToBox $ dialogGetContentArea dialog
-    boxPackStart vbox label PackGrow 0
-    boxPackStart vbox bar PackNatural 0
+    hbox <- hBoxNew False 8
+    boxPackStart hbox spinner PackNatural 0
+    boxPackStart hbox label PackGrow 0
+    boxPackStart vbox hbox PackGrow 0
 
     dialogAddButton dialog "gtk-media-stop" ResponseClose
 
     dialog `after` response $ \_ -> do
         monitorStop monitor
         signalDisconnect handlerId
-        timeoutRemove pulseId
+        spinnerStop spinner
         timeoutRemove processorId
         -- Flush out any last messages from the queue.
         processor
