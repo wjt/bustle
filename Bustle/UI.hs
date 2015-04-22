@@ -338,6 +338,7 @@ emptyWindow = do
 
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
+  aboutItem <- getW castToMenuItem "about"
 
   [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
 
@@ -365,8 +366,11 @@ emptyWindow = do
 
       onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
-  -- TODO: this needs GtkApplication to put it in the app menu
-  -- io $ onMenuItemActivate aboutItem $ showAboutDialog window
+  -- TODO: really this wants to live in the application menu, but that entails binding GApplication,
+  -- GtkApplication, GMenu, GActionMap, GActionEntry, ...
+  --
+  -- Similarly, the drop-down menus would look better as popovers. But here we are.
+  io $ onMenuItemActivate aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
