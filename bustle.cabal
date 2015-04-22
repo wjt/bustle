@@ -109,6 +109,7 @@ Executable bustle
                , directory
                , filepath
                , glib
+               , gio
                , gtk3
                , hgettext >= 0.1.5
                , mtl

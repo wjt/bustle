@@ -63,7 +63,7 @@ import System.FilePath ( splitFileName, takeFileName, takeDirectory
                        , dropExtension, dropTrailingPathSeparator
                        , (</>), (<.>)
                        )
-import System.Directory (renameFile)
+import System.GIO.File.File (fileFromParseName, fileMove, FileCopyFlags(..))
 
 type B a = Bustle BConfig BState a
 
@@ -275,8 +275,22 @@ showSaveDialog wi savedCb = do
         tempFileName = takeFileName tempFilePath
 
     recorderChooseFile tempFileName mwindow $ \newFilePath -> do
-        -- TODO: crashes if these are on two different filesystems, sigh
-        renameFile tempFilePath newFilePath
+        let tempFile = fileFromParseName tempFilePath
+        let newFile  = fileFromParseName newFilePath
+
+        C.catch (fileMove tempFile newFile [FileCopyOverwrite] Nothing Nothing) $ \(GError _ _ msg) -> do
+            d <- messageDialogNew mwindow [DialogModal] MessageError ButtonsOk (__ "Couldn't save log")
+            let secondary :: String
+                secondary = printf
+                    (__ "Error: <i>%s</i>\n\n\
+                        \You might want to manually recover the log from the temporary file at\n\
+                        \<tt>%s</tt>") (toString msg) tempFilePath
+            messageDialogSetSecondaryMarkup d secondary
+            widgetShowAll d
+            d `after` response $ \_ -> do
+                widgetDestroy d
+            return ()
+
         widgetSetSensitivity (wiSave wi) False
         wiSetLogDetails wi (SingleLog newFilePath)
         savedCb
