@@ -22,20 +22,35 @@ module Bustle.UI.FilterDialog
   )
 where
 
-import Data.List (intercalate)
+import Data.List (intercalate, groupBy, findIndices)
 import qualified Data.Set as Set
 import Data.Set (Set)
+import qualified Data.Function as F
 
 import Graphics.UI.Gtk
 
 import Bustle.Translation (__)
 import Bustle.Types
 
+namespace :: String
+          -> (String, String)
+namespace name = case reverse (findIndices (== '.') name) of
+    []    -> ("", name)
+    (i:_) -> splitAt (i + 1) name
+
 formatNames :: (UniqueName, Set OtherName)
             -> String
 formatNames (u, os)
     | Set.null os = unUniqueName u
-    | otherwise = intercalate "\n" . map unOtherName $ Set.toAscList os
+    | otherwise = intercalate "\n" . map (formatGroup . groupGroup) $ groups
+  where
+    groups = groupBy ((==) `F.on` fst) . map (namespace . unOtherName) $ Set.toAscList os
+
+    groupGroup [] = error "unpossible empty group from groupBy"
+    groupGroup xs@((ns, _):_) = (ns, map snd xs)
+
+    formatGroup (ns, [y]) = ns ++ y
+    formatGroup (ns, ys)  = ns ++ "{" ++ (intercalate "," ys) ++ "}"
 
 type NameStore = ListStore (Bool, (UniqueName, Set OtherName))
 
