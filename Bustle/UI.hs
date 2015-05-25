@@ -374,7 +374,7 @@ emptyWindow = do
       forM [headerNew, newButton] $ \button ->
           button `on` buttonActivated $ new
 
-      let open = makeCallback (openDialogue window) r
+      let open = makeCallback openDialogue r
       onMenuItemActivate openItem open
       openButton `on` buttonActivated $ open
 
@@ -554,14 +554,13 @@ loadPixbuf filename = do
   C.catch (fmap Just (pixbufNewFromFile iconName))
           (\(GError _ _ msg) -> warn (toString msg) >> return Nothing)
 
-openDialogue :: Window -> B ()
-openDialogue window = embedIO $ \r -> do
-  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
+openDialogue :: B ()
+openDialogue = embedIO $ \r -> do
+  chooser <- fileChooserDialogNew Nothing Nothing FileChooserActionOpen
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-open", ResponseAccept)
              ]
-  chooser `set` [ windowModal := True
-                , fileChooserLocalOnly := True
+  chooser `set` [ fileChooserLocalOnly := True
                 ]
 
   chooser `after` response $ \resp -> do
