@@ -31,6 +31,7 @@ module Bustle.Application.Monad
   )
 where
 
+import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -55,7 +56,7 @@ import Data.IORef
  -    embedIO $ onDance x . makeCallback dancedCB
  -}
 newtype Bustle config state a = B (ReaderT (BustleEnv config state) IO a)
-  deriving (Functor, Monad, MonadIO)
+  deriving (Functor, Applicative, Monad, MonadIO)
 
 newtype BustleEnv config state =
     BustleEnv { unBustleEnv :: (config, IORef state) }

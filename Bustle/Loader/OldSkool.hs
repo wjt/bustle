@@ -29,16 +29,8 @@ import Text.ParserCombinators.Parsec hiding (Parser)
 import Data.Map (Map)
 import Data.Maybe (isJust)
 import qualified Data.Map as Map
-import Control.Monad (ap, when, guard)
-import Control.Applicative ((<$>))
-
-infixl 4 <*
-(<*) :: Monad m => m a -> m b -> m a
-m <* n = do ret <- m; n; return ret
-
-infixl 4 <*>
-(<*>) :: Monad m => m (a -> b) -> m a -> m b
-(<*>) = ap
+import Control.Monad (when, guard)
+import Control.Applicative ((<$>), (<*>), (<*))
 
 type Parser a = GenParser Char (Map (TaggedBusName, Serial) (Detailed Message)) a
 
