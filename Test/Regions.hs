@@ -171,6 +171,9 @@ prop_FlattenThenNewIsIdempotent vr@(ValidRegions regions) =
     withRegions vr $ \rs -> property $
         regionSelectionNew (regionSelectionFlatten rs) == rs
 
+-- Essential scary hack to make quickCheckAll work O_o
+-- https://hackage.haskell.org/package/QuickCheck-2.7.6/docs/Test-QuickCheck-All.html
+return []
 runTests = $quickCheckAll
 
 main = do
