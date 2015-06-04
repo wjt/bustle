@@ -38,6 +38,7 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
+import Bustle.Gtk (b_windowSetTitlebar, b_headerBarSetSubtitle)
 import Bustle.Marquee (toString)
 import Bustle.Util
 import Bustle.UI.AboutDialog
@@ -62,7 +63,7 @@ import System.FilePath ( splitFileName, takeFileName, takeDirectory
                        , dropExtension, dropTrailingPathSeparator
                        , (</>), (<.>)
                        )
-import System.Directory (renameFile)
+import System.GIO.File.File (fileFromParseName, fileMove, FileCopyFlags(..))
 
 type B a = Bustle BConfig BState a
 
@@ -80,8 +81,9 @@ data Page =
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
-               , wiSave :: ImageMenuItem
-               , wiExport :: MenuItem
+               , wiHeaderBar :: Widget -- TODO
+               , wiSave :: Button
+               , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiNotebook :: Notebook
@@ -235,6 +237,13 @@ aChallengerAppears wi rr = do
     canvasScrollToBottom (wiCanvas wi)
     setPage wi CanvasPage
 
+onMenuItemActivate :: MenuItemClass menuItem
+                   => menuItem
+                   -> IO ()
+                   -> IO (ConnectId menuItem)
+onMenuItemActivate mi act =
+    on mi menuItemActivate act
+
 finishedRecording :: WindowInfo
                   -> FilePath
                   -> Bool
@@ -250,7 +259,7 @@ finishedRecording wi tempFilePath producedOutput = do
 
         io $ do
             widgetSetSensitivity saveItem True
-            onActivateLeaf saveItem $ showSaveDialog wi (return ())
+            saveItem `on` buttonActivated $ showSaveDialog wi (return ())
         return ()
       else do
         setPage wi InstructionsPage
@@ -266,7 +275,22 @@ showSaveDialog wi savedCb = do
         tempFileName = takeFileName tempFilePath
 
     recorderChooseFile tempFileName mwindow $ \newFilePath -> do
-        renameFile tempFilePath newFilePath
+        let tempFile = fileFromParseName tempFilePath
+        let newFile  = fileFromParseName newFilePath
+
+        C.catch (fileMove tempFile newFile [FileCopyOverwrite] Nothing Nothing) $ \(GError _ _ msg) -> do
+            d <- messageDialogNew mwindow [DialogModal] MessageError ButtonsOk (__ "Couldn't save log")
+            let secondary :: String
+                secondary = printf
+                    (__ "Error: <i>%s</i>\n\n\
+                        \You might want to manually recover the log from the temporary file at\n\
+                        \<tt>%s</tt>") (toString msg) tempFilePath
+            messageDialogSetSecondaryMarkup d secondary
+            widgetShowAll d
+            d `after` response $ \_ -> do
+                widgetDestroy d
+            return ()
+
         widgetSetSensitivity (wiSave wi) False
         wiSetLogDetails wi (SingleLog newFilePath)
         savedCb
@@ -295,7 +319,7 @@ promptToSave wi = io $ do
             dialogAddButton prompt stockSave ResponseYes
 
             widgetShowAll prompt
-            prompt `afterResponse` \resp -> do
+            prompt `after` response $ \resp -> do
                 let closeUp = widgetDestroy (wiWindow wi)
                 case resp of
                     ResponseYes -> showSaveDialog wi closeUp
@@ -320,15 +344,17 @@ emptyWindow = do
   let getW cast name = io $ builderGetObject builder cast name
 
   window <- getW castToWindow "diagramWindow"
-  [newItem, openItem, saveItem, closeItem, aboutItem] <-
-      mapM (getW castToImageMenuItem)
-          ["new", "open", "save", "close", "about"]
-  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
-  exportItem <- getW castToMenuItem "export"
-  openTwoItem <- getW castToMenuItem "openTwo"
+  header <- getW castToWidget "header"
+
+  io $ b_windowSetTitlebar window header
+  [openItem, openTwoItem] <- mapM (getW castToMenuItem) ["open", "openTwo"]
+  [headerNew, headerSave, headerExport] <- mapM (getW castToButton) ["headerNew", "headerSave", "headerExport"]
+
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
+  aboutItem <- getW castToMenuItem "about"
 
+  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
 
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
@@ -336,26 +362,29 @@ emptyWindow = do
 
   -- Open two logs dialog
   openTwoDialog <- embedIO $ \r ->
-      setupOpenTwoDialog builder window $ \f1 f2 ->
+      setupOpenTwoDialog window $ \f1 f2 ->
           makeCallback (loadInInitialWindow (TwoLogs f1 f2)) r
 
   -- Set up the window itself
-  embedIO $ onDestroy window . makeCallback maybeQuit
+  embedIO $ (window `on` objectDestroy) . makeCallback maybeQuit
 
   -- File menu and related buttons
   embedIO $ \r -> do
       let new = makeCallback startRecording r
-      onActivateLeaf newItem new
-      onClicked newButton new
+      forM [headerNew, newButton] $ \button ->
+          button `on` buttonActivated $ new
 
-      let open = makeCallback (openDialogue window) r
-      onActivateLeaf openItem open
-      onClicked openButton open
+      let open = makeCallback openDialogue r
+      onMenuItemActivate openItem open
+      openButton `on` buttonActivated $ open
 
-      onActivateLeaf openTwoItem $ widgetShowAll openTwoDialog
+      onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
-  -- Help menu
-  io $ onActivateLeaf aboutItem $ showAboutDialog window
+  -- TODO: really this wants to live in the application menu, but that entails binding GApplication,
+  -- GtkApplication, GMenu, GActionMap, GActionEntry, ...
+  --
+  -- Similarly, the drop-down menus would look better as popovers. But here we are.
+  io $ onMenuItemActivate aboutItem $ showAboutDialog window
 
   m <- asks methodIcon
   s <- asks signalIcon
@@ -377,8 +406,9 @@ emptyWindow = do
 
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
-                              , wiSave = saveItem
-                              , wiExport = exportItem
+                              , wiHeaderBar = header
+                              , wiSave = headerSave
+                              , wiExport = headerExport
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
                               , wiNotebook = nb
@@ -391,9 +421,6 @@ emptyWindow = do
                               }
 
   io $ window `on` deleteEvent $ promptToSave windowInfo
-  io $ closeItem `on` menuItemActivate $ do
-      prompted <- promptToSave windowInfo
-      when (not prompted) (widgetDestroy window)
   incWindows
   io $ widgetShow window
   return windowInfo
@@ -422,30 +449,27 @@ updateDisplayedLog wi rr = io $ do
 
     canvasSetShapes canvas shapes regions (rrCentreOffset rr) windowWidth
 
-prettyDirectory :: String
-                -> String
-prettyDirectory s = "(" ++ dropTrailingPathSeparator s ++ ")"
+splitFileName_ :: String
+               -> (String, String)
+splitFileName_ s = (dropTrailingPathSeparator d, f)
+  where
+      (d, f) = splitFileName s
 
 logWindowTitle :: LogDetails
-               -> String
-logWindowTitle (RecordedLog filepath) = "(*) " ++ takeFileName filepath
-logWindowTitle (SingleLog   filepath) =
-    intercalate " " [name, prettyDirectory directory]
+               -> (String, Maybe String)
+logWindowTitle (RecordedLog filepath) = ("*" ++ takeFileName filepath, Nothing)
+logWindowTitle (SingleLog   filepath) = (name, Just directory)
   where
-    (directory, name) = splitFileName filepath
+    (directory, name) = splitFileName_ filepath
 logWindowTitle (TwoLogs sessionPath systemPath) =
-    intercalate " " $ filter (not . null)
-           [ sessionName, sessionDirectory'
-           , "&"
-           , systemName,  prettyDirectory systemDirectory
-           ]
+    -- TODO: this looks terrible, need a custom widget
+    (sessionName ++ " & " ++ systemName,
+     Just $ if sessionDirectory == systemDirectory
+        then sessionDirectory
+        else sessionDirectory ++ " & " ++ systemDirectory)
   where
-    (sessionDirectory, sessionName) = splitFileName sessionPath
-    (systemDirectory,  systemName ) = splitFileName systemPath
-    sessionDirectory' =
-      if sessionDirectory == systemDirectory
-        then ""
-        else prettyDirectory sessionDirectory
+    (sessionDirectory, sessionName) = splitFileName_ sessionPath
+    (systemDirectory,  systemName ) = splitFileName_ systemPath
 
 logTitle :: LogDetails
          -> String
@@ -460,8 +484,9 @@ wiSetLogDetails :: WindowInfo
                 -> IO ()
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
-    windowSetTitle (wiWindow wi)
-        (printf (__ "%s - Bustle") (logWindowTitle logDetails) :: String)
+    let (title, subtitle) = logWindowTitle logDetails
+    (wiWindow wi) `set` [ windowTitle := title ]
+    b_headerBarSetSubtitle (wiHeaderBar wi) subtitle
 
 setPage :: MonadIO io
         => WindowInfo
@@ -495,7 +520,7 @@ displayLog wi@(WindowInfo { wiWindow = window
     updateDisplayedLog wi rr
 
     widgetSetSensitivity exportItem True
-    onActivateLeaf exportItem $ do
+    exportItem `on` buttonActivated $ do
         shapes <- canvasGetShapes canvas
         saveToPDFDialogue wi shapes
 
@@ -513,7 +538,7 @@ displayLog wi@(WindowInfo { wiWindow = window
             else widgetHide statsBook
 
     widgetSetSensitivity filterNames True
-    onActivateLeaf filterNames $ do
+    onMenuItemActivate filterNames $ do
         hidden <- readIORef hiddenRef
         hidden' <- runFilterDialog window (sessionParticipants $ rrApplications rr) hidden
         writeIORef hiddenRef hidden'
@@ -529,17 +554,16 @@ loadPixbuf filename = do
   C.catch (fmap Just (pixbufNewFromFile iconName))
           (\(GError _ _ msg) -> warn (toString msg) >> return Nothing)
 
-openDialogue :: Window -> B ()
-openDialogue window = embedIO $ \r -> do
-  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
+openDialogue :: B ()
+openDialogue = embedIO $ \r -> do
+  chooser <- fileChooserDialogNew Nothing Nothing FileChooserActionOpen
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-open", ResponseAccept)
              ]
-  chooser `set` [ windowModal := True
-                , fileChooserLocalOnly := True
+  chooser `set` [ fileChooserLocalOnly := True
                 ]
 
-  chooser `afterResponse` \resp -> do
+  chooser `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- fileChooserGetFilename chooser
           makeCallback (loadInInitialWindow (SingleLog fn)) r
@@ -574,7 +598,7 @@ saveToPDFDialogue wi shapes = do
           TwoLogs p _   -> Just $ takeDirectory p
   maybeM mdirectory $ fileChooserSetCurrentFolder chooser
 
-  chooser `afterResponse` \resp -> do
+  chooser `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just fn <- io $ fileChooserGetFilename chooser
           let (width, height) = diagramDimensions shapes

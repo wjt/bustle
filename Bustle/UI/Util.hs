@@ -41,5 +41,5 @@ displayError mwindow title mbody = do
 
   maybeM mbody $ messageDialogSetSecondaryText dialog
 
-  dialog `afterResponse` \_ -> widgetDestroy dialog
+  dialog `after` response $ \_ -> widgetDestroy dialog
   widgetShowAll dialog

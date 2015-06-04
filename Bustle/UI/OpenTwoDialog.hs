@@ -28,6 +28,7 @@ import Control.Monad (when)
 import Graphics.UI.Gtk
 
 import Bustle.Util
+import Paths_bustle
 
 -- Propagates changes to d1's currently-selected folder to d2, if and only if
 -- d2 doesn't have a currently-selected file (otherwise, choosing a file
@@ -37,7 +38,7 @@ propagateCurrentFolder :: FileChooserClass chooser
                        => chooser
                        -> chooser
                        -> IO (ConnectId chooser)
-propagateCurrentFolder d1 d2 = d1 `onCurrentFolderChanged` do
+propagateCurrentFolder d1 d2 = d1 `on` currentFolderChanged $ do
     f1 <- fileChooserGetCurrentFolder d1
     f2 <- fileChooserGetCurrentFolder d2
     otherFile <- fileChooserGetFilename d2
@@ -48,25 +49,27 @@ propagateCurrentFolder d1 d2 = d1 `onCurrentFolderChanged` do
         fileChooserSetCurrentFolder d2 (fromJust f1)
         return ()
 
-setupOpenTwoDialog :: Builder
-                   -> Window
+setupOpenTwoDialog :: Window
                    -> (FilePath -> FilePath -> IO ())
                    -> IO Dialog
-setupOpenTwoDialog builder parent callback = do
+setupOpenTwoDialog parent callback = do
+    builder <- builderNew
+    builderAddFromFile builder =<< getDataFileName "data/OpenTwoDialog.ui"
+
     dialog <- builderGetObject builder castToDialog "openTwoDialog"
     [sessionBusChooser, systemBusChooser] <-
         mapM (builderGetObject builder castToFileChooserButton)
             ["sessionBusChooser", "systemBusChooser"]
     openTwoOpenButton <- builderGetObject builder castToButton "openTwoOpenButton"
 
-    windowSetTransientFor dialog parent
+    dialog `set` [ windowTransientFor := parent ]
     dialog `on` deleteEvent $ tryEvent $ io $ widgetHide dialog
 
     propagateCurrentFolder sessionBusChooser systemBusChooser
     propagateCurrentFolder systemBusChooser sessionBusChooser
 
     let hideMyself = do
-            widgetHideAll dialog
+            widgetHide dialog
             fileChooserUnselectAll sessionBusChooser
             fileChooserUnselectAll systemBusChooser
 
@@ -82,7 +85,7 @@ setupOpenTwoDialog builder parent callback = do
     connectGeneric "file-set" False systemBusChooser updateOpenSensitivity
     updateOpenSensitivity
 
-    dialog `afterResponse` \resp -> do
+    dialog `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do
           Just f1 <- fileChooserGetFilename sessionBusChooser
           Just f2 <- fileChooserGetFilename systemBusChooser

@@ -27,6 +27,7 @@ import Control.Monad (when, liftM)
 import Control.Concurrent.MVar
 import qualified Data.Map as Map
 import Data.Monoid
+import Data.Maybe (maybeToList)
 import Control.Monad.State (runStateT)
 import Text.Printf
 
@@ -95,8 +96,11 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     monitor <- monitorNew BusTypeSession filename
     dialog <- dialogNew
 
-    maybe (return ()) (windowSetTransientFor dialog) mwindow
-    dialog `set` [ windowModal := True ]
+    dialog `set` (map (windowTransientFor :=) (maybeToList mwindow))
+    dialog `set` [ windowModal := True
+                 , windowTitle := ""
+                 ]
+
 
     label <- labelNew (Nothing :: Maybe String)
     labelSetMarkup label $
@@ -121,19 +125,21 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     processor <- processBatch pendingRef n label incoming
     processorId <- timeoutAdd processor 200
 
-    bar <- progressBarNew
-    pulseId <- timeoutAdd (progressBarPulse bar >> return True) 100
+    spinner <- spinnerNew
+    spinnerStart spinner
 
-    vbox <- dialogGetUpper dialog
-    boxPackStart vbox label PackGrow 0
-    boxPackStart vbox bar PackNatural 0
+    vbox <- fmap castToBox $ dialogGetContentArea dialog
+    hbox <- hBoxNew False 8
+    boxPackStart hbox spinner PackNatural 0
+    boxPackStart hbox label PackGrow 0
+    boxPackStart vbox hbox PackGrow 0
 
     dialogAddButton dialog "gtk-media-stop" ResponseClose
 
-    dialog `afterResponse` \_ -> do
+    dialog `after` response $ \_ -> do
         monitorStop monitor
         signalDisconnect handlerId
-        timeoutRemove pulseId
+        spinnerStop spinner
         timeoutRemove processorId
         -- Flush out any last messages from the queue.
         processor
@@ -161,7 +167,7 @@ recorderChooseFile name mwindow callback = do
                   , fileChooserDoOverwriteConfirmation := True
                   ]
 
-    chooser `afterResponse` \resp -> do
+    chooser `after` response $ \resp -> do
         when (resp == ResponseAccept) $ do
             Just fn <- fileChooserGetFilename chooser
             callback fn
