@@ -140,7 +140,8 @@ Executable test-monitor
                , dbus
                , directory
                , filepath
-               , gtk3
+               -- 0.13.6 doesn't compile with GCC 5: https://github.com/gtk2hs/gtk2hs/issues/104
+               , gtk3 >= 0.13.7
                , glib
                , hgettext
                , mtl
