@@ -110,6 +110,7 @@ typeCode TypeDouble     = "d"
 typeCode TypeString     = "s"
 typeCode TypeSignature  = "g"
 typeCode TypeObjectPath = "o"
+typeCode TypeUnixFd     = "h"
 typeCode TypeVariant    = "v"
 typeCode (TypeArray t)  = 'a':typeCode t
 typeCode (TypeDictionary kt vt) = concat [ "a{", typeCode kt , typeCode vt, "}"]
@@ -137,6 +138,7 @@ format_Variant style v =
         TypeString -> format_String . fromJust . fromVariant
         TypeSignature -> format_Signature . fromJust . fromVariant
         TypeObjectPath -> format_ObjectPath . fromJust . fromVariant
+        TypeUnixFd -> const "<fd>"
         TypeVariant -> format_Variant VariantStyleAngleBrackets . fromJust . fromVariant
         TypeArray TypeWord8 -> format_ByteArray . fromJust . fromVariant
         TypeArray _ -> format_Array . fromJust . fromVariant
