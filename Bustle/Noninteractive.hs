@@ -29,7 +29,7 @@ import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 import Data.Maybe (mapMaybe)
 import Data.List (nub)
-import Control.Monad.Error
+import Control.Monad.Except
 import Text.Printf
 
 import Bustle.Loader
@@ -42,7 +42,7 @@ warn = hPutStrLn stderr
 
 process :: FilePath -> (Log -> [a]) -> (a -> String) -> IO ()
 process filepath analyze format = do
-    ret <- runErrorT $ readLog filepath
+    ret <- runExceptT $ readLog filepath
     case ret of
         Left (LoadError _ err) -> do
             warn $ printf (__ "Couldn't parse '%s': %s") filepath err

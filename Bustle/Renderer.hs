@@ -50,7 +50,7 @@ import Data.Map (Map)
 
 import Control.Applicative (Applicative(..), (<$>), (<*>))
 import Control.Arrow ((***))
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Writer

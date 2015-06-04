@@ -24,7 +24,7 @@ where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Error
+import Control.Monad.Except
 
 import Data.IORef
 import qualified Data.Set as Set
@@ -173,9 +173,9 @@ loadLog = loadLogWith emptyWindow
 
 openLog :: MonadIO io
         => LogDetails
-        -> ErrorT LoadError io ( ([String], [DetailedEvent])
-                               , ([String], [DetailedEvent])
-                               )
+        -> ExceptT LoadError io ( ([String], [DetailedEvent])
+                                , ([String], [DetailedEvent])
+                                )
 openLog (RecordedLog filepath) = do
     result <- readLog filepath
     return (result, ([], []))
@@ -191,7 +191,7 @@ loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) 
             -> LogDetails
             -> B ()
 loadLogWith getWindow logDetails = do
-    ret <- runErrorT $ do
+    ret <- runExceptT $ do
         ((sessionWarnings, sessionMessages),
          (systemWarnings, systemMessages)) <- openLog logDetails
 

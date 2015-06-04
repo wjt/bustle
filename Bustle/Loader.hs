@@ -26,7 +26,7 @@ module Bustle.Loader
 where
 
 import Control.Exception
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Arrow ((***))
 
 import Text.Printf
@@ -39,15 +39,13 @@ import Bustle.Translation (__)
 import Bustle.Util (io)
 
 data LoadError = LoadError FilePath String
-instance Error LoadError where
-    strMsg = LoadError ""
 
 -- this nested case stuff is ugly, but it's less ugly than it looked with
 -- combinators to turn IO (Either a b) into ErrorT LoadError IO b using various
 -- a -> LoadError functions.
 readLog :: MonadIO io
         => FilePath
-        -> ErrorT LoadError io ([String], Log)
+        -> ExceptT LoadError io ([String], Log)
 readLog f = do
     pcapResult <- io $ Pcap.readPcap f
     liftM (id *** filter (isRelevant . deEvent)) $ case pcapResult of
