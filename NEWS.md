@@ -1,3 +1,12 @@
+Bustle 0.5.0 (2015-06-04)
+-------------------------
+
+* Use Gtk+ 3, making Bustle more beautiful and support hidpi displays.
+* Fix warnings triggered by recent GHCs and standard libraries by
+  completely mechanical patching.
+* Try not to crash if you view the body of a message containing a Unix
+  FD.
+
 Bustle 0.4.8 (2015-03-22)
 -------------------------
 
