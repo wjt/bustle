@@ -29,7 +29,7 @@ BUSTLE_PCAP_GENERATED_HEADERS = dist/build/autogen/version.h
 BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h $(BUSTLE_PCAP_GENERATED_HEADERS)
 
 bustle-pcap.1: dist/build/bustle-pcap
-	-help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' $<
+	help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' $<
 
 bustle.desktop: data/bustle.desktop.in
 	LC_ALL=C intltool-merge -d -u po $< $@
