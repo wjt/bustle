@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-
 Bustle.UI.FilterDialog: allows the user to filter the displayed log
 Copyright © 2011 Collabora Ltd.
