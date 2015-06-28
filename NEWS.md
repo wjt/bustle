@@ -200,8 +200,8 @@ there will be more interesting stuff in the next release.
 While we're here, Bustle's git repository has moved to freedesktop.org,
 and it now has a bug tracker there too. Browse the source at
 <http://cgit.freedesktop.org/bustle/>; see open bugs at
-<http://wjt.me.uk/bustle/bugs>; file new ones at
-<http://wjt.me.uk/bustle/new-bug>. Astonishing!
+<https://bugs.freedesktop.org/buglist.cgi?bug_status=NEW&bug_status=ASSIGNED&bug_status=REOPENED&list_id=549676&product=Bustle&query_format=advanced>; file new ones at
+<https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle>. Astonishing!
 
 * The viewer is now much more tolerant of inconsistencies in log files.
   (Thanks to Marco Barisione for the [bug report][fdo35297].)

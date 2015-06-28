@@ -44,4 +44,4 @@ Please remember to **undo these changes** when you're done.
 More information
 ================
 
-See <http://wjt.me.uk/bustle/>.
+See <http://www.freedesktop.org/wiki/Software/Bustle/>.
