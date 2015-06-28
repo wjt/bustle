@@ -112,6 +112,7 @@ maintainer-binary-tarball: all
 	./ldd-me-up.sh $(TARBALL_FULL_DIR)/bin/bustle \
 		| xargs -I XXX cp XXX $(TARBALL_FULL_DIR)/lib
 	cd $(TARBALL_PARENT_DIR) && tar cjf $(TARBALL) $(TARBALL_DIR)
+	rm -r $(TARBALL_FULL_DIR)
 
 maintainer-update-messages-pot:
 	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
