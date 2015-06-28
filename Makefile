@@ -43,10 +43,13 @@ dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 		-o $@ $(BUSTLE_PCAP_SOURCES) \
 		$(GIO_FLAGS) $(PCAP_FLAGS)
 
-dist/build/autogen/version.h: bustle.cabal
+dist/build/autogen/version.txt: bustle.cabal
 	@mkdir -p `dirname $@`
-	perl -nle 'm/^Version:\s+(.*)$$/ and print qq(#define BUSTLE_VERSION "$$1")' \
+	perl -nle 'm/^Version:\s+(.*)$$/ and print $$1' \
 		$< > $@
+
+dist/build/autogen/version.h: dist/build/autogen/version.txt
+	echo '#define BUSTLE_VERSION "'`cat $<`'"' > $@
 
 install: all
 	mkdir -p $(BINDIR)
@@ -113,9 +116,9 @@ maintainer-binary-tarball: all
 maintainer-update-messages-pot:
 	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
 
-maintainer-make-release: bustle.cabal
+maintainer-make-release: bustle.cabal dist/build/autogen/version.txt
 	cabal test
 	cabal sdist
-	git tag -s -m 'Bustle '`perl -nle 'm/^Version:\s+(.*)$$/ and print qq($$1)' bustle.cabal` \
-		bustle-`perl -nle 'm/^Version:\s+(.*)$$/ and print qq($$1)' bustle.cabal`
+	git tag -s -m 'Bustle '`cat dist/build/autogen/version.txt` \
+		bustle-`cat dist/build/autogen/version.txt`
 	make maintainer-binary-tarball
