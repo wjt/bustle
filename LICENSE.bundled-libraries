@@ -1,6 +1,6 @@
 Shipping these libraries in the tarball is monstrous, and I'm sorry. I just
 wanted to ship this thing. Anyway, these libraries are slurped right out of the
-Debian packages on the system the tarball was built on. Here are some licenses:
+OS packages on the system the tarball was built on. Here are some licenses:
 
 libffi:
 
