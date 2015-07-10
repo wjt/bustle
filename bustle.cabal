@@ -113,7 +113,7 @@ Executable bustle
                , gio
                , gtk3
                , hgettext >= 0.1.5
-               , mtl
+               , mtl >= 2.2.1
                , pango
                , parsec
                , pcap
