@@ -1,15 +1,43 @@
-language: haskell
-ghc:
-  - 7.8
-  - 7.6
-  - 7.4
+env:
+ - CABALVER=1.18 GHCVER=7.8.4  # eg Fedora 22
+ - CABALVER=1.22 GHCVER=7.10.2
+ - CABALVER=head GHCVER=head
+
+matrix:
+  allow_failures:
+   - env: CABALVER=head GHCVER=head
+
 before_install:
- - sudo apt-get update -qq
- - sudo apt-get install -qq libpcap-dev libgtk2.0-dev libgtk-3-dev libcairo2-dev
- - which cabal
- # Look I know this seems ridiculous but cairo seems to fail to build unless Cabal-the-library >= 1.18 is installed, but not depend on it (?)
- - cabal install Cabal cabal-install
- - which cabal
- # https://github.com/gtk2hs/gtk2hs/issues/73
- - cabal install alex happy
+ - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
+ - travis_retry sudo apt-get update
+ - travis_retry sudo apt-get install libpcap-dev libgtk2.0-dev libgtk-3-dev libcairo2-dev
+ - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
+ - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+ - |
+   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ] || [ ${GHCVER%.*} = "7.10" ]; then
+     travis_retry sudo apt-get install happy-1.19.4 alex-3.1.3
+     export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH
+   else
+     travis_retry sudo apt-get install happy alex
+   fi
+
+install:
+ - cabal --version
+ - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+ - travis_retry cabal update
+# TODO: shouldn't gtk3 et al build-depend on this? Should we do so?
  - cabal install gtk2hs-buildtools
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks
+
+script:
+ - if [ -f configure.ac ]; then autoreconf -i; fi
+ - cabal configure --enable-tests --enable-benchmarks -v2
+ - cabal build
+ - cabal test
+ - cabal check
+ - cabal sdist
+# Check that the resulting source distribution can be built & installed.
+# If there are no other `.tar.gz` files in `dist`, this can be even simpler:
+# `cabal install --force-reinstalls dist/*-*.tar.gz`
+ - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
+   (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
