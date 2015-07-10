@@ -18,8 +18,14 @@ addons:
     - libpcap-dev
     - libgtk-3-dev
     - libcairo2-dev
-    - cabal-install-$CABALVER
-    - ghc-$GHCVER
+    # GAH: I guess env does not have any effect here
+    - cabal-install-1.18
+    - cabal-install-1.22
+    - cabal-install-head
+    - ghc-7.8.4
+    - ghc-7.10.2
+    - ghc-head
+    # /GAH
     - happy-1.19.4
     - alex-3.1.3
 
