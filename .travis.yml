@@ -24,6 +24,7 @@ before_install:
 install:
  - cabal --version
  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+ - ghc-pkg list Cabal
  - travis_retry cabal update
 # TODO: shouldn't gtk3 et al build-depend on this? Should we do so?
  - cabal install gtk2hs-buildtools
