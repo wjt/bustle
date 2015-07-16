@@ -38,7 +38,6 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
-import Bustle.Gtk (b_windowSetTitlebar, b_headerBarSetSubtitle)
 import Bustle.Marquee (toString)
 import Bustle.Util
 import Bustle.UI.AboutDialog
@@ -54,6 +53,7 @@ import Bustle.Loader
 
 import qualified Control.Exception as C
 import System.Glib.GError (GError(..), failOnGError)
+import System.Glib.Properties (objectSetPropertyMaybeString)
 
 import Graphics.UI.Gtk
 
@@ -346,7 +346,6 @@ emptyWindow = do
   window <- getW castToWindow "diagramWindow"
   header <- getW castToWidget "header"
 
-  io $ b_windowSetTitlebar window header
   [openItem, openTwoItem] <- mapM (getW castToMenuItem) ["open", "openTwo"]
   [headerNew, headerSave, headerExport] <- mapM (getW castToButton) ["headerNew", "headerSave", "headerExport"]
 
@@ -486,7 +485,8 @@ wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
     let (title, subtitle) = logWindowTitle logDetails
     (wiWindow wi) `set` [ windowTitle := title ]
-    b_headerBarSetSubtitle (wiHeaderBar wi) subtitle
+    -- TODO: add to gtk2hs
+    objectSetPropertyMaybeString "subtitle" (wiHeaderBar wi) subtitle
 
 setPage :: MonadIO io
         => WindowInfo

@@ -71,7 +71,6 @@ Executable bustle
   Main-is:       Bustle.hs
   Other-modules: Bustle.Application.Monad
                , Bustle.Diagram
-               , Bustle.Gtk
                , Bustle.Loader
                , Bustle.Loader.OldSkool
                , Bustle.Loader.Pcap
