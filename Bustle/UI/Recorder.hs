@@ -108,17 +108,17 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     loaderStateRef <- newMVar Map.empty
     pendingRef <- newMVar []
     let updateLabel µs body = do
-        -- of course, modifyMVar and runStateT have their tuples back to front.
-        m <- modifyMVar loaderStateRef $ \s -> do
-            (m, s') <- runStateT (convert µs body) s
-            return (s', m)
+            -- of course, modifyMVar and runStateT have their tuples back to front.
+            m <- modifyMVar loaderStateRef $ \s -> do
+                (m, s') <- runStateT (convert µs body) s
+                return (s', m)
 
-        case m of
-            Left e -> warn e
-            Right message
-              | isRelevant (deEvent message) -> do
-                    modifyMVar_ pendingRef $ \pending -> return (message:pending)
-              | otherwise -> return ()
+            case m of
+                Left e -> warn e
+                Right message
+                  | isRelevant (deEvent message) -> do
+                        modifyMVar_ pendingRef $ \pending -> return (message:pending)
+                  | otherwise -> return ()
 
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
     n <- newMVar (0 :: Int)
