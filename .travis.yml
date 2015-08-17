@@ -1,9 +1,7 @@
 sudo: false
 
 env:
-# TODO
-# # Fedora 22:
-#  - CABALVER=1.18 GHCVER=7.8.4
+ - CABALVER=1.18 GHCVER=7.8.4
 # 7.10.2 is not in the magic whitelist at https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
  - CABALVER=1.22 GHCVER=7.10.1
  - CABALVER=head GHCVER=head
