@@ -71,6 +71,13 @@ Flag threaded
   Description:    Build with the multi-threaded runtime
   Default:        True
 
+Flag WithGtk2HsBuildTools
+  Description:    Build-depend on gtk2hs-buildtools. They aren't (currently)
+                  used to build Bustle itself but are needed to build
+                  dependencies like gtk3, which for whatever reason do not
+                  Build-Depend on the tools.
+  Default:        False
+
 Executable bustle
   Main-is:       Bustle.hs
   Other-modules: Bustle.Application.Monad
@@ -125,6 +132,9 @@ Executable bustle
                , setlocale
                , text
                , time
+
+  if flag(WithGtk2HsBuildTools)
+    Build-Depends: gtk2hs-buildtools
 
 Executable test-monitor
   if flag(InteractiveTests)
