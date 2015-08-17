@@ -62,8 +62,7 @@ install:
 # TODO: shouldn't gtk3 et al build-depend on gtk2hs-buildtools? We have to do
 # this incantation twice because gtk2hs-buildtools may not be installed before
 # the things that secretly depend on its presence. Silly.
- - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags=WithGtk2HsBuildTools
- - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags=WithGtk2HsBuildTools
+ - travis_retry cabal install --only-dependencies --enable-tests --enable-benchmarks --flags=WithGtk2HsBuildTools
 
 script:
  - if [ -f configure.ac ]; then autoreconf -i; fi
