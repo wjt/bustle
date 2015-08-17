@@ -59,7 +59,10 @@ install:
  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
  - ghc-pkg list Cabal
  - travis_retry cabal update
-# TODO: shouldn't gtk3 et al build-depend on this?
+# TODO: shouldn't gtk3 et al build-depend on gtk2hs-buildtools? We have to do
+# this incantation twice because gtk2hs-buildtools may not be installed before
+# the things that secretly depend on its presence. Silly.
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags=WithGtk2HsBuildTools
  - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags=WithGtk2HsBuildTools
 
 script:
