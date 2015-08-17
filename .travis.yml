@@ -34,7 +34,6 @@ matrix:
         - happy-1.19.4
         - alex-3.1.3
 
-  allow_failures:
    - env: CABALVER=head GHCVER=head
      addons:
        apt:
@@ -48,6 +47,9 @@ matrix:
         - ghc-head
         - happy-1.19.4
         - alex-3.1.3
+
+  allow_failures:
+   - env: CABALVER=head GHCVER=head
 
 install:
 # Is it just not installing those packages?
