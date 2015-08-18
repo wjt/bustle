@@ -149,9 +149,9 @@ genTravisFromCabalFile fn xpkgs = do
         , "     echo \"cabal build-cache MISS\";"
         , "     rm -rf $HOME/.cabsnap;"
         , "     mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;"
-        , "     # TODO: shouldn't gtk3 et al build-depend on gtk2hs-buildtools? We have to do"
-        , "     # this incantation twice because gtk2hs-buildtools may not be installed before"
-        , "     # the things that secretly depend on its presence. Silly."
+        -- TODO: shouldn't gtk3 et al build-depend on gtk2hs-buildtools? We have to do
+        -- this incantation twice because gtk2hs-buildtools may not be installed before
+        -- the things that secretly depend on its presence. Silly.
         , "     travis_retry cabal install --only-dependencies --enable-tests --enable-benchmarks --flags='" ++ flags ++ "';"
         , "   fi"
         , " "
