@@ -122,6 +122,8 @@ genTravisFromCabalFile fn xpkgs = do
     putStrLn " - unset CC"
     putStrLn $ " - export PATH=" ++ intercalate ":" pathBits
 
+    putStrLn ""
+
     putStr $ unlines
         [ "install:"
         , " - cabal --version"
