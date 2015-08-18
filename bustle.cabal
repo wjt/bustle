@@ -2,6 +2,7 @@ Name:           bustle
 Category:       Network, Desktop
 Version:        0.5.1
 Cabal-Version:  >= 1.18
+Tested-With:    GHC >= 7.8.4 && < 7.11
 Synopsis:       Draw sequence diagrams of D-Bus traffic
 Description:    Draw sequence diagrams of D-Bus traffic
 License:        OtherLicense
@@ -35,6 +36,10 @@ Extra-source-files:
                   , ldd-me-up.sh
                   , LICENSE.bundled-libraries
 
+                  -- inlined copy of the Cabal hooks from hgettext;
+                  -- see https://github.com/fpco/stackage/issues/746
+                  , GetText.hs
+
                   -- wow many translate
                   , po/*.po
                   , po/*.pot
@@ -66,6 +71,13 @@ Flag InteractiveTests
 Flag threaded
   Description:    Build with the multi-threaded runtime
   Default:        True
+
+Flag WithGtk2HsBuildTools
+  Description:    Build-depend on gtk2hs-buildtools. They aren't (currently)
+                  used to build Bustle itself but are needed to build
+                  dependencies like gtk3, which for whatever reason do not
+                  Build-Depend on the tools.
+  Default:        False
 
 Executable bustle
   Main-is:       Bustle.hs
@@ -121,6 +133,9 @@ Executable bustle
                , setlocale
                , text
                , time
+
+  if flag(WithGtk2HsBuildTools)
+    Build-Depends: gtk2hs-buildtools
 
 Executable test-monitor
   if flag(InteractiveTests)

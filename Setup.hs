@@ -1,11 +1,9 @@
 {-# OPTIONS_GHC -Wall #-}
-import Data.Maybe (fromMaybe)
 import System.FilePath ( (</>), (<.>) )
 
 import Distribution.PackageDescription
 import Distribution.Simple
 import Distribution.Simple.BuildPaths ( autogenModulesDir )
-import Distribution.Simple.InstallDirs as I
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup as S
 import Distribution.Simple.Utils
@@ -14,7 +12,7 @@ import Distribution.Text ( display )
 import Distribution.ModuleName (ModuleName)
 import qualified Distribution.ModuleName as ModuleName
 
-import qualified Distribution.Simple.I18N.GetText as GetText
+import qualified GetText as GetText
 
 main :: IO ()
 main = defaultMainWithHooks $ installBustleHooks simpleUserHooks
@@ -31,13 +29,13 @@ main = defaultMainWithHooks $ installBustleHooks simpleUserHooks
 installBustleHooks :: UserHooks
                    -> UserHooks
 installBustleHooks uh = uh
-  { postInst = postInst gtuh
+  { postInst = \a b c d -> do
+        postInst uh a b c d
+        GetText.installPOFiles a b c d
   , buildHook = \pkg lbi hooks flags -> do
         writeGetTextConstantsFile pkg lbi flags
         buildHook uh pkg lbi hooks flags
   }
-  where
-    gtuh = GetText.installGetTextHooks uh
 
 
 writeGetTextConstantsFile :: PackageDescription -> LocalBuildInfo -> BuildFlags -> IO ()
@@ -90,24 +88,7 @@ generateModule pkg lbi =
         "getMessageCatalogDir = catchIO (getEnv \"" ++ fixedPackageName pkg ++ "_localedir\") (\\_ -> return messageCatalogDir)\n"
 
     sMap = customFieldsPD (localPkgDescr lbi)
-    dom = getDomainNameDefault sMap (getPackageName lbi)
-    tar = targetDataDir lbi
+    dom = GetText.getDomainNameDefault sMap (GetText.getPackageName lbi)
+    tar = GetText.targetDataDir lbi
 
 -- Cargo-culted from hgettext
-findInParametersDefault :: [(String, String)] -> String -> String -> String
-findInParametersDefault al name def = (fromMaybe def . lookup name) al
-
-getPackageName :: LocalBuildInfo -> String
-getPackageName = fromPackageName . packageName . localPkgDescr
-    where fromPackageName (PackageName s) = s
-
-getDomainNameDefault :: [(String, String)] -> String -> String
-getDomainNameDefault al d = findInParametersDefault al "x-gettext-domain-name" d
-
-targetDataDir :: LocalBuildInfo -> FilePath
-targetDataDir l =
-    let dirTmpls = installDirTemplates l
-        prefix' = prefix dirTmpls
-        data' = datadir dirTmpls
-        dataEx = I.fromPathTemplate $ I.substPathTemplate [(PrefixVar, prefix')] data'
-    in dataEx ++ "/locale"
