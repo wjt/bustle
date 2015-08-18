@@ -1,3 +1,11 @@
+Bustle 0.5.2 (2015-08-18)
+-------------------------
+
+* No functional changes!
+* Update all links to <http://www.freedesktop.org/wiki/Software/Bustle/>
+* Remove external dependencies from Cabal build script for the benefit
+  of Stackage and Travis-CI.  <https://github.com/fpco/stackage/issues/746>
+
 Bustle 0.5.1 (2015-06-28)
 -------------------------
 
