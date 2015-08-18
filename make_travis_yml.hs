@@ -3,6 +3,7 @@
 -- NB: This code deliberately avoids relying on non-standard packages
 
 import Control.Monad
+import Data.Maybe
 import Data.List
 import System.Environment
 import System.Exit
@@ -64,6 +65,14 @@ genTravisFromCabalFile fn xpkgs = do
     when (null testedGhcVersions) $ do
         putStrLnErr "no known GHC version is allowed by the 'tested-with' specification"
 
+    let pathBits = concat [ [ "/opt/ghc/$GHCVER/bin", "/opt/cabal/$CABALVER/bin" ]
+                          , catMaybes (map pathForPackage xpkgs)
+                          , ["$PATH"]
+                          ]
+
+    -- FIXME
+    let flags = "WithGtk2HsBuildTools"
+
     putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ (unwords $ map disp' $ testedGhcVersions)
 
     ----------------------------------------------------------------------------
@@ -111,9 +120,7 @@ genTravisFromCabalFile fn xpkgs = do
     putStrLn ""
     putStrLn "before_install:"
     putStrLn " - unset CC"
-    putStrLn " - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH"
-
-    putStrLn ""
+    putStrLn $ " - export PATH=" ++ intercalate ":" pathBits
 
     putStr $ unlines
         [ "install:"
@@ -126,7 +133,7 @@ genTravisFromCabalFile fn xpkgs = do
         , "   fi"
         , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - cabal install --only-dependencies --enable-tests --enable-benchmarks --dry -v > installplan.txt"
+        , " - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags='" ++ flags ++ "' --dry -v > installplan.txt"
         , " - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt"
         , ""
         , "# check whether current requested install-plan matches cached package-db snapshot"
@@ -140,7 +147,10 @@ genTravisFromCabalFile fn xpkgs = do
         , "     echo \"cabal build-cache MISS\";"
         , "     rm -rf $HOME/.cabsnap;"
         , "     mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;"
-        , "     cabal install --only-dependencies --enable-tests --enable-benchmarks;"
+        , "     # TODO: shouldn't gtk3 et al build-depend on gtk2hs-buildtools? We have to do"
+        , "     # this incantation twice because gtk2hs-buildtools may not be installed before"
+        , "     # the things that secretly depend on its presence. Silly."
+        , "     travis_retry cabal install --only-dependencies --enable-tests --enable-benchmarks --flags='" ++ flags ++ "';"
         , "   fi"
         , " "
         , "# snapshot package-db on cache miss"
@@ -201,3 +211,11 @@ genTravisFromCabalFile fn xpkgs = do
 
     disp' v | isHead v = "head"
             | otherwise = display v
+
+    pathForPackage :: String -> Maybe String
+    pathForPackage xpkg = do
+        i <- findIndex (== '-') xpkg
+        let (p, _:ver) = splitAt i xpkg
+        guard $ p `elem` ["happy", "alex"]
+        return $ "/opt/" ++ p ++ "/" ++ ver ++ "/bin"
+
