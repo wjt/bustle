@@ -192,7 +192,10 @@ genTravisFromCabalFile fn xpkgs = do
                        , [7,4,1],  [7,4,2]
                        , [7,6,1],  [7,6,2], [7,6,3]
                        , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
-                       , [7,10,1], [7,10,2]
+                       , [7,10,1]
+                       -- 7.10.2 is not in the magic whitelist at
+                       -- https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
+                       --, [7,10,2]
                        , [7,11] -- HEAD
                        ]
 
