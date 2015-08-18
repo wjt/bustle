@@ -170,7 +170,9 @@ genTravisFromCabalFile fn xpkgs = do
         , " - if [ -f configure.ac ]; then autoreconf -i; fi"
         , " - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging"
         , " - cabal build   # this builds all libraries and executables (including tests/benchmarks)"
-        , " - cabal test -j1  # TODO: -j1 to attempt to work around Cabal-the-library version mismatch"
+        -- FIXME
+        -- , " - cabal test"
+        , " - ./dist/setup/setup test"
         , " - cabal check"
         , " - cabal sdist   # tests that a source-distribution can be generated"
         , ""
