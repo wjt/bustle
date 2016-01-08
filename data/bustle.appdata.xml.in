@@ -16,8 +16,14 @@
 		    and average method call times.</_p>
 	</description>
 	<screenshots>
-		<!-- Translators: This should be the URI of a 691×510 pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
-		<_screenshot type="default" width="691" height="510">http://willthompson.co.uk/bustle/bustle-0.3.1.png</_screenshot>
+		<screenshot type="default">
+			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
+			<_image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-1.png</_image>
+			</screenshot>
+		<screenshot>
+			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
+			<_image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-2.png</_image>
+		</screenshot>
 	</screenshots>
 	<url type="homepage">http://willthompson.co.uk/bustle/</url>
 	<updatecontact>philip_at_tecnocode.co.uk</updatecontact>
