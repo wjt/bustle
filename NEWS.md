@@ -1,3 +1,10 @@
+Bustle 0.5.2 (2016-01-08)
+-------------------------
+
+* No functional changes!
+* Add keywords to `.desktop` file
+* Update screenshots in `.appdata.xml` file
+
 Bustle 0.5.2 (2015-08-18)
 -------------------------
 
