@@ -7,3 +7,4 @@ Terminal=false
 Type=Application
 Categories=GTK;Development;Debugger;Profiling;
 StartupNotify=true
+_Keywords=debug;profile;d-bus;dbus;sequence;monitor;
