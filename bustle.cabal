@@ -202,6 +202,7 @@ Test-suite test-regions
     type: exitcode-stdio-1.0
     main-is: Test/Regions.hs
     other-modules: Bustle.Regions
+    default-language: Haskell2010
     Build-Depends: base
                  , QuickCheck
 
