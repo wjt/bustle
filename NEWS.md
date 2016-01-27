@@ -1,3 +1,9 @@
+Bustle 0.5.4 (2016-01-27)
+-------------------------
+
+* A single-byte functional change!
+* Use `DLT_DBUS` link type in pcap files
+
 Bustle 0.5.3 (2016-01-11)
 -------------------------
 
