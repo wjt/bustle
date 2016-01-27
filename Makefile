@@ -123,6 +123,8 @@ maintainer-make-release: bustle.cabal dist/build/autogen/version.txt
 	git tag -s -m 'Bustle '`cat dist/build/autogen/version.txt` \
 		bustle-`cat dist/build/autogen/version.txt`
 	make maintainer-binary-tarball
+	gpg --detach-sign --armor dist/bustle-`cat dist/build/autogen/version.txt`.tar.gz
+	gpg --detach-sign --armor dist/bustle-`cat dist/build/autogen/version.txt`-x86_64.tar.bz2
 
 .travis.yml: bustle.cabal make_travis_yml.hs
 	./make_travis_yml.hs $< libpcap-dev libgtk-3-dev libcairo2-dev happy-1.19.4 alex-3.1.3 > $@

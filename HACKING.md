@@ -23,8 +23,6 @@ Releasing Bustle
 ```sh
 # Tag release, build and sign the tarballs
 make maintainer-make-release
-gpg --detach-sign --armor dist/bustle-x.y.z.tar.gz
-gpg --detach-sign --armor dist/bustle-x.y.z-x86_64.tar.bz2
 
 # Stick source and binaries on freedesktop.org
 mkdir x.y.z
