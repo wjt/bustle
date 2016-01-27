@@ -23,6 +23,11 @@
 #include <string.h>
 #include <pcap/pcap.h>
 
+#ifndef DLT_DBUS
+# define DLT_DBUS 231
+#endif
+
+
 typedef struct {
     struct timeval ts;
     GByteArray *blob;
@@ -428,8 +433,7 @@ initable_init (
       return FALSE;
     }
 
-  /* FIXME: use DLT_DBUS when it makes it into libpcap. */
-  priv->p = pcap_open_dead (DLT_NULL, 1 << 27);
+  priv->p = pcap_open_dead (DLT_DBUS, 1 << 27);
   if (priv->p == NULL)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,

@@ -254,4 +254,7 @@ readPcap :: FilePath
 readPcap path = try $ do
     p <- openOffline path
 
+    -- TODO: check link type header is DLT_DBUS or DLT_NULL (for
+    -- backwards-compatibility)
+
     liftM partitionEithers $ evalStateT (mapBodies p convert) Map.empty
