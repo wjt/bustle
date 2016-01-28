@@ -68,4 +68,5 @@ authors = [ "Will Thompson <will@willthompson.co.uk>"
           , "Sergei Trofimovich"
           , "Alex Merry"
           , "Philip Withnall"
+          , "Jonny Lamb"
           ]

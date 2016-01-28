@@ -1,3 +1,10 @@
+Bustle 0.5.5 (UNRELEASED)
+-------------------------
+
+* Fix leaks in bustle-pcap.c (Jonny Lamb,
+  <https://bugs.freedesktop.org/show_bug.cgi?id=93904>)
+
+
 Bustle 0.5.4 (2016-01-27)
 -------------------------
 
