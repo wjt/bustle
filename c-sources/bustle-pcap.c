@@ -109,6 +109,7 @@ parse_arguments (
   gchar *usage;
   GError *error = NULL;
   gboolean ret;
+  gint exit_status = -1;
 
   context = g_option_context_new ("FILENAME");
   g_option_context_add_main_entries (context, entries, NULL);
@@ -121,7 +122,9 @@ parse_arguments (
     {
       fprintf (stderr, "%s\n", error->message);
       fprintf (stderr, "%s", usage);
-      exit (2);
+
+      exit_status = 2;
+      goto out;
     }
 
   if (version)
@@ -130,13 +133,17 @@ parse_arguments (
       fprintf (stdout, "Copyright 2011 Will Thompson <will@willthompson.co.uk>\n");
       fprintf (stdout, "This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n");
       fprintf (stdout, "Written by Will Thompson <will@willthompson.co.uk>\n");
-      exit (0);
+
+      exit_status = 0;
+      goto out;
     }
   else if (session_specified && system_specified)
     {
       fprintf (stderr, "You may only specify one of --session and --system\n");
       fprintf (stderr, "%s", usage);
-      exit (2);
+
+      exit_status = 2;
+      goto out;
     }
   else if (system_specified)
     {
@@ -153,10 +160,21 @@ parse_arguments (
     {
       fprintf (stderr, "You must specify exactly one output filename\n");
       fprintf (stderr, "%s", usage);
-      exit (2);
+
+      exit_status = 2;
+      goto out;
     }
 
-  *filename = filenames[0];
+  *filename = g_strdup (filenames[0]);
+
+out:
+  g_free (usage);
+  g_strfreev (filenames);
+  g_option_context_free (context);
+  g_clear_error (&error);
+
+  if (exit_status > -1)
+    exit (exit_status);
 }
 
 static void
@@ -196,6 +214,7 @@ main (
   if (pcap == NULL)
     {
       fprintf (stderr, "%s", error->message);
+      g_clear_error (&error);
       exit (1);
     }
 
@@ -214,6 +233,7 @@ main (
 
   bustle_pcap_monitor_stop (pcap);
   g_object_unref (pcap);
+  g_free (filename);
 
   return 0;
 }
