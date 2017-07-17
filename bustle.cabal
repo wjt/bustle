@@ -84,7 +84,6 @@ Executable bustle
   Other-modules: Bustle.Application.Monad
                , Bustle.Diagram
                , Bustle.Loader
-               , Bustle.Loader.OldSkool
                , Bustle.Loader.Pcap
                , Bustle.Marquee
                , Bustle.Monitor
@@ -103,7 +102,6 @@ Executable bustle
                , Bustle.UI.OpenTwoDialog
                , Bustle.UI.Recorder
                , Bustle.UI.Util
-               , Bustle.Upgrade
                , Bustle.Util
                , Bustle.VariantFormatter
   default-language: Haskell2010
@@ -127,7 +125,6 @@ Executable bustle
                , hgettext >= 0.1.5
                , mtl >= 2.2.1
                , pango
-               , parsec
                , pcap
                , process
                , setlocale
@@ -164,7 +161,6 @@ Executable test-monitor
                , hgettext
                , mtl
                , pango
-               , parsec
                , pcap
                , setlocale
                , text

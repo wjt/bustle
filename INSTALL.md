@@ -14,7 +14,6 @@ systems, well, actually just `apt-get build-dep bustle`, but:
         libghc-mtl-dev \
         libghc-cairo-dev \
         libghc-gtk-dev \
-        libghc-parsec3-dev \
         libghc-glade-dev \
         libghc-dbus-dev \
         libghc-pcap-dev \

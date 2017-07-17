@@ -25,17 +25,11 @@ module Bustle.Loader
   )
 where
 
-import Control.Exception
 import Control.Monad.Except
 import Control.Arrow ((***))
 
-import Text.Printf
-
-import qualified Bustle.Loader.OldSkool as Old
 import qualified Bustle.Loader.Pcap as Pcap
-import Bustle.Upgrade (upgrade)
 import Bustle.Types
-import Bustle.Translation (__)
 import Bustle.Util (io)
 
 data LoadError = LoadError FilePath String
@@ -48,27 +42,15 @@ readLog :: MonadIO io
         -> ExceptT LoadError io ([String], Log)
 readLog f = do
     pcapResult <- io $ Pcap.readPcap f
-    liftM (id *** filter (isRelevant . deEvent)) $ case pcapResult of
-        Right ms -> return ms
-        Left _ -> liftM ((,) []) readOldLogFile
-  where
-    readOldLogFile = do
-        result <- liftIO $ try $ readFile f
-        case result of
-            Left e      -> throwError $ LoadError f (show (e :: IOException))
-            Right input -> do
-                let oldResult = fmap upgrade $ Old.readLog input
-                case oldResult of
-                    Left e  -> throwError $ LoadError f (printf (__ "Parse error %s") (show e))
-                    Right r -> return r
+    case pcapResult of
+        Right ms -> return $ (id *** filter (isRelevant . deEvent)) ms
+        Left ioe -> throwError $ LoadError f (show ioe)
 
 isRelevant :: Event
            -> Bool
 isRelevant (NOCEvent _) = True
 isRelevant (MessageEvent m) = case m of
-    Signal {}       -> none [ senderIsBus
-                            , isDisconnected
-                            ]
+    Signal {}       -> not senderIsBus
     MethodCall {}   -> none3
     MethodReturn {} -> none3
     Error {}        -> none3
@@ -79,11 +61,7 @@ isRelevant (MessageEvent m) = case m of
     destIsBus = destination m == busDriver
     busDriver = O (OtherName dbusName)
 
-    -- When the monitor is forcibly disconnected from the bus, the
-    -- Disconnected message has no sender; the old logger spat out <none>.
-    isDisconnected = sender m == O (OtherName Old.senderWhenDisconnected)
-
     none bs = not $ or bs
-    none3 = none [senderIsBus, destIsBus, isDisconnected]
+    none3 = none [senderIsBus, destIsBus]
 
 
