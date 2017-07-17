@@ -27,6 +27,15 @@
 # define DLT_DBUS 231
 #endif
 
+// pcap has an arbitrary limit (at the time of writing, 2 ** 18) on snaplen.
+// This is substantially lower than the theoretical limit on D-Bus messages
+// (2 ** 27). Typical messages are much smaller, so we are generally okay.
+// If the serialized message exceeds this limit (suggested by the pcap
+// documentation) we replace its body with a warning.
+#define SNAPLEN 65535
+#define TOO_LONG_FMT \
+    "Message was %" G_GSIZE_FORMAT " bytes long. The maximum supported size " \
+    "is " G_STRINGIFY (SNAPLEN) " bytes. Its body was dropped."
 
 typedef struct {
     struct timeval ts;
@@ -294,6 +303,33 @@ filter (
                   "at least 32 bits wide");
       g_return_val_if_reached (NULL);
     }
+  if (size > SNAPLEN)
+    {
+      GDBusMessage *truncated = NULL;
+      gchar *too_long = NULL;
+
+      g_free (blob);
+
+      truncated = g_dbus_message_copy (message, &error);
+      if (truncated == NULL)
+        {
+          g_critical ("Couldn't copy message to truncate it: %s",
+                      error->message);
+          g_clear_error (&error);
+          g_return_val_if_reached (NULL);
+        }
+      too_long = g_strdup_printf (TOO_LONG_FMT, size);
+      g_dbus_message_set_body (truncated, g_variant_new ("(s)", too_long));
+      g_free (too_long);
+      blob = g_dbus_message_to_blob (truncated, &size, self->priv->caps, &error);
+      g_clear_object (&truncated);
+      if (blob == NULL)
+        {
+          g_critical ("Couldn't marshal truncated message: %s", error->message);
+          g_clear_error (&error);
+          g_return_val_if_reached (NULL);
+        }
+    }
   ied.message.blob = g_byte_array_append (
       g_byte_array_sized_new ((guint) size),
       blob, (guint) size);
@@ -433,7 +469,7 @@ initable_init (
       return FALSE;
     }
 
-  priv->p = pcap_open_dead (DLT_DBUS, 1 << 27);
+  priv->p = pcap_open_dead (DLT_DBUS, SNAPLEN);
   if (priv->p == NULL)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
