@@ -23,6 +23,11 @@
         "strip": false,
         "no-debuginfo": true
     },
+    "cleanup": [
+        "*.a", "*.h",
+        "/share/man/man?/pcap*",
+        "/bin/pcap-config"
+    ],
     "modules": [
         /* Why not start your day with a 259MB tarball? */
         {
