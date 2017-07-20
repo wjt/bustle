@@ -8,7 +8,7 @@
     <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="type_hint">dialog</property>
-    <property name="icon-name">bustle</property>
+    <property name="icon-name">org.freedesktop.Bustle</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="dialog-vbox1">
         <property name="visible">True</property>

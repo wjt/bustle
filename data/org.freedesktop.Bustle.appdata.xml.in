@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2014 Philip Withnall <philip@tecnocode.co.uk> -->
 <application>
-	<id type="desktop">bustle.desktop</id>
+	<id type="desktop">org.freedesktop.Bustle.desktop</id>
 	<metadata_license>CC-BY-SA-3.0</metadata_license>
 	<project_license>LGPL-2.1+ and GPL-2.0+ and GPL-3.0</project_license>
 	<description>

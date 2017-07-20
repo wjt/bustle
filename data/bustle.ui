@@ -5,7 +5,7 @@
     <property name="can_focus">False</property>
     <property name="default_width">900</property>
     <property name="default_height">700</property>
-    <property name="icon-name">bustle</property>
+    <property name="icon-name">org.freedesktop.Bustle</property>
     <property name="title" translatable="yes">Bustle</property>
     <child type="titlebar">
         <object class="GtkHeaderBar" id="header">
