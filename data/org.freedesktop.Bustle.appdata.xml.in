@@ -27,4 +27,7 @@
 	</screenshots>
 	<url type="homepage">http://willthompson.co.uk/bustle/</url>
 	<updatecontact>philip_at_tecnocode.co.uk</updatecontact>
+	<provides>
+		<id>bustle.desktop</id>
+	</provides>
 </application>

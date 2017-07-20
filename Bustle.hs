@@ -24,6 +24,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import Control.Monad (when)
+import System.Glib.Utils (setApplicationName)
 import Bustle.Noninteractive
 import Bustle.Translation
 import Bustle.UI
@@ -51,6 +52,7 @@ runOne _ _ = usage True
 main :: IO ()
 main = do
     initTranslation
+    setApplicationName (__ "Bustle")
     args <- getArgs
 
     case args of

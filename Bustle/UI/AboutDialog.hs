@@ -48,9 +48,9 @@ showAboutDialog window = do
                  , aboutDialogComments := __ "Someone's favourite D-Bus profiler"
                  , aboutDialogWebsite := "http://www.freedesktop.org/wiki/Software/Bustle/"
                  , aboutDialogAuthors := authors
-                 , aboutDialogCopyright := "© 2008–2015 Will Thompson, Collabora Ltd. and contributors"
+                 , aboutDialogCopyright := "© 2008–2017 Will Thompson, Collabora Ltd. and contributors"
                  , aboutDialogLicense := license
-                 , aboutDialogLogoIconName := Just "bustle"
+                 , aboutDialogLogoIconName := Just "org.freedesktop.Bustle"
                  , windowModal := True
                  , windowTransientFor := window
                  ]
