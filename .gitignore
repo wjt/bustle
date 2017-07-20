@@ -11,3 +11,8 @@ cabal-dev/
 cabal.sandbox.config
 bustle.appdata.xml
 bustle.desktop
+
+/_build
+/.stack-work
+/.vscode
+/.flatpak-builder

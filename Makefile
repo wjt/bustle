@@ -13,13 +13,13 @@ BINARIES = \
 	$(NULL)
 
 MANPAGE = bustle-pcap.1
-DESKTOP_FILE = bustle.desktop
-APPDATA_FILE = bustle.appdata.xml
+DESKTOP_FILE = org.freedesktop.Bustle.desktop
+APPDATA_FILE = org.freedesktop.Bustle.appdata.xml
 ICON_SIZES = 16x16 22x22 32x32 48x48 256x256
 ICONS = \
-	data/icons/scalable/bustle.svg \
-	data/icons/scalable/bustle-symbolic.svg \
-	$(foreach size,$(ICON_SIZES),data/icons/$(size)/bustle.png) \
+	data/icons/scalable/org.freedesktop.Bustle.svg \
+	data/icons/scalable/org.freedesktop.Bustle-symbolic.svg \
+	$(foreach size,$(ICON_SIZES),data/icons/$(size)/org.freedesktop.Bustle.png) \
 	$(NULL)
 
 all: $(BINARIES) $(MANPAGE) $(DESKTOP_FILE) $(APPDATA_FILE) $(ICONS)
@@ -31,10 +31,10 @@ BUSTLE_PCAP_HEADERS = c-sources/pcap-monitor.h $(BUSTLE_PCAP_GENERATED_HEADERS)
 bustle-pcap.1: dist/build/bustle-pcap
 	help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' $<
 
-bustle.desktop: data/bustle.desktop.in
+org.freedesktop.Bustle.desktop: data/org.freedesktop.Bustle.desktop.in
 	LC_ALL=C intltool-merge -d -u po $< $@
 
-bustle.appdata.xml: data/bustle.appdata.xml.in
+org.freedesktop.Bustle.appdata.xml: data/org.freedesktop.Bustle.appdata.xml.in
 	LC_ALL=C intltool-merge -x -u po $< $@
 
 dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
@@ -61,9 +61,9 @@ install: all
 	mkdir -p $(DATADIR)/appdata
 	cp $(APPDATA_FILE) $(DATADIR)/appdata
 	$(foreach size,$(ICON_SIZES),mkdir -p $(DATADIR)/icons/hicolor/$(size)/apps; )
-	$(foreach size,$(ICON_SIZES),cp data/icons/$(size)/bustle.png $(DATADIR)/icons/hicolor/$(size)/apps; )
+	$(foreach size,$(ICON_SIZES),cp data/icons/$(size)/org.freedesktop.Bustle.png $(DATADIR)/icons/hicolor/$(size)/apps; )
 	mkdir -p $(DATADIR)/icons/hicolor/scalable/apps
-	cp data/icons/scalable/bustle-symbolic.svg $(DATADIR)/icons/hicolor/scalable/apps
+	cp data/icons/scalable/org.freedesktop.Bustle-symbolic.svg $(DATADIR)/icons/hicolor/scalable/apps
 	$(MAKE) update-icon-cache
 
 uninstall:
@@ -71,8 +71,8 @@ uninstall:
 	rm -f $(MAN1DIR)/$(MANPAGE)
 	rm -f $(DATADIR)/applications/$(DESKTOP_FILE)
 	rm -f $(DATADIR)/appdata/$(APPDATA_FILE)
-	$(foreach size,$(ICON_SIZES),rm -f $(DATADIR)/icons/hicolor/$(size)/apps/bustle.png)
-	rm -f $(DATADIR)/icons/hicolor/scalable/apps/bustle-symbolic.svg
+	$(foreach size,$(ICON_SIZES),rm -f $(DATADIR)/icons/hicolor/$(size)/apps/org.freedesktop.Bustle.png)
+	rm -f $(DATADIR)/icons/hicolor/scalable/apps/org.freedesktop.Bustle-symbolic.svg
 	$(MAKE) update-icon-cache
 
 clean:
