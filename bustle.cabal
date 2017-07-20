@@ -64,6 +64,10 @@ Source-Repository head
   Type:           git
   Location:       git://anongit.freedesktop.org/bustle
 
+Flag hgettext
+  Description:    Enable translations. Since there are no translations this is currently rather pointless.
+  Default:        True
+
 Flag InteractiveTests
   Description:    Build interactive test programs
   Default:        False
@@ -115,14 +119,16 @@ Executable bustle
                , glib
                , gio
                , gtk3
-               , hgettext >= 0.1.5
                , mtl >= 2.2.1
                , pango
                , pcap
                , process
-               , setlocale
                , text
                , time
+  if flag(hgettext)
+    Build-Depends: hgettext >= 0.1.5
+                 , setlocale
+    cpp-options: -DUSE_HGETTEXT
 
 Executable test-monitor
   if flag(InteractiveTests)
@@ -148,12 +154,11 @@ Executable test-monitor
                -- 0.13.6 doesn't compile with GCC 5: https://github.com/gtk2hs/gtk2hs/issues/104
                , gtk3 >= 0.13.7
                , glib
-               , hgettext
                , mtl
                , pango
                , pcap
-               , setlocale
                , text
+
 
 Executable dump-messages
   if flag(InteractiveTests)
@@ -207,8 +212,6 @@ Test-suite test-renderer
                  , mtl
                  , text
                  , pango
-                 , hgettext
-                 , setlocale
                  , test-framework
                  , test-framework-hunit
                  , HUnit
