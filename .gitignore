@@ -9,8 +9,8 @@ bustle-pcap.1
 cabal-dev/
 .cabal-sandbox
 cabal.sandbox.config
-bustle.appdata.xml
-bustle.desktop
+org.freedesktop.Bustle.appdata.xml
+org.freedesktop.Bustle.desktop
 
 /_build
 /.stack-work

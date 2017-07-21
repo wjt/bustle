@@ -45,17 +45,17 @@ Extra-source-files:
                   , po/*.pot
 
                   -- intl bits
-                  , data/bustle.appdata.xml.in
-                  , data/bustle.desktop.in
+                  , data/org.freedesktop.Bustle.appdata.xml.in
+                  , data/org.freedesktop.Bustle.desktop.in
 
                   -- icons
-                  , data/icons/16x16/bustle.png
-                  , data/icons/22x22/bustle.png
-                  , data/icons/32x32/bustle.png
-                  , data/icons/48x48/bustle.png
-                  , data/icons/256x256/bustle.png
-                  , data/icons/scalable/bustle.svg
-                  , data/icons/scalable/bustle-symbolic.svg
+                  , data/icons/16x16/org.freedesktop.Bustle.png
+                  , data/icons/22x22/org.freedesktop.Bustle.png
+                  , data/icons/32x32/org.freedesktop.Bustle.png
+                  , data/icons/48x48/org.freedesktop.Bustle.png
+                  , data/icons/256x256/org.freedesktop.Bustle.png
+                  , data/icons/scalable/org.freedesktop.Bustle.svg
+                  , data/icons/scalable/org.freedesktop.Bustle-symbolic.svg
 
 x-gettext-po-files:     po/*.po
 x-gettext-domain-name:  bustle
