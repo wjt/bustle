@@ -228,7 +228,7 @@
             ],
             "buildsystem": "simple",
             "build-commands": [
-                "make install PREFIX=/app",
+                "make install PREFIX=/app DESTDIR=/",
                 "cabal install --prefix=/app --flags=-hgettext"
             ]
         }
