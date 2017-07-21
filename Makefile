@@ -98,28 +98,7 @@ org.freedesktop.Bustle.flatpak: org.freedesktop.Bustle.json
 	flatpak-builder --repo=repo -v _build org.freedesktop.Bustle.json
 	flatpak build-bundle repo org.freedesktop.Bustle.flatpak org.freedesktop.Bustle
 
-# Binary tarball stuff. Please ignore this unless you're making a release.
-TOP := $(shell pwd)
-TARBALL_PARENT_DIR := dist
-TARBALL_DIR := $(shell git describe --tags)-$(shell gcc -dumpmachine | perl -pe 's/-.*//')
-TARBALL_FULL_DIR := $(TARBALL_PARENT_DIR)/$(TARBALL_DIR)
-TARBALL := $(TARBALL_DIR).tar.bz2
-maintainer-binary-tarball: all
-	mkdir -p $(TARBALL_FULL_DIR)
-	cabal install --prefix=$(TOP)/$(TARBALL_FULL_DIR) \
-		--datadir=$(TOP)/$(TARBALL_FULL_DIR) --datasubdir=.
-	cp bustle.sh README.md $(TARBALL_FULL_DIR)
-	perl -pi -e 's{^    bustle-pcap}{    ./bustle-pcap};' \
-		-e  's{^    bustle}     {    ./bustle.sh};' \
-		$(TARBALL_FULL_DIR)/README.md
-	cp $(BINARIES) $(MANPAGE) $(DESKTOP_FILE) $(APPDATA_FILE) $(TARBALL_FULL_DIR)
-	mkdir -p $(TARBALL_FULL_DIR)/lib
-	cp LICENSE.bundled-libraries $(TARBALL_FULL_DIR)/lib
-	./ldd-me-up.sh $(TARBALL_FULL_DIR)/bin/bustle \
-		| xargs -I XXX cp XXX $(TARBALL_FULL_DIR)/lib
-	cd $(TARBALL_PARENT_DIR) && tar cjf $(TARBALL) $(TARBALL_DIR)
-	rm -r $(TARBALL_FULL_DIR)
-
+# Maintainer stuff
 maintainer-update-messages-pot:
 	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
 
@@ -128,9 +107,7 @@ maintainer-make-release: bustle.cabal dist/build/autogen/version.txt
 	cabal sdist
 	git tag -s -m 'Bustle '`cat dist/build/autogen/version.txt` \
 		bustle-`cat dist/build/autogen/version.txt`
-	make maintainer-binary-tarball
 	gpg --detach-sign --armor dist/bustle-`cat dist/build/autogen/version.txt`.tar.gz
-	gpg --detach-sign --armor dist/bustle-`cat dist/build/autogen/version.txt`-x86_64.tar.bz2
 
 .travis.yml: bustle.cabal make_travis_yml.hs
 	./make_travis_yml.hs $< libpcap-dev libgtk-3-dev libcairo2-dev happy-1.19.4 alex-3.1.3 > $@

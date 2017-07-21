@@ -31,11 +31,6 @@ Extra-source-files:
                     run-uninstalled.sh
                   , Test/data/log-with-h.bustle
 
-                  -- Stuff for the stupid binary tarballs
-                  , bustle.sh
-                  , ldd-me-up.sh
-                  , LICENSE.bundled-libraries
-
                   -- inlined copy of the Cabal hooks from hgettext;
                   -- see https://github.com/fpco/stackage/issues/746
                   , GetText.hs
