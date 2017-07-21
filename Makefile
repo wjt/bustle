@@ -92,6 +92,12 @@ update-icon-cache:
 		echo "***   $(gtk_update_icon_cache)"; \
 	fi
 
+# Flatpak bundle stuff
+org.freedesktop.Bustle.flatpak: org.freedesktop.Bustle.json
+	rm -rf _build
+	flatpak-builder --repo=repo -v _build org.freedesktop.Bustle.json
+	flatpak build-bundle repo org.freedesktop.Bustle.flatpak org.freedesktop.Bustle
+
 # Binary tarball stuff. Please ignore this unless you're making a release.
 TOP := $(shell pwd)
 TARBALL_PARENT_DIR := dist
