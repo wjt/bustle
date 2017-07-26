@@ -72,8 +72,7 @@ frequencies = reverse
 
 mean :: (Eq a, Fractional a) => [a] -> a
 mean = acc 0 0
-   where acc 0 _ [] = error "mean of empty list"
-         acc n t [] = t / n
+   where acc n t [] = t / n
          acc n t (x:xs) = acc (n + 1) (t + x) xs
 
 data TimeInfo =
