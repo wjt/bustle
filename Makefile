@@ -92,7 +92,7 @@ update-icon-cache:
 		echo "***   $(gtk_update_icon_cache)"; \
 	fi
 
-# Flatpak bundle stuff
+# Flatpak stuff
 org.freedesktop.Bustle.flatpak: org.freedesktop.Bustle.json
 	rm -rf _build
 	flatpak-builder --repo=repo -v _build org.freedesktop.Bustle.json

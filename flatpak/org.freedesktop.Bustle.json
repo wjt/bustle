@@ -67,7 +67,7 @@
         /* pcap dependencies begin here */
         {
             "name": "libpcap",
-            "sources":[
+            "sources": [
                 {
                     "type": "git",
                     "url": "https://github.com/the-tcpdump-group/libpcap.git",
@@ -78,16 +78,16 @@
         },
         {
             "name": "pcap",
-            "sources":[
+            "sources": [
                 {
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/pcap-0.4.5.2/pcap-0.4.5.2.tar.gz",
                     "sha256": "e7e92e6ff4bffa22102335a38dabb97fd0771fdf3b75d45cd7c1708c85e1cd5f"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
-            ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global --extra-lib-dirs=/app/lib --extra-include-dirs=/app/include"
             ]
         },
 
@@ -99,12 +99,13 @@
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/hashtables-1.2.1.1/hashtables-1.2.1.1.tar.gz",
                     "sha256": "227f554a93310645c654254659969b347de3d1bf3d98901dbb5c113ece72e951"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
         {
             "name": "utf8-string",
@@ -120,12 +121,13 @@
                     "type": "git",
                     "url": "https://github.com/glguy/utf8-string.git",
                     "commit": "58f5636d419e942784996d117bc5ee00a2ecdabc"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
         {
             "name": "gtk2hs",
@@ -136,17 +138,22 @@
                     "url": "https://github.com/gtk2hs/gtk2hs",
                     /* No tags? Great! Just pick today's HEAD. */
                     "commit": "21d3a12a82756d04066e5e4198b35097012ee65b"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global ./tools",
-                "cabal install --global ./glib",
-                "cabal install --global ./gio",
-                "cabal install --global ./cairo",
-                "cabal install --global ./pango",
-                "cabal install --global ./gtk" /* this is the gtk3 version */
-            ]
+            /* Makefile interprets build-% as cabal install % */
+            "make-args": [
+                "build-tools",
+                "build-glib",
+                "build-gio",
+                "build-cairo",
+                "build-pango",
+                "build-gtk" /* this is the gtk3 version */
+            ],
+            "no-autogen": true
         },
 
         /* dbus dependencies begin here */
@@ -157,12 +164,13 @@
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/xml-types-0.3.6/xml-types-0.3.6.tar.gz",
                     "sha256": "9937d440072552c03c6d8ad79f61e61467dc28dcd5adeaad81038b9b94eef8c9"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
         {
             "name": "libxml-sax",
@@ -171,12 +179,13 @@
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/libxml-sax-0.7.5/libxml-sax-0.7.5.tar.gz",
                     "sha256": "99141784cc0d6c5749f0df618b2d46922391eede09f4f9ccfc36fb58a9c16d51"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
         {
             "name": "cereal",
@@ -185,12 +194,13 @@
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/cereal-0.5.4.0/cereal-0.5.4.0.tar.gz",
                     "sha256": "daca6c5aeff21ca233bebe006c158b0e4421b239c722768b568fca9b32cafee7"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
         {
             "name": "dbus",
@@ -199,12 +209,13 @@
                     "type": "archive",
                     "url": "https://hackage.haskell.org/package/dbus-0.10.13/dbus-0.10.13.tar.gz",
                     "sha256": "aa94aefba8a0be240faddec88442afd8db1fa4e994423d474b112ec1c67e7aca"
+                },
+                {
+                    "type": "file",
+                    "path": "Makefile"
                 }
             ],
-            "buildsystem": "simple",
-            "build-commands": [
-                "cabal install --global"
-            ]
+            "no-autogen": true
         },
 
         /* for the man page! */
@@ -232,6 +243,7 @@
                     "branch": "master"
                 }
             ],
+            /* TODO: get -j in here too */
             "buildsystem": "simple",
             "build-commands": [
                 "make install PREFIX=/app DESTDIR=/",
