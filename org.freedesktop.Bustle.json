@@ -139,7 +139,6 @@
             ],
             "buildsystem": "simple",
             "build-commands": [
-                "ghc-pkg list",
                 "cabal install --global ./tools",
                 "cabal install --global ./glib",
                 "cabal install --global ./gio",
