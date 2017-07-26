@@ -37,6 +37,14 @@ org.freedesktop.Bustle.desktop: data/org.freedesktop.Bustle.desktop.in
 org.freedesktop.Bustle.appdata.xml: data/org.freedesktop.Bustle.appdata.xml.in
 	LC_ALL=C intltool-merge -x -u po $< $@
 
+# https://github.com/flathub/flathub/wiki/Review-Guidelines
+validate-metadata: org.freedesktop.Bustle.desktop org.freedesktop.Bustle.appdata.xml
+	desktop-file-validate org.freedesktop.Bustle.desktop
+	appstream-util validate-relax org.freedesktop.Bustle.appdata.xml
+	# This is only a SHOULD. Screenshots currently violate it because they
+	# are hidpi.
+	appstream-util validate org.freedesktop.Bustle.appdata.xml || true
+
 dist/build/bustle-pcap: $(BUSTLE_PCAP_SOURCES) $(BUSTLE_PCAP_HEADERS)
 	@mkdir -p dist/build
 	$(CC) -Idist/build/autogen $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) \

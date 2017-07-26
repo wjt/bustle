@@ -4,10 +4,12 @@
 	<id type="desktop">org.freedesktop.Bustle.desktop</id>
 	<metadata_license>CC-BY-SA-3.0</metadata_license>
 	<project_license>LGPL-2.1+ and GPL-2.0+ and GPL-3.0</project_license>
+	<_name>Bustle</_name>
+	<_summary>Draw sequence diagrams of D-Bus activity</_summary>
 	<description>
 		<!-- Translators: These are the application description paragraphs in the AppData file. -->
-		<_p>Bustle draws sequence diagrams of D-Bus activity.</_p>
-		<_p>It shows signal emissions, method calls and their
+		<_p>Bustle draws sequence diagrams of D-Bus activity.
+		    It shows signal emissions, method calls and their
 		    corresponding returns, with time stamps for each individual
 		    event and the duration of each method call. This can help
 		    you check for unwanted D-Bus traffic, and pinpoint why your
@@ -25,8 +27,9 @@
 			<_image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-2.png</_image>
 		</screenshot>
 	</screenshots>
-	<url type="homepage">http://willthompson.co.uk/bustle/</url>
-	<updatecontact>philip_at_tecnocode.co.uk</updatecontact>
+	<url type="homepage">https://www.freedesktop.org/wiki/Software/Bustle/</url>
+	<updatecontact>will_at_willthompson.co.uk</updatecontact>
+	<translation type="gettext">bustle</translation>
 	<provides>
 		<id>bustle.desktop</id>
 	</provides>
