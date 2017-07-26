@@ -93,9 +93,9 @@ update-icon-cache:
 	fi
 
 # Flatpak stuff
-org.freedesktop.Bustle.flatpak: org.freedesktop.Bustle.json
+org.freedesktop.Bustle.flatpak: flatpak/org.freedesktop.Bustle.json
 	rm -rf _build
-	flatpak-builder --repo=repo -v _build org.freedesktop.Bustle.json
+	flatpak-builder --repo=repo -v _build $<
 	flatpak build-bundle repo org.freedesktop.Bustle.flatpak org.freedesktop.Bustle
 
 # Maintainer stuff
