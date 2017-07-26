@@ -165,14 +165,15 @@ type MessageSize = Int
 data Detailed e =
     Detailed { deTimestamp :: Microseconds
              , deEvent :: e
-             , deDetails :: Maybe (MessageSize, ReceivedMessage)
+             , deMessageSize :: MessageSize
+             , deReceivedMessage :: ReceivedMessage
              }
   deriving (Show, Eq, Functor)
 
 type DetailedEvent = Detailed Event
 
 instance Ord e => Ord (Detailed e) where
-    compare (Detailed µs x _) (Detailed µs' y _)
+    compare (Detailed µs x _ _) (Detailed µs' y _ _)
         = compare (µs, x) (µs', y)
 
 data Change = Claimed UniqueName
@@ -184,10 +185,10 @@ partitionDetaileds :: [DetailedEvent]
                    -> ([Detailed NOC], [Detailed Message])
 partitionDetaileds = partitionEithers . map f
   where
-    f (Detailed µs e details) =
+    f (Detailed µs e size rm) =
         case e of
-            NOCEvent n -> Left $ Detailed µs n details
-            MessageEvent m -> Right $ Detailed µs m details
+            NOCEvent n -> Left $ Detailed µs n size rm
+            MessageEvent m -> Right $ Detailed µs m size rm
 
 mentionedNames :: Message -> [TaggedBusName]
 mentionedNames m = sender m:dest

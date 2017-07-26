@@ -100,7 +100,7 @@ detailsViewNew = do
     return $ DetailsView table title pathLabel memberLabel view
 
 pickTitle :: Detailed Message -> Marquee
-pickTitle (Detailed _ m _) = case m of
+pickTitle (Detailed _ m _ _) = case m of
     MethodCall {} -> b (escape (__ "Method call"))
     MethodReturn {} -> b (escape (__ "Method return"))
     Error {} -> b (escape (__ "Error"))
@@ -114,7 +114,7 @@ getMemberMarkup m =
     toPangoMarkup $ formatMember (iface m) (membername m)
 
 getMember :: Detailed Message -> Maybe Member
-getMember (Detailed _ m _) = case m of
+getMember (Detailed _ m _ _) = case m of
     MethodCall {}   -> Just $ member m
     Signal {}       -> Just $ member m
     MethodReturn {} -> callMember
@@ -123,10 +123,7 @@ getMember (Detailed _ m _) = case m of
     callMember = fmap (member . deEvent) $ inReplyTo m
 
 formatMessage :: Detailed Message -> String
-formatMessage (Detailed _ _ Nothing) =
-    __ "No message body information is available. Please capture a fresh log \
-       \using a recent version of Bustle!"
-formatMessage (Detailed _ _ (Just (_size, rm))) =
+formatMessage (Detailed _ _ _ rm) =
     formatArgs $ D.receivedMessageBody rm
   where
     formatArgs = intercalate "\n" . map (format_Variant VariantStyleSignature)

@@ -156,7 +156,7 @@ bustlify :: Monad m
          -> StateT PendingMessages m B.DetailedEvent
 bustlify µs bytes m = do
     bm <- buildBustledMessage
-    return $ B.Detailed µs bm (Just (bytes, m))
+    return $ B.Detailed µs bm bytes m
   where
     sender = receivedMessageSender m
     -- FIXME: can we do away with the un-Maybe-ing and just push that Nothing
@@ -173,7 +173,7 @@ bustlify µs bytes m = do
                              }
             -- FIXME: we shouldn't need to construct almost the same thing here
             -- and 10 lines above maybe?
-            insertPending sender serial mc (B.Detailed µs call (Just (bytes, m)))
+            insertPending sender serial mc (B.Detailed µs call bytes m)
             return $ B.MessageEvent call
 
         (ReceivedMethodReturn _serial mr) -> do

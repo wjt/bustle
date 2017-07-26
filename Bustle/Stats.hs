@@ -45,8 +45,8 @@ data TallyType = TallyMethod | TallySignal
 
 repr :: DetailedEvent
      -> Maybe (TallyType, Maybe InterfaceName, MemberName)
-repr (Detailed _ (NOCEvent _) _) = Nothing
-repr (Detailed _ (MessageEvent msg) _) =
+repr (Detailed _ (NOCEvent _) _ _) = Nothing
+repr (Detailed _ (MessageEvent msg) _ _) =
     case msg of
         MethodCall { member = m } -> Just (TallyMethod, iface m, membername m)
         Signal     { member = m } -> Just (TallySignal, iface m, membername m)
@@ -109,7 +109,7 @@ methodTimes = reverse
           methodReturn dm = do
               let m = deEvent dm
               guard (isReturn m)
-              Detailed start (call@(MethodCall {})) _ <- inReplyTo m
+              Detailed start (call@(MethodCall {})) _ _ <- inReplyTo m
               return ( iface (member call)
                      , membername (member call)
                      , deTimestamp dm - start
@@ -159,14 +159,14 @@ messageSizes messages =
     f :: Detailed Message
       -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
       -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
-    f dm = case (sizeKeyRepr dm, deDetails dm) of
-        (Just key, Just (size, _)) -> Map.insertWith' (++) key [size]
-        _                          -> id
+    f dm = case sizeKeyRepr dm of
+        Just key -> Map.insertWith' (++) key [deMessageSize dm]
+        _        -> id
 
     callDetails :: Message
                 -> Maybe (Maybe InterfaceName, MemberName)
     callDetails msg = do
-        Detailed _ msg' _ <- inReplyTo msg
+        Detailed _ msg' _ _ <- inReplyTo msg
         return (iface (member msg'), membername (member msg'))
 
     sizeKeyRepr :: Detailed Message

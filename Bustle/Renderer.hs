@@ -664,7 +664,7 @@ processOne bus de = case deEvent de of
 processMessage :: Bus
                -> Detailed Message
                -> Renderer ()
-processMessage bus dm@(Detailed _ m _) = do
+processMessage bus dm@(Detailed _ m _ _) = do
     orly <- shouldShow bus m
     when orly $ case m of
         Signal {}       -> do
