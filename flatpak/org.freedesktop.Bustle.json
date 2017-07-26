@@ -240,7 +240,7 @@
                 {
                     "type": "git",
                     "url": "https://anongit.freedesktop.org/git/bustle.git",
-                    "branch": "master"
+                    "branch": "bustle-0.6"
                 }
             ],
             /* TODO: get -j in here too */
