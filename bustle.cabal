@@ -9,7 +9,7 @@ License:        OtherLicense
 License-file:   LICENSE
 Author:         Will Thompson <will@willthompson.co.uk>
 Maintainer:     Will Thompson <will@willthompson.co.uk>
-Homepage:       http://www.freedesktop.org/wiki/Software/Bustle/
+Homepage:       https://www.freedesktop.org/wiki/Software/Bustle/
 Data-files:     data/dfeet-method.png,
                 data/dfeet-signal.png,
                 data/bustle.ui,
