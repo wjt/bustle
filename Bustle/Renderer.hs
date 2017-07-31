@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor, OverloadedStrings, GeneralizedNewtypeDeriving #-}
 {-
 Bustle.Renderer: render nice Cairo diagrams from a list of D-Bus messages
 Copyright (C) 2008 Collabora Ltd.
@@ -17,7 +17,6 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 -}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bustle.Renderer
     (
     -- * Processing entire logs
