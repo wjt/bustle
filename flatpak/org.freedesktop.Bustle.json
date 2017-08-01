@@ -11,6 +11,8 @@
      */
     "writable-sdk": true,
     "command": "bustle",
+    "tags": ["nightly"],
+    "desktop-file-name-prefix": "(Nightly) ",
     "finish-args": [
         "--socket=x11",
         "--socket=wayland",
