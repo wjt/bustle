@@ -207,7 +207,6 @@ main (
   GError *error = NULL;
   BustlePcapMonitor *pcap;
 
-  g_type_init ();
   parse_arguments (&argc, &argv, &bus_type, &filename);
 
   pcap = bustle_pcap_monitor_new (bus_type, filename, &error);

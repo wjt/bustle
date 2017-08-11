@@ -449,7 +449,7 @@ initable_init (
       return FALSE;
     }
 
-  priv->thread = g_thread_create (log_thread, &priv->td, TRUE, error);
+  priv->thread = g_thread_try_new (NULL, log_thread, &priv->td, error);
   if (priv->thread == NULL)
     {
       g_prefix_error (error, "Couldn't spawn logging thread: ");

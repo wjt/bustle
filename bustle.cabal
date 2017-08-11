@@ -111,7 +111,7 @@ Executable bustle
     ghc-options: -threaded
   C-sources: c-sources/pcap-monitor.c
   cc-options: -fPIC
-  pkgconfig-depends: glib-2.0 >= 2.26
+  pkgconfig-depends: glib-2.0 >= 2.44
   Build-Depends: base >= 4 && < 5
                , bytestring
                , cairo
