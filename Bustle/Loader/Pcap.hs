@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-
-Bustle.Loader.Pcap: loads logs out of pcap files using dbus-core
+Bustle.Loader.Pcap: loads logs out of pcap files
 Copyright © 2011–2012 Collabora Ltd.
+Copyright © 2017      Will Thompson
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -31,6 +32,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Exception (try)
 import Control.Monad.State
+import System.IO.Error (mkIOError, userErrorType)
 
 import Network.Pcap
 
@@ -253,8 +255,11 @@ readPcap :: FilePath
          -> IO (Either IOError ([String], [B.DetailedEvent]))
 readPcap path = try $ do
     p <- openOffline path
-
-    -- TODO: check link type header is DLT_DBUS or DLT_NULL (for
-    -- backwards-compatibility)
+    dlt <- datalink p
+    -- DLT_NULL for extremely old logs.
+    -- DLT_DBUS is missing: https://github.com/bos/pcap/pull/8
+    when (not $ elem dlt [DLT_NULL, DLT_UNKNOWN 231]) $ do
+        let message = "Incorrect link type " ++ show dlt
+        ioError $ mkIOError userErrorType message Nothing (Just path)
 
     liftM partitionEithers $ evalStateT (mapBodies p convert) Map.empty
