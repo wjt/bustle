@@ -1,4 +1,4 @@
-CFLAGS = -g -O2 -Wall -Wunused
+CFLAGS = -g -O2 -Wall -Wunused -Waddress
 DBUS_FLAGS = $(shell pkg-config --cflags --libs dbus-1)
 GIO_FLAGS := $(shell pkg-config --cflags --libs 'glib-2.0 >= 2.26' gio-2.0 gio-unix-2.0)
 PCAP_FLAGS := $(shell pcap-config --cflags pcap-config --libs)

@@ -1,6 +1,6 @@
 /* bustle-pcap.c: utility to log D-Bus traffic to a pcap file.
  *
- * Copyright © 2011 Will Thompson <will@willthompson.co.uk>
+ * Copyright © 2011–2018 Will Thompson <will@willthompson.co.uk>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,18 +31,28 @@
 static gboolean verbose = FALSE;
 static gboolean quiet = FALSE;
 static gboolean version = FALSE;
+static gboolean help = FALSE;
 
 static gboolean session_specified = FALSE;
 static gboolean system_specified = FALSE;
+static GBusType bus_type = G_BUS_TYPE_NONE;
+static gchar *address = NULL;
 static gchar **filenames = NULL;
 
-static GOptionEntry entries[] = {
+static GOptionEntry bus_entries[] = {
     { "session", 'e', 0, G_OPTION_ARG_NONE, &session_specified,
       "Monitor session bus (default)", NULL
     },
     { "system", 'y', 0, G_OPTION_ARG_NONE, &system_specified,
       "Monitor system bus", NULL
     },
+    { "address", 'a', 0, G_OPTION_ARG_STRING, &address,
+      "Monitor given D-Bus address", NULL
+    },
+    { NULL }
+};
+
+static GOptionEntry entries[] = {
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
       "Print brief summaries of captured messages to stdout", NULL
     },
@@ -51,6 +61,9 @@ static GOptionEntry entries[] = {
     },
     { "version", 'V', 0, G_OPTION_ARG_NONE, &version,
       "Print version information and exit", NULL
+    },
+    { "help", 'h', 0, G_OPTION_ARG_NONE, &help,
+      "Print help and exit", NULL
     },
     { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &filenames,
       "The filename to log to", NULL
@@ -62,21 +75,35 @@ static void
 parse_arguments (
     int *argc,
     char ***argv,
-    GBusType *bus_type,
     gchar **filename)
 {
-  GOptionContext *context;
-  gchar *usage;
-  GError *error = NULL;
+  g_autoptr(GOptionContext) context;
+  GOptionGroup *g;
+  g_autofree gchar *usage;
+  g_autoptr(GError) error = NULL;
   gboolean ret;
   gint exit_status = -1;
+  int buses_specified;
 
   context = g_option_context_new ("FILENAME");
+  /* We implement --help by hand because the default implementation only shows
+   * the main group, and we want to show the --session/--system/--address group
+   * too.
+   */
+  g_option_context_set_help_enabled (context, FALSE);
   g_option_context_add_main_entries (context, entries, NULL);
   g_option_context_set_summary (context, "Logs D-Bus traffic to FILENAME in a format suitable for bustle");
 
+  g = g_option_group_new ("bus",
+                          "Bus Options:",
+                          "Options specifying the bus to monitor",
+                          NULL,
+                          NULL);
+  g_option_group_add_entries (g, bus_entries);
+  g_option_context_add_group (context, g);
+
   ret = g_option_context_parse (context, argc, argv, &error);
-  usage = g_option_context_get_help (context, TRUE, NULL);
+  usage = g_option_context_get_help (context, FALSE, NULL);
 
   if (!ret)
     {
@@ -87,31 +114,44 @@ parse_arguments (
       goto out;
     }
 
-  if (version)
+  buses_specified = !!session_specified + !!system_specified + !!address;
+
+  if (help)
+    {
+      g_print ("%s", usage);
+      exit_status = 0;
+      goto out;
+    }
+  else if (version)
     {
       fprintf (stdout, "bustle-pcap " BUSTLE_VERSION "\n\n");
-      fprintf (stdout, "Copyright 2011 Will Thompson <will@willthompson.co.uk>\n");
+      fprintf (stdout, "Copyright © 2011–2018 Will Thompson <will@willthompson.co.uk>\n");
       fprintf (stdout, "This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n");
       fprintf (stdout, "Written by Will Thompson <will@willthompson.co.uk>\n");
 
       exit_status = 0;
       goto out;
     }
-  else if (session_specified && system_specified)
+  else if (buses_specified > 1)
     {
-      fprintf (stderr, "You may only specify one of --session and --system\n");
+      fprintf (stderr, "You may only specify one of --session, --system and --address\n");
       fprintf (stderr, "%s", usage);
 
       exit_status = 2;
       goto out;
     }
+  else if (address != NULL)
+    {
+      bus_type = G_BUS_TYPE_NONE;
+      /* and the caller will use the global variable for the address */
+    }
   else if (system_specified)
     {
-      *bus_type = G_BUS_TYPE_SYSTEM;
+      bus_type = G_BUS_TYPE_SYSTEM;
     }
   else
     {
-      *bus_type = G_BUS_TYPE_SESSION;
+      bus_type = G_BUS_TYPE_SESSION;
     }
 
   if (filenames == NULL ||
@@ -128,10 +168,7 @@ parse_arguments (
   *filename = g_strdup (filenames[0]);
 
 out:
-  g_free (usage);
   g_strfreev (filenames);
-  g_option_context_free (context);
-  g_clear_error (&error);
 
   if (exit_status > -1)
     exit (exit_status);
@@ -140,20 +177,50 @@ out:
 static void
 message_logged_cb (
     BustlePcapMonitor *pcap,
-    GDBusMessage *message,
-    gboolean is_incoming,
     glong sec,
     glong usec,
     guint8 *data,
     guint len,
     gpointer user_data)
 {
-    g_print ("(%s) %s -> %s: %u %s\n",
-        is_incoming ? "incoming" : "outgoing",
+  g_autoptr(GError) error = NULL;
+  g_autoptr(GDBusMessage) message = g_dbus_message_new_from_blob (
+      data, len, G_DBUS_CAPABILITY_FLAGS_UNIX_FD_PASSING, &error);
+
+  if (message == NULL)
+    g_warning ("%s", error->message);
+  else
+    g_print ("%s -> %s: %d %s\n",
         g_dbus_message_get_sender (message),
         g_dbus_message_get_destination (message),
         g_dbus_message_get_message_type (message),
         g_dbus_message_get_member (message));
+}
+
+static void
+stopped_cb (
+    BustlePcapMonitor *pcap,
+    guint domain,
+    gint code,
+    const gchar *message,
+    gpointer user_data)
+{
+  GMainLoop *loop = user_data;
+
+  if (!(domain == G_IO_ERROR && code == G_IO_ERROR_CANCELLED))
+    fprintf (stderr, "Error: %s %d %s", g_quark_to_string (domain), code, message);
+
+  g_main_loop_quit (loop);
+}
+
+static gboolean
+sigint_cb (gpointer user_data)
+{
+  BustlePcapMonitor *pcap = user_data;
+
+  bustle_pcap_monitor_stop (pcap);
+
+  return G_SOURCE_CONTINUE;
 }
 
 int
@@ -162,17 +229,17 @@ main (
     char **argv)
 {
   GMainLoop *loop;
-  GBusType bus_type;
   gchar *filename;
   GError *error = NULL;
   BustlePcapMonitor *pcap;
 
-  parse_arguments (&argc, &argv, &bus_type, &filename);
+  parse_arguments (&argc, &argv, &filename);
 
-  pcap = bustle_pcap_monitor_new (bus_type, filename, &error);
+  pcap = bustle_pcap_monitor_new (bus_type, address, filename, &error);
   if (pcap == NULL)
     {
-      fprintf (stderr, "%s", error->message);
+      fprintf (stderr, "%s %d %s",
+          g_quark_to_string (error->domain), error->code, error->message);
       g_clear_error (&error);
       exit (1);
     }
@@ -182,11 +249,12 @@ main (
         G_CALLBACK (message_logged_cb), NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
+  g_signal_connect (pcap, "stopped", G_CALLBACK (stopped_cb), loop);
 
   if (!quiet)
     g_printf ("Logging D-Bus traffic to '%s'...\n", filename);
 
-  g_unix_signal_add (SIGINT, (GSourceFunc) g_main_loop_quit, loop);
+  g_unix_signal_add (SIGINT, sigint_cb, pcap);
 
   if (!quiet)
     g_printf ("Hit Control-C to stop logging.\n");

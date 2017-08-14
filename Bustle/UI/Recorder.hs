@@ -1,6 +1,7 @@
 {-
 Bustle.UI.Recorder: dialogs for driving Bustle.Monitor
 Copyright © 2012 Collabora Ltd.
+Copyright © 2018 Will Thompson
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -20,6 +21,7 @@ module Bustle.UI.Recorder
   (
     recorderChooseFile
   , recorderRun
+  , BusType(..)
   )
 where
 
@@ -31,6 +33,8 @@ import Control.Monad.State (runStateT)
 import Text.Printf
 
 import qualified Control.Exception as C
+import System.GIO.Enums (IOErrorEnum(IoErrorCancelled))
+import System.Glib.GObject (quarkFromString)
 import System.Glib.GError
 import Graphics.UI.Gtk
 
@@ -86,20 +90,21 @@ processBatch pendingRef n label incoming = do
 
         return True
 
-recorderRun :: FilePath
+recorderRun :: Either BusType String
+            -> FilePath
             -> Maybe Window
             -> RecorderIncomingCallback
             -> RecorderFinishedCallback
             -> IO ()
-recorderRun filename mwindow incoming finished = C.handle newFailed $ do
-    monitor <- monitorNew BusTypeSession filename
+recorderRun target filename mwindow incoming finished = C.handle newFailed $ do
+    -- TODO: I'm pretty sure the monitor is leaked
+    monitor <- monitorNew target filename
     dialog <- dialogNew
 
     dialog `set` (map (windowTransientFor :=) (maybeToList mwindow))
     dialog `set` [ windowModal := True
                  , windowTitle := ""
                  ]
-
 
     label <- labelNew (Nothing :: Maybe String)
     labelSetMarkup label $
@@ -119,7 +124,6 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
                         modifyMVar_ pendingRef $ \pending -> return (message:pending)
                   | otherwise -> return ()
 
-    handlerId <- monitor `on` monitorMessageLogged $ updateLabel
     n <- newMVar (0 :: Int)
     processor <- processBatch pendingRef n label incoming
     processorId <- timeoutAdd processor 200
@@ -133,23 +137,42 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
     boxPackStart hbox label PackGrow 0
     boxPackStart vbox hbox PackGrow 0
 
+    handlerId <- monitor `on` monitorMessageLogged $ updateLabel
+    monitor `on` monitorStopped $ \domain code message -> do
+        handleError domain code message
+
+        signalDisconnect handlerId
+
+        spinnerStop spinner
+        widgetDestroy dialog
+
+        -- Flush out any last messages from the queue.
+        timeoutRemove processorId
+        processor
+
+        hadOutput <- liftM (/= 0) (readMVar n)
+        finished hadOutput
+
     dialogAddButton dialog "gtk-media-stop" ResponseClose
 
     dialog `after` response $ \_ -> do
         monitorStop monitor
-        signalDisconnect handlerId
-        spinnerStop spinner
-        timeoutRemove processorId
-        -- Flush out any last messages from the queue.
-        processor
-        widgetDestroy dialog
-        hadOutput <- liftM (/= 0) (readMVar n)
-        finished hadOutput
 
     widgetShowAll dialog
   where
-    newFailed (GError _ _ message) = do
-        displayError mwindow (toString message) Nothing
+    -- Filter out IoErrorCancelled. In theory one should use
+    --   catchGErrorJust IoErrorCancelled computation (\_ -> return ())
+    -- but IOErrorEnum does not have an instance for GError domain.
+    newFailed (GError domain code message) = do
+        finished False
+        handleError domain code message
+
+    handleError domain code message = do
+        gIoErrorQuark <- quarkFromString "g-io-error-quark"
+        let cancelled = fromEnum IoErrorCancelled
+        when (not (domain == gIoErrorQuark && code == cancelled)) $ do
+            displayError mwindow (toString message) Nothing
+
 
 recorderChooseFile :: FilePath
                    -> Maybe Window

@@ -12,6 +12,7 @@ Maintainer:     Will Thompson <will@willthompson.co.uk>
 Homepage:       https://www.freedesktop.org/wiki/Software/Bustle/
 Data-files:     data/bustle.ui,
                 data/OpenTwoDialog.ui,
+                data/RecordAddressDialog.ui,
                 LICENSE
 Build-type:     Custom
 Extra-source-files:
@@ -99,6 +100,7 @@ Executable bustle
                , Bustle.UI.DetailsView
                , Bustle.UI.FilterDialog
                , Bustle.UI.OpenTwoDialog
+               , Bustle.UI.RecordAddressDialog
                , Bustle.UI.Recorder
                , Bustle.UI.Util
                , Bustle.Util

@@ -1,6 +1,7 @@
 {-
 Bustle.Monitor: Haskell binding for pcap-monitor.c
 Copyright © 2012 Collabora Ltd.
+Copyright © 2018 Will Thompson
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -29,6 +30,7 @@ module Bustle.Monitor
 
 -- * Signals
   , monitorMessageLogged
+  , monitorStopped
   )
 where
 
@@ -55,9 +57,10 @@ instance GObjectClass Monitor where
     toGObject = GObject . castForeignPtr . unMonitor
     unsafeCastGObject = Monitor . castForeignPtr . unGObject
 
--- Dirty ugly foreign imports
+-- Foreign imports
 foreign import ccall "bustle_pcap_monitor_new"
     bustle_pcap_monitor_new :: CInt
+                    -> CString
                     -> CString
                     -> Ptr (Ptr ())
                     -> IO (Ptr Monitor)
@@ -73,16 +76,22 @@ data BusType = BusTypeNone
     Enum
 
 -- Throws a GError if the file can't be opened, we can't get on the bus, or whatever.
-monitorNew :: BusType
+monitorNew :: Either BusType String
            -> FilePath
            -> IO Monitor
-monitorNew busType filename =
+monitorNew target filename =
     wrapNewGObject mkMonitor $
       propagateGError $ \gerrorPtr ->
-        withCString filename $ \c_filename ->
-          bustle_pcap_monitor_new (fromIntegral $ fromEnum busType)
-                                  c_filename
-                                  gerrorPtr
+        withAddress $ \c_address ->
+          withCString filename $ \c_filename ->
+            bustle_pcap_monitor_new c_busType c_address c_filename gerrorPtr
+  where
+    c_busType = fromIntegral . fromEnum $ case target of
+        Left busType  -> busType
+        Right _       -> BusTypeNone
+    withAddress f = case target of
+        Left _        -> f nullPtr
+        Right address -> withCString address f
 
 monitorStop :: Monitor
             -> IO ()
@@ -91,14 +100,12 @@ monitorStop monitor = do
 
 messageLoggedHandler :: (Microseconds -> BS.ByteString -> IO ())
                      -> a
-                     -> Ptr ()
-                     -> CInt
                      -> CLong
                      -> CLong
                      -> Ptr CChar
                      -> CUInt
                      -> IO ()
-messageLoggedHandler user _obj _messageObject _isIncoming sec usec blob blobLength = do
+messageLoggedHandler user _obj sec usec blob blobLength = do
     blobBS <- BS.packCStringLen (blob, fromIntegral blobLength)
     let µsec = fromIntegral sec * (10 ^ (6 :: Int)) + fromIntegral usec
     failOnGError $ user µsec blobBS
@@ -107,3 +114,18 @@ monitorMessageLogged :: Signal Monitor (Microseconds -> BS.ByteString -> IO ())
 monitorMessageLogged =
     Signal $ \after_ obj user ->
         connectGeneric "message-logged" after_ obj $ messageLoggedHandler user
+
+stoppedHandler :: (Quark -> Int -> String -> IO ())
+             -> a
+             -> CUInt
+             -> CInt
+             -> Ptr CChar
+             -> IO ()
+stoppedHandler user _obj domain code messagePtr = do
+    message <- peekCString messagePtr
+    failOnGError $ user domain (fromIntegral code) message
+
+monitorStopped :: Signal Monitor (Quark -> Int -> String -> IO ())
+monitorStopped =
+    Signal $ \after_ obj user ->
+        connectGeneric "stopped" after_ obj $ stoppedHandler user

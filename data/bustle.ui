@@ -65,6 +65,37 @@
       </object>
     </child>
   </object>
+  <object class="GtkMenu" id="recordMenu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkMenuItem" id="recordSession">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Record S_ession Bus</property>
+        <property name="use_underline">True</property>
+        <accelerator key="e" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="recordSystem">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Record S_ystem Bus</property>
+        <property name="use_underline">True</property>
+        <accelerator key="y" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="recordAddress">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Record _Address…</property>
+        <property name="use_underline">True</property>
+        <accelerator key="a" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+      </object>
+    </child>
+  </object>
   <object class="GtkWindow" id="diagramWindow">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Bustle</property>
@@ -98,6 +129,53 @@
             <property name="can_focus">False</property>
             <property name="show_close_button">True</property>
             <child>
+              <object class="GtkMenuButton" id="headerRecord">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="tooltip_text" translatable="yes">Record a new log</property>
+                <property name="popup">recordMenu</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="valign">baseline</property>
+                        <property name="label" translatable="yes">_Record</property>
+                        <property name="use_underline">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="valign">baseline</property>
+                        <property name="icon_name">pan-down-symbolic</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <style>
+                  <class name="text-button"/>
+                  <class name="image-button"/>
+                  <class name="suggested-action"/>
+                </style>
+              </object>
+            </child>
+            <child>
               <object class="GtkMenuButton" id="headerOpen">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
@@ -115,15 +193,6 @@
                 <style>
                   <class name="image-button"/>
                 </style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkButton" id="headerNew">
-                <property name="label" translatable="yes">Record</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="receives_default">False</property>
-                <property name="tooltip_text" translatable="yes">Record a new log</property>
               </object>
               <packing>
                 <property name="position">1</property>

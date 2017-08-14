@@ -1,6 +1,7 @@
 {-
 Bustle.UI: displays charts of D-Bus activity
 Copyright © 2008–2011 Collabora Ltd.
+Copyright © 2018      Will Thompson
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -46,6 +47,7 @@ import Bustle.UI.DetailsView
 import Bustle.UI.FilterDialog
 import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
 import Bustle.UI.Recorder
+import Bustle.UI.RecordAddressDialog (showRecordAddressDialog)
 import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Translation (__)
@@ -208,8 +210,9 @@ loadLogWith getWindow logDetails = do
           displayError Nothing (printf (__ "Could not read '%s'") f) (Just e)
       Right () -> return ()
 
-startRecording :: B ()
-startRecording = do
+startRecording :: Either BusType String
+               -> B ()
+startRecording target = do
     wi <- consumeInitialWindow
 
     zt <- io $ getZonedTime
@@ -223,7 +226,7 @@ startRecording = do
     let mwindow = Just (wiWindow wi)
         progress = aChallengerAppears wi
         finished = finishedRecording wi filename
-    embedIO $ \r -> recorderRun filename mwindow progress
+    embedIO $ \r -> recorderRun target filename mwindow progress
                                 (\p -> makeCallback (finished p) r)
 
 aChallengerAppears :: WindowInfo
@@ -344,7 +347,10 @@ emptyWindow = do
   header <- getW castToWidget "header"
 
   [openItem, openTwoItem] <- mapM (getW castToMenuItem) ["open", "openTwo"]
-  [headerNew, headerSave, headerExport] <- mapM (getW castToButton) ["headerNew", "headerSave", "headerExport"]
+  recordSessionItem <- getW castToMenuItem "recordSession"
+  recordSystemItem <- getW castToMenuItem "recordSystem"
+  recordAddressItem <- getW castToMenuItem "recordAddress"
+  [headerSave, headerExport] <- mapM (getW castToButton) ["headerSave", "headerExport"]
 
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -365,7 +371,13 @@ emptyWindow = do
 
   -- File menu and related buttons
   embedIO $ \r -> do
-      headerNew `on` buttonActivated $ makeCallback startRecording r
+      onMenuItemActivate recordSessionItem $
+          makeCallback (startRecording (Left BusTypeSession)) r
+      onMenuItemActivate recordSystemItem $
+          makeCallback (startRecording (Left BusTypeSystem)) r
+      onMenuItemActivate recordAddressItem $
+          showRecordAddressDialog window $ \address ->
+              makeCallback (startRecording (Right address)) r
 
       onMenuItemActivate openItem $ makeCallback openDialogue r
       onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog

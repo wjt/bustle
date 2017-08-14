@@ -1,6 +1,7 @@
 /*
  * pcap-monitor.c - monitors a bus and dumps messages to a pcap file
- * Copyright ©2011–2012 Collabora Ltd.
+ * Copyright © 2011–2012 Collabora Ltd.
+ * Copyright © 2018      Will Thompson
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,54 +21,92 @@
 #include "config.h"
 #include "pcap-monitor.h"
 
+#include <errno.h>
+#include <signal.h>
 #include <string.h>
 #include <pcap/pcap.h>
+#include <gio/gunixinputstream.h>
 
 #ifndef DLT_DBUS
 # define DLT_DBUS 231
 #endif
 
+/*
+ * Transitions:
+ *
+ * NEW      --[ initable_init() errors ]--> STOPPED
+ * NEW      --[ initable_init()        ]--> STARTING
+ *
+ * STARTING --[ start_pcap()           ]--> RUNNING
+ * STARTING --[ error                  ]--> STOPPING
+ *
+ * RUNNING  --[ user request/error     ]--> STOPPING
+ *
+ * STOPPING --[ all finished           ]--> STOPPED
+ */
+typedef enum {
+    /* Nothing's happened yet */
+    STATE_NEW,
 
-typedef struct {
-    struct timeval ts;
-    GByteArray *blob;
-} Message;
+    /* We're waiting to read the pcap header from the subprocess */
+    STATE_STARTING,
 
-typedef struct {
-    BustlePcapMonitor *self;
-    GDBusMessage *dbus_message;
-    gboolean is_incoming;
-    Message message;
-} IdleEmitData;
+    /* We've read the pcap header, messages are flowing freely */
+    STATE_RUNNING,
 
-#define STOP ((Message *) 0x1)
+    /* Error or user request is causing us to stop; we're waiting to consume
+     * everything from the pipe and for the dbus-monitor subprocess to exit.
+     */
+    STATE_STOPPING,
 
-typedef struct {
-    pcap_dumper_t *dumper;
-    GAsyncQueue *message_queue;
-} ThreadData;
+    /* We've stopped, whether by user decision or because of an error.
+     * Everything has been torn down (except possibly a root-owned subprocess),
+     * the output file has been fully written and closed, and no more signals
+     * will be emitted.
+     */
+    STATE_STOPPED,
+} BustlePcapMonitorState;
+
+static const gchar * const STATES[] = {
+    "NEW",
+    "STARTING",
+    "RUNNING",
+    "STOPPING",
+    "STOPPED",
+};
 
 struct _BustlePcapMonitorPrivate {
     GBusType bus_type;
-    GDBusConnection *connection;
-    GDBusCapabilityFlags caps;
+    gchar *address;
+    BustlePcapMonitorState state;
+    GCancellable *cancellable;
+    guint cancellable_cancelled_id;
 
-    guint filter_id;
+    /* input */
+    GSubprocess *dbus_monitor;
+    GSource *dbus_monitor_source;
+    pcap_t *pcap_in;
 
+    /* output */
     gchar *filename;
-    pcap_t *p;
+    pcap_t *pcap_out;
+    pcap_dumper_t *dumper;
 
-    GThread *thread;
-    ThreadData td;
+    /* errors */
+    GError *pcap_error;
+    GError *subprocess_error;
+    guint await_both_errors_id;
 };
 
 enum {
     PROP_BUS_TYPE = 1,
+    PROP_ADDRESS,
     PROP_FILENAME,
 };
 
 enum {
     SIG_MESSAGE_LOGGED,
+    SIG_STOPPED,
     N_SIGNALS
 };
 
@@ -87,7 +126,8 @@ bustle_pcap_monitor_init (BustlePcapMonitor *self)
   self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, BUSTLE_TYPE_PCAP_MONITOR,
       BustlePcapMonitorPrivate);
   self->priv->bus_type = G_BUS_TYPE_SESSION;
-  self->priv->td.message_queue = g_async_queue_new ();
+  self->priv->state = STATE_NEW;
+  self->priv->cancellable = g_cancellable_new ();
 }
 
 static void
@@ -104,6 +144,9 @@ bustle_pcap_monitor_get_property (
     {
       case PROP_BUS_TYPE:
         g_value_set_enum (value, priv->bus_type);
+        break;
+      case PROP_ADDRESS:
+        g_value_set_string (value, priv->address);
         break;
       case PROP_FILENAME:
         g_value_set_string (value, priv->filename);
@@ -128,6 +171,9 @@ bustle_pcap_monitor_set_property (
       case PROP_BUS_TYPE:
         priv->bus_type = g_value_get_enum (value);
         break;
+      case PROP_ADDRESS:
+        priv->address = g_value_dup_string (value);
+        break;
       case PROP_FILENAME:
         priv->filename = g_value_dup_string (value);
         break;
@@ -137,19 +183,40 @@ bustle_pcap_monitor_set_property (
 }
 
 static void
+close_dump (BustlePcapMonitor *self)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+
+  if (priv->dumper != NULL)
+    pcap_dump_flush (priv->dumper);
+
+  g_clear_pointer (&priv->dumper, pcap_dump_close);
+  g_clear_pointer (&priv->pcap_out, pcap_close);
+}
+
+static void
 bustle_pcap_monitor_dispose (GObject *object)
 {
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (object);
   BustlePcapMonitorPrivate *priv = self->priv;
   GObjectClass *parent_class = bustle_pcap_monitor_parent_class;
 
+  if (priv->cancellable_cancelled_id != 0)
+    {
+      g_assert (priv->cancellable != NULL);
+      g_cancellable_disconnect (priv->cancellable, priv->cancellable_cancelled_id);
+      priv->cancellable_cancelled_id = 0;
+    }
+
+  g_clear_object (&priv->cancellable);
+  g_clear_pointer (&priv->dbus_monitor_source, g_source_destroy);
+  g_clear_pointer (&priv->pcap_in, pcap_close);
+  g_clear_object (&priv->dbus_monitor);
+
+  close_dump (self);
+
   if (parent_class->dispose != NULL)
     parent_class->dispose (object);
-
-  /* Make sure we're all closed up. */
-  bustle_pcap_monitor_stop (self);
-
-  g_clear_object (&priv->connection);
 }
 
 static void
@@ -159,14 +226,13 @@ bustle_pcap_monitor_finalize (GObject *object)
   BustlePcapMonitorPrivate *priv = self->priv;
   GObjectClass *parent_class = bustle_pcap_monitor_parent_class;
 
+  g_clear_pointer (&priv->address, g_free);
+  g_clear_pointer (&priv->filename, g_free);
+  g_clear_error (&priv->pcap_error);
+  g_clear_error (&priv->subprocess_error);
+
   if (parent_class->finalize != NULL)
     parent_class->finalize (object);
-
-  g_free (priv->filename);
-  priv->filename = NULL;
-
-  g_async_queue_unref (priv->td.message_queue);
-  priv->td.message_queue = NULL;
 }
 
 static void
@@ -184,10 +250,19 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
 
 #define THRICE(x) x, x, x
 
-  param_spec = g_param_spec_enum (THRICE ("bus-type"),
-      G_TYPE_BUS_TYPE, G_BUS_TYPE_SESSION,
+  param_spec = g_param_spec_enum (
+      "bus-type", "Bus type",
+      "Which standard bus to monitor. If NONE, :address must be non-NULL.",
+      G_TYPE_BUS_TYPE, G_BUS_TYPE_NONE,
       G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_BUS_TYPE, param_spec);
+
+  param_spec = g_param_spec_string (
+      "address", "Address",
+      "Address of bus to monitor. If non-NULL, :bus-type must be G_BUS_TYPE_NONE",
+      NULL,
+      G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  g_object_class_install_property (object_class, PROP_ADDRESS, param_spec);
 
   param_spec = g_param_spec_string (THRICE ("filename"), NULL,
       G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
@@ -196,11 +271,6 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
   /**
    * BustlePcapMonitor::message-logged:
    * @self: the monitor.
-   * @message: the #GDBusMessage object logged.
-   * @is_incoming: if %TRUE, @message has come in from the bus daemon; if
-   *  %FALSE, this is a message we're in the process of sending. Note that this
-   *  can be %TRUE for messages our process sends, because we eavesdrop all
-   *  messages, including our own.
    * @sec: seconds since 1970.
    * @usec: microseconds! (These are not combined into a single %gint64 because
    *  gtk2hs as of 2018-01-08 crashes when it encounters %G_TYPE_UINT64 in a
@@ -211,160 +281,147 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
   signals[SIG_MESSAGE_LOGGED] = g_signal_new ("message-logged",
       BUSTLE_TYPE_PCAP_MONITOR, G_SIGNAL_RUN_FIRST,
       0, NULL, NULL,
-      NULL, G_TYPE_NONE, 6,
-      G_TYPE_DBUS_MESSAGE,
-      G_TYPE_BOOLEAN,
+      NULL, G_TYPE_NONE, 4,
       G_TYPE_LONG,
       G_TYPE_LONG,
       G_TYPE_POINTER,
       G_TYPE_UINT);
+
+  /**
+   * BustlePcapMonitor::stopped:
+   * @self: the monitor
+   * @domain: domain of a #GError (as G_TYPE_UINT because there is no
+   *          G_TYPE_UINT32)
+   * @code: code of a #GError
+   * @message: message of a #GError
+   *
+   * Emitted once when monitoring stops, whether triggered (asynchronously) by
+   * calling bustle_pcap_monitor_stop(), in which case @domain will be
+   * %G_IO_ERROR and @code will be %G_IO_ERROR_CANCELLED, or because an error
+   * occurs.
+   */
+  signals[SIG_STOPPED] = g_signal_new ("stopped",
+      BUSTLE_TYPE_PCAP_MONITOR, G_SIGNAL_RUN_FIRST,
+      0, NULL, NULL,
+      NULL, G_TYPE_NONE, 3,
+      G_TYPE_UINT,
+      G_TYPE_INT,
+      G_TYPE_STRING);
 }
 
-static gpointer
-log_thread (gpointer data)
+static void
+handle_error (BustlePcapMonitor *self)
 {
-  ThreadData *td = data;
-  Message *message;
+  BustlePcapMonitorPrivate *priv = self->priv;
+  g_autoptr(GError) error = NULL;
 
-  while (STOP != (message = g_async_queue_pop (td->message_queue)))
+  g_return_if_fail (priv->pcap_error != NULL ||
+                    priv->subprocess_error != NULL);
+
+  if (priv->pcap_error != NULL)
+    g_debug ("%s: pcap_error: %s", G_STRFUNC, priv->pcap_error->message);
+
+  if (priv->subprocess_error != NULL)
+    g_debug ("%s: subprocess_error: %s", G_STRFUNC,
+             priv->subprocess_error->message);
+
+  if (priv->state == STATE_STOPPED)
     {
-      struct pcap_pkthdr hdr;
-      hdr.ts = message->ts;
-
-      hdr.caplen = message->blob->len;
-      hdr.len = message->blob->len;
-
-      /* The cast is necessary because libpcap is weird. */
-      pcap_dump ((u_char *) td->dumper, &hdr, message->blob->data);
-      g_byte_array_unref (message->blob);
-      g_slice_free (Message, message);
+      g_debug ("%s: already stopped", G_STRFUNC);
+      return;
     }
 
-  return NULL;
-}
-
-static gboolean
-emit_me (gpointer data)
-{
-  IdleEmitData *ied = data;
-  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (ied->self);
-  glong sec = ied->message.ts.tv_sec;
-  glong usec = ied->message.ts.tv_usec;
-
-  g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0,
-      ied->dbus_message,
-      ied->is_incoming,
-      sec,
-      usec,
-      ied->message.blob->data,
-      ied->message.blob->len);
-  g_object_unref (self);
-  g_object_unref (ied->dbus_message);
-  g_byte_array_unref (ied->message.blob);
-  g_slice_free (IdleEmitData, ied);
-  return FALSE;
-}
-
-GDBusMessage *
-filter (
-    GDBusConnection *connection,
-    GDBusMessage *message,
-    gboolean is_incoming,
-    gpointer user_data)
-{
-  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
-  const gchar *dest;
-  gsize size;
-  guchar *blob;
-  IdleEmitData ied = { g_object_ref (self), g_object_ref (message), is_incoming };
-  GError *error = NULL;
-
-  gettimeofday (&ied.message.ts, NULL);
-  blob = g_dbus_message_to_blob (message, &size, self->priv->caps, &error);
-  if (blob == NULL)
+  /* Check for pkexec errors. Signal these in preference to all others. */
+  if (priv->subprocess_error != NULL &&
+      priv->bus_type == G_BUS_TYPE_SYSTEM)
     {
-      g_critical ("Couldn't marshal message: %s", error->message);
-      g_return_val_if_reached (NULL);
-    }
-  if (size > G_MAXUINT)
-    {
-      g_critical ("Message is longer than " G_STRINGIFY (G_MAXUINT)
-                  "(which is surprising because the specification says the "
-                  "maximum length of a message is 2**27 and guint is always "
-                  "at least 32 bits wide");
-      g_return_val_if_reached (NULL);
-    }
-  ied.message.blob = g_byte_array_append (
-      g_byte_array_sized_new ((guint) size),
-      blob, (guint) size);
-  g_byte_array_ref (ied.message.blob);
-  g_async_queue_push (self->priv->td.message_queue,
-      g_slice_dup (Message, &(ied.message)));
-
-  dest = g_dbus_message_get_destination (message);
-
-  /* The idle steals the remaining refs to self, message, and message_blob. */
-  g_idle_add (emit_me, g_slice_dup (IdleEmitData, &ied));
-
-  if (!is_incoming ||
-      g_strcmp0 (dest, g_dbus_connection_get_unique_name (connection)) == 0)
-    {
-      /* This message is either outgoing or actually for us, as opposed to
-       * being eavesdropped; it should be allowed to escape from this handler.
-       */
-      return message;
-    }
-  else
-    {
-      /* Otherwise, we need to handle it within this function, or else GDBus
-       * replies to other people's method calls and we all get really confused.
-       */
-      g_clear_object (&message);
-      return NULL;
-    }
-}
-
-static gboolean
-match_everything (
-    GDBusProxy *bus,
-    gboolean with_eavesdrop,
-    GError **error)
-{
-#define EAVESDROP "eavesdrop=true,"
-  char *rules[] = {
-      EAVESDROP "type='signal'",
-      EAVESDROP "type='method_call'",
-      EAVESDROP "type='method_return'",
-      EAVESDROP "type='error'",
-      NULL
-  };
-  const gsize offset = with_eavesdrop ? 0 : strlen (EAVESDROP);
-  char **r;
-
-  for (r = rules; *r != NULL; r++)
-    {
-      const gchar *rule = *r + offset;
-      GVariant *ret = g_dbus_proxy_call_sync (
-          bus,
-          "AddMatch",
-          g_variant_new ("(s)", rule),
-          G_DBUS_CALL_FLAGS_NONE,
-          -1,
-          NULL,
-          error);
-
-      if (ret == NULL)
+      if (g_error_matches (priv->subprocess_error, G_SPAWN_EXIT_ERROR, 126))
         {
-          g_prefix_error (error, "Couldn't AddMatch(%s): ", *r);
-          return FALSE;
+          /* dialog dismissed */
+          g_set_error (&error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+                       "User dismissed polkit authorization dialog");
         }
+      else if (g_error_matches (priv->subprocess_error, G_SPAWN_EXIT_ERROR, 127))
+        {
+          /* not authorized, authorization couldn't be obtained through
+           * authentication, or an priv->subprocess_error occurred */
+          g_set_error (&error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
+                       "Not authorized to monitor system bus");
+        }
+    }
+
+  if (g_error_matches (priv->subprocess_error, G_SPAWN_EXIT_ERROR, 0))
+    {
+      /* I believe clean exit only happens if the bus is shut down. This might
+       * happen if you're using Bustle to monitor a test suite, or perhaps a
+       * user session that you log out of. Let's consider this to be
+       * cancellation.
+       */
+      g_set_error_literal (&error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+                           priv->subprocess_error->message);
+    }
+
+  if (error == NULL)
+    {
+      /* If no pkexec errors, prefer potentially more informative errors from
+       * libpcap, including the wonderful snaplen bug.
+       */
+      if (priv->pcap_error != NULL)
+        {
+          error = g_steal_pointer (&priv->pcap_error);
+        }
+      /* Otherwise, the "subprocess didn't work" error will have to do. */
       else
         {
-          g_variant_unref (ret);
+          error = g_steal_pointer (&priv->subprocess_error);
+
+          if (priv->state == STATE_STARTING)
+            g_prefix_error (&error, "Failed to start dbus-monitor: ");
         }
     }
 
-  return TRUE;
+  priv->state = STATE_STOPPED;
+  close_dump (self);
+
+  g_debug ("%s: emitting ::stopped(%s, %d, %s)", G_STRFUNC,
+           g_quark_to_string (error->domain), error->code, error->message);
+  g_signal_emit (self, signals[SIG_STOPPED], 0,
+                 (guint) error->domain, error->code, error->message);
+
+  g_clear_handle_id (&priv->await_both_errors_id, g_source_remove);
+}
+
+static gboolean
+await_both_errors_cb (gpointer data)
+{
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (data);
+  BustlePcapMonitorPrivate *priv = self->priv;
+
+  handle_error (self);
+
+  priv->await_both_errors_id = 0;
+  return G_SOURCE_REMOVE;
+}
+
+/* Wait for the dbus-monitor subprocess to have exited, and for the pcap reader
+ * to have finished. We expect the reader to finish promptly when the
+ * subprocess does, but the subprocess may not die until it tries to read to a
+ * closed pipe (if the user stops the recording). So we wait a couple of
+ * seconds before pressing on.
+ */
+static void
+await_both_errors (BustlePcapMonitor *self)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+
+  if (priv->state == STATE_STOPPED)
+    return;
+  else if (priv->subprocess_error != NULL && priv->pcap_error != NULL)
+    handle_error (self);
+  else if (priv->await_both_errors_id == 0)
+    priv->await_both_errors_id =
+      g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, 2, await_both_errors_cb,
+                                  g_object_ref (self), g_object_unref);
 }
 
 static gboolean
@@ -372,10 +429,10 @@ list_all_names (
     GDBusProxy *bus,
     GError **error)
 {
-  GVariant *ret;
-  gchar **names;
+  g_autoptr(GVariant) ret = NULL;
+  gchar **names;  /* borrowed from 'ret' */
 
-  g_assert (G_IS_DBUS_PROXY (bus));
+  g_return_val_if_fail (G_IS_DBUS_PROXY (bus), FALSE);
 
   ret = g_dbus_proxy_call_sync (bus, "ListNames", NULL,
       G_DBUS_CALL_FLAGS_NONE, -1, NULL, error);
@@ -394,18 +451,317 @@ list_all_names (
       if (!g_dbus_is_unique_name (name) &&
           strcmp (name, "org.freedesktop.DBus") != 0)
         {
-          GVariant *owner = g_dbus_proxy_call_sync (bus, "GetNameOwner",
-              g_variant_new ("(s)", name),
-              G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
-
-          if (owner != NULL)
-            g_variant_unref (owner);
-          /* else they were too quick for us! */
+          g_autoptr(GVariant) owner =
+            g_dbus_proxy_call_sync (bus, "GetNameOwner",
+                                    g_variant_new ("(s)", name),
+                                    G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+          /* Ignore returned value or error. These are just used by the UI to
+           * fill in the initial owners of each well-known name. If we get an
+           * error here, the owner disappeared between ListNames() and here;
+           * but that means we'll have seen a NameOwnerChanged from which the
+           * UI can (in theory) infer who the owner used to be.
+           *
+           * We cannot use G_DBUS_MESSAGE_FLAGS_NO_REPLY_EXPECTED because we
+           * do want the reply to be sent to us.
+           */
         }
     }
 
-  g_variant_unref (ret);
   return TRUE;
+}
+
+static GDBusConnection *
+get_connection (
+    BustlePcapMonitor *self,
+    GCancellable *cancellable,
+    GError **error)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+  g_autofree gchar *address_to_free = NULL;
+  const gchar *address = priv->address;
+
+  if (priv->address != NULL)
+    {
+      address = priv->address;
+    }
+  else
+    {
+      address_to_free = g_dbus_address_get_for_bus_sync (priv->bus_type,
+                                                         cancellable, error);
+      if (address_to_free == NULL)
+        {
+          g_prefix_error (error, "Couldn't get bus address: ");
+          return FALSE;
+        }
+
+      address = address_to_free;
+    }
+
+  return g_dbus_connection_new_for_address_sync (
+      address,
+      G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+      G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+      NULL, /* auth observer */
+      cancellable,
+      error);
+}
+
+static void
+dump_names_thread_func (
+    GTask *task,
+    gpointer source_object,
+    gpointer task_data,
+    GCancellable *cancellable)
+{
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (source_object);
+  g_autoptr(GDBusConnection) connection = NULL;
+  g_autoptr(GDBusProxy) bus = NULL;
+  g_autoptr(GError) error = NULL;
+
+  connection = get_connection (self, cancellable, &error);
+  if (connection != NULL)
+    {
+      bus = g_dbus_proxy_new_sync (connection,
+                                   G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
+                                   G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+                                   NULL,
+                                   "org.freedesktop.DBus",
+                                   "/org/freedesktop/DBus",
+                                   "org.freedesktop.DBus",
+                                   cancellable,
+                                   &error);
+    }
+
+  if (bus != NULL && list_all_names (bus, &error))
+    g_task_return_boolean (task, TRUE);
+  else
+    g_task_return_error (task, g_steal_pointer (&error));
+
+  g_assert (error == NULL);
+  if (connection != NULL
+      && !g_dbus_connection_close_sync (connection, cancellable, &error))
+    g_warning ("%s: %s", G_STRFUNC, error->message);
+}
+
+static void
+dump_names_cb (
+    GObject *source_object,
+    GAsyncResult *result,
+    gpointer user_data)
+{
+  g_autoptr(GError) error = NULL;
+
+  if (!g_task_propagate_boolean (G_TASK (result), &error))
+    g_warning ("Failed to dump names: %s", error->message);
+}
+
+static void
+dump_names_async (
+    BustlePcapMonitor *self)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+  g_autoptr(GTask) task = g_task_new (self, priv->cancellable, dump_names_cb, NULL);
+
+  g_task_run_in_thread (task, dump_names_thread_func);
+}
+
+static gboolean
+start_pcap (
+    BustlePcapMonitor *self,
+    GError **error)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+  GInputStream *stdout_pipe = NULL;
+  gint stdout_fd = -1;
+  FILE *dbus_monitor_filep = NULL;
+  char errbuf[PCAP_ERRBUF_SIZE] = {0};
+
+  stdout_pipe = g_subprocess_get_stdout_pipe (priv->dbus_monitor);
+  g_return_val_if_fail (stdout_pipe != NULL, FALSE);
+
+  stdout_fd = g_unix_input_stream_get_fd (G_UNIX_INPUT_STREAM (stdout_pipe));
+  g_return_val_if_fail (stdout_fd >= 0, FALSE);
+
+  dbus_monitor_filep = fdopen (stdout_fd, "r");
+  if (dbus_monitor_filep == NULL)
+    {
+      g_set_error (error, G_IO_ERROR, g_io_error_from_errno (errno), "fdopen");
+      return FALSE;
+    }
+  /* fd is owned by the FILE * now */
+  g_unix_input_stream_set_close_fd (G_UNIX_INPUT_STREAM (stdout_pipe), FALSE);
+
+  /* This reads the 4-byte pcap header from the pipe, in a single blocking
+   * fread(). It's safe to do this on the main thread, since we know the pipe
+   * is readable. On short read, pcap_fopen_offline() fails immediately.
+   */
+  priv->pcap_in = pcap_fopen_offline (dbus_monitor_filep, errbuf);
+  if (priv->pcap_in == NULL)
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                   "Couldn't read messages from dbus-monitor: %s",
+                   errbuf);
+
+      /* Cause dbus-monitor to exit next time it tries to write a message */
+      g_clear_pointer (&dbus_monitor_filep, fclose);
+
+      /* And try to terminate it immediately. When spawning via pkexec we may
+       * not be able to kill it.
+       */
+      g_subprocess_force_exit (priv->dbus_monitor);
+
+      return FALSE;
+    }
+
+  /* pcap_close() will call fclose() on the FILE * passed to
+   * pcap_fopen_offline() */
+  dump_names_async (self);
+  priv->state = STATE_RUNNING;
+  return TRUE;
+}
+
+static gboolean
+read_one (
+    BustlePcapMonitor *self,
+    GError **error)
+{
+  BustlePcapMonitorPrivate *priv = self->priv;
+  struct pcap_pkthdr *hdr;
+  const guchar *blob;
+  int ret;
+
+  ret = pcap_next_ex (priv->pcap_in, &hdr, &blob);
+  switch (ret)
+    {
+      case 1:
+        g_signal_emit (self, signals[SIG_MESSAGE_LOGGED], 0,
+            hdr->ts.tv_sec, hdr->ts.tv_usec, blob, hdr->caplen);
+
+        /* cast necessary because pcap_dump has a type matching the callback
+         * argument to pcap_loop()
+         * TODO don't block
+         */
+        pcap_dump ((u_char *) priv->dumper, hdr, blob);
+        return TRUE;
+
+      case -2:
+        /* EOF; shouldn't happen since we waited for the FD to be readable */
+        g_set_error (error, G_IO_ERROR, G_IO_ERROR_CONNECTION_CLOSED,
+            "EOF when reading from dbus-monitor");
+        return FALSE;
+
+      default:
+        g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+            "Error %i reading dbus-monitor stream: %s",
+            ret, pcap_geterr (priv->pcap_in));
+        return FALSE;
+    }
+}
+
+
+
+
+static gboolean
+dbus_monitor_readable (
+    GObject *pollable_input_stream,
+    gpointer user_data)
+{
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
+  BustlePcapMonitorPrivate *priv = self->priv;
+  gboolean (*read_func) (BustlePcapMonitor *, GError **);
+
+  g_return_val_if_fail (priv->pcap_error == NULL, FALSE);
+
+  if (g_cancellable_set_error_if_cancelled (priv->cancellable, &priv->pcap_error))
+    {
+      await_both_errors (self);
+      return FALSE;
+    }
+
+  switch (priv->state)
+    {
+    case STATE_STARTING:
+      read_func = start_pcap;
+      break;
+
+    case STATE_RUNNING:
+    case STATE_STOPPING: /* may have a few last messages to read */
+      read_func = read_one;
+      break;
+
+    default:
+      g_critical ("%s in unexpected state %d (%s)",
+                  G_STRFUNC, priv->state, STATES[priv->state]);
+      return FALSE;
+    }
+
+  if (!read_func (self, &priv->pcap_error))
+    {
+      await_both_errors (self);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+static void
+wait_check_cb (
+    GObject *source,
+    GAsyncResult *result,
+    gpointer user_data)
+{
+  g_autoptr(BustlePcapMonitor) self = BUSTLE_PCAP_MONITOR (user_data);
+  BustlePcapMonitorPrivate *priv = self->priv;
+  GSubprocess *dbus_monitor = G_SUBPROCESS (source);
+
+  g_return_if_fail (priv->subprocess_error == NULL);
+
+  if (g_subprocess_wait_check_finish (dbus_monitor, result,
+                                      &priv->subprocess_error))
+    {
+      g_set_error (&priv->subprocess_error,
+                   G_SPAWN_EXIT_ERROR, 0,
+                   "dbus-monitor exited cleanly");
+    }
+
+  /* cases:
+   * - G_SPAWN_ERROR / G_SPAWN_ERROR_FAILED / "Child process killed by signal N":
+   *   dbus-monitor was killed, possibly by us calling
+   *   g_subprocess_force_exit(), though this doesn't work for pkexec'd
+   *   dbus-monitor
+   * - G_SPAWN_EXIT_ERROR:
+   *   - 0: bus itself went away (assuming pkexec/flatpak-spawn propagate
+   *        errors correctly)
+   *   - 1: anything else went wrong in dbus-monitor, including invalid
+   *        arguments and broken pipe (when we close the read end)
+   *   - 126: User dismissed polkit authentication dialog
+   *   - 127: polkit auth failed
+   *   - 128 + N: killed by signal N, propagated by flatpak-spawn --host
+   *
+   * We just need to deal with 0, 126, 127 specially.
+   */
+  await_both_errors (self);
+}
+
+static void
+cancellable_cancelled_cb (GCancellable *cancellable,
+                          gpointer      user_data)
+{
+  BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (user_data);
+  BustlePcapMonitorPrivate *priv = self->priv;
+
+  /* Closes the stream; should cause dbus-monitor to quit in due course when it
+   * tries to write to the other end of the pipe.
+   */
+  g_clear_pointer (&priv->pcap_in, pcap_close);
+
+  if (priv->dbus_monitor != NULL)
+    {
+      /* Try to make it stop sooner; this has no effect on a privileged
+       * dbus-monitor.
+       */
+      g_subprocess_force_exit (priv->dbus_monitor);
+    }
 }
 
 static gboolean
@@ -416,15 +772,47 @@ initable_init (
 {
   BustlePcapMonitor *self = BUSTLE_PCAP_MONITOR (initable);
   BustlePcapMonitorPrivate *priv = self->priv;
-  gchar *address;
-  GDBusProxy *bus;
+  gboolean in_flatpak = g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
+  g_autoptr(GPtrArray) dbus_monitor_argv = g_ptr_array_sized_new (8);
+  GInputStream *stdout_pipe = NULL;
 
-  if (priv->bus_type == G_BUS_TYPE_NONE)
+  if (in_flatpak)
     {
-      g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
-          "Logging things other than message busses is not supported");
-      return FALSE;
+      g_ptr_array_add (dbus_monitor_argv, "flatpak-spawn");
+      g_ptr_array_add (dbus_monitor_argv, "--host");
     }
+
+  if (priv->bus_type == G_BUS_TYPE_SYSTEM)
+    g_ptr_array_add (dbus_monitor_argv, "pkexec");
+
+  g_ptr_array_add (dbus_monitor_argv, "dbus-monitor");
+  g_ptr_array_add (dbus_monitor_argv, "--pcap");
+
+  switch (priv->bus_type)
+    {
+      case G_BUS_TYPE_SESSION:
+        g_return_val_if_fail (priv->address == NULL, FALSE);
+        g_ptr_array_add (dbus_monitor_argv, "--session");
+        break;
+
+      case G_BUS_TYPE_SYSTEM:
+        g_return_val_if_fail (priv->address == NULL, FALSE);
+        g_ptr_array_add (dbus_monitor_argv, "--system");
+        break;
+
+      case G_BUS_TYPE_NONE:
+        g_return_val_if_fail (priv->address != NULL, FALSE);
+        g_ptr_array_add (dbus_monitor_argv, "--address");
+        g_ptr_array_add (dbus_monitor_argv, priv->address);
+        break;
+
+      default:
+        g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+            "Can only log the session bus, system bus, or a given address");
+        return FALSE;
+    }
+
+  g_ptr_array_add (dbus_monitor_argv, NULL);
 
   if (priv->filename == NULL)
     {
@@ -433,148 +821,73 @@ initable_init (
       return FALSE;
     }
 
-  priv->p = pcap_open_dead (DLT_DBUS, 1 << 27);
-  if (priv->p == NULL)
+  priv->cancellable_cancelled_id =
+    g_cancellable_connect (priv->cancellable,
+                           G_CALLBACK (cancellable_cancelled_cb),
+                           self, NULL);
+
+  priv->pcap_out = pcap_open_dead (DLT_DBUS, 1 << 27);
+  if (priv->pcap_out == NULL)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
           "pcap_open_dead failed. wtf");
       return FALSE;
     }
 
-  priv->td.dumper = pcap_dump_open (priv->p, priv->filename);
-  if (priv->td.dumper == NULL)
+  priv->dumper = pcap_dump_open (priv->pcap_out, priv->filename);
+  if (priv->dumper == NULL)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-          "Couldn't open target file %s", pcap_geterr (priv->p));
+          "Couldn't open target file %s", pcap_geterr (priv->pcap_out));
       return FALSE;
     }
 
-  priv->thread = g_thread_try_new (NULL, log_thread, &priv->td, error);
-  if (priv->thread == NULL)
+  priv->dbus_monitor = g_subprocess_newv (
+      (const gchar * const *) dbus_monitor_argv->pdata,
+      G_SUBPROCESS_FLAGS_STDOUT_PIPE, error);
+  if (priv->dbus_monitor == NULL)
     {
-      g_prefix_error (error, "Couldn't spawn logging thread: ");
       return FALSE;
     }
 
-  address = g_dbus_address_get_for_bus_sync (priv->bus_type, NULL, error);
-  if (address == NULL)
-    {
-      g_prefix_error (error, "Couldn't get %s bus address: ",
-          priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system");
-      return FALSE;
-    }
+  stdout_pipe = g_subprocess_get_stdout_pipe (priv->dbus_monitor);
+  g_return_val_if_fail (stdout_pipe != NULL, FALSE);
+  g_return_val_if_fail (G_IS_POLLABLE_INPUT_STREAM (stdout_pipe), FALSE);
+  g_return_val_if_fail (G_IS_UNIX_INPUT_STREAM (stdout_pipe), FALSE);
 
-  if (*address == '\0')
-    {
-      g_set_error (error,
-          G_IO_ERROR,
-          G_IO_ERROR_FAILED,
-          "Failed to look up the %s bus address. %s",
-          priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system",
-          priv->bus_type == G_BUS_TYPE_SESSION
-              ? "Is DBUS_SESSION_BUS_ADDRESS properly set?"
-              : "");
-      g_free (address);
-      return FALSE;
-    }
+  priv->dbus_monitor_source = g_pollable_input_stream_create_source (
+      G_POLLABLE_INPUT_STREAM (stdout_pipe), priv->cancellable);
+  g_source_set_callback (priv->dbus_monitor_source,
+      (GSourceFunc) dbus_monitor_readable, self, NULL);
+  g_source_attach (priv->dbus_monitor_source, NULL);
 
-  priv->connection = g_dbus_connection_new_for_address_sync (address,
-      G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
-      G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
-      NULL, /* auth observer */
-      NULL, /* cancellable */
-      error);
-  g_free (address);
-  if (priv->connection == NULL)
-    {
-      g_prefix_error (error, "Couldn't connect to %s bus: ",
-          priv->bus_type == G_BUS_TYPE_SESSION ? "session" : "system");
-      return FALSE;
-    }
+  g_subprocess_wait_check_async (
+      priv->dbus_monitor,
+      priv->cancellable,
+      wait_check_cb, g_object_ref (self));
 
-  priv->caps = g_dbus_connection_get_capabilities (priv->connection);
-
-  bus = g_dbus_proxy_new_sync (priv->connection,
-      G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
-      G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-      NULL,
-      "org.freedesktop.DBus",
-      "/org/freedesktop/DBus",
-      "org.freedesktop.DBus",
-      NULL,
-      error);
-  if (bus == NULL)
-    {
-      g_prefix_error (error, "Couldn't construct bus proxy: ");
-      return FALSE;
-    }
-
-  /* As of DBus 1.5.something you have to specify eavesdrop=true to be sure of
-   * getting everything. (Specifically, you don't get directed signals unless
-   * you specify it.)
-   *
-   * So first we try to add match rules with "eavesdrop=true" on them. If that
-   * fails, we try again without that; if that also fails, we return the second error.
-   */
-  if (!match_everything (bus, TRUE, NULL) &&
-      !match_everything (bus, FALSE, error))
-    return FALSE;
-
-  priv->filter_id = g_dbus_connection_add_filter (priv->connection, filter,
-      g_object_ref (self), g_object_unref);
-
-  {
-    /* FIXME: there's a race between listing all the names and binding to all
-     * signals (and hence getting NameOwnerChanged). Old bustle-dbus-monitor had
-     * it too.
-     */
-    gboolean ret = list_all_names (bus, error);
-    g_object_unref (bus);
-
-    return ret;
-  }
+  priv->state = STATE_STARTING;
+  return TRUE;
 }
 
-/* FIXME: make this async? */
+/* FIXME: instead of GInitable + syncronous stop, have
+ * bustle_pcap_monitor_record_{async,finish} */
 void
 bustle_pcap_monitor_stop (
     BustlePcapMonitor *self)
 {
   BustlePcapMonitorPrivate *priv = self->priv;
 
-  if (priv->filter_id != 0)
+  if (priv->state == STATE_STOPPED ||
+      priv->state == STATE_STOPPING ||
+      priv->state == STATE_NEW)
     {
-      g_return_if_fail (priv->connection != NULL);
-      g_dbus_connection_remove_filter (priv->connection, priv->filter_id);
-      priv->filter_id = 0;
+      g_debug ("%s: already in state %s", G_STRFUNC, STATES[priv->state]);
+      return;
     }
 
-  if (priv->connection != NULL &&
-      !g_dbus_connection_is_closed (priv->connection))
-    {
-      g_dbus_connection_close_sync (priv->connection, NULL, NULL);
-    }
-
-  if (priv->thread != NULL)
-    {
-      g_return_if_fail (priv->td.message_queue != NULL);
-      /* Wait for the writer thread to spit out all the messages, then close up. */
-      g_async_queue_push (priv->td.message_queue, STOP);
-      g_thread_join (priv->thread);
-      priv->thread = NULL;
-    }
-
-  if (priv->td.dumper != NULL)
-    {
-      pcap_dump_close (priv->td.dumper);
-      priv->td.dumper = NULL;
-    }
-
-  if (priv->p != NULL)
-    {
-      pcap_close (priv->p);
-      priv->p = NULL;
-    }
+  priv->state = STATE_STOPPING;
+  g_cancellable_cancel (priv->cancellable);
 }
 
 static void
@@ -590,12 +903,14 @@ initable_iface_init (
 BustlePcapMonitor *
 bustle_pcap_monitor_new (
     GBusType bus_type,
+    const gchar *address,
     const gchar *filename,
     GError **error)
 {
   return g_initable_new (
       BUSTLE_TYPE_PCAP_MONITOR, NULL, error,
       "bus-type", bus_type,
+      "address", address,
       "filename", filename,
       NULL);
 }

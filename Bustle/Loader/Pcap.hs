@@ -2,7 +2,7 @@
 {-
 Bustle.Loader.Pcap: loads logs out of pcap files
 Copyright © 2011–2012 Collabora Ltd.
-Copyright © 2017      Will Thompson
+Copyright © 2017–2018 Will Thompson
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -28,6 +28,7 @@ where
 
 import Data.Maybe (fromMaybe)
 import Data.Either (partitionEithers)
+import Data.List (isSuffixOf)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Exception (try, tryJust)
@@ -279,6 +280,6 @@ readPcap path = try $ do
                              \Bustle from Flathub, which already includes the necessary \
                              \patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
     matchSnaplenBug e =
-      if isUserError e && ioeGetErrorString e == snaplenErrorString
+      if isUserError e && (snaplenErrorString `isSuffixOf` (ioeGetErrorString e))
           then Just $ ioeSetErrorString e snaplenBugReference
           else Nothing

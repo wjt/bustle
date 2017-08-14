@@ -1,6 +1,7 @@
 /*
  * pcap-monitor.h - monitors a bus and dumps messages to a pcap file
- * Copyright ©2011–2012 Collabora Ltd.
+ * Copyright © 2011–2012 Collabora Ltd.
+ * Copyright © 2018      Will Thompson
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -41,6 +42,7 @@ GType bustle_pcap_monitor_get_type (void);
 
 BustlePcapMonitor *bustle_pcap_monitor_new (
     GBusType bus_type,
+    const gchar *address,
     const gchar *filename,
     GError **error);
 void bustle_pcap_monitor_stop (
