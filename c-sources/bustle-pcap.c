@@ -32,46 +32,6 @@ static gboolean verbose = FALSE;
 static gboolean quiet = FALSE;
 static gboolean version = FALSE;
 
-#if GLIB_CHECK_VERSION (2, 30, 0)
-static void
-let_me_quit (GMainLoop *loop)
-{
-  g_unix_signal_add (SIGINT, (GSourceFunc) g_main_loop_quit, loop);
-
-  if (!quiet)
-    g_printf ("Hit Control-C to stop logging.\n");
-}
-#else
-static gboolean
-stdin_func (
-    GPollableInputStream *g_stdin,
-    GMainLoop *loop)
-{
-  char buf[2];
-
-  if (g_pollable_input_stream_read_nonblocking (g_stdin, buf, 1, NULL, NULL)
-      != -1)
-    {
-      g_main_loop_quit (loop);
-      return FALSE;
-    }
-
-  return TRUE;
-}
-
-static void
-let_me_quit (GMainLoop *loop)
-{
-  GInputStream *g_stdin = g_unix_input_stream_new (0, FALSE);
-  GSource *source = g_pollable_input_stream_create_source (
-      G_POLLABLE_INPUT_STREAM (g_stdin), NULL);
-
-  g_source_set_callback (source, (GSourceFunc) stdin_func, loop, NULL);
-  g_source_attach (source, NULL);
-  g_printf ("Hit Enter to stop logging. (Do not hit Control-C.)\n");
-}
-#endif
-
 static gboolean session_specified = FALSE;
 static gboolean system_specified = FALSE;
 static gchar **filenames = NULL;
@@ -226,7 +186,11 @@ main (
   if (!quiet)
     g_printf ("Logging D-Bus traffic to '%s'...\n", filename);
 
-  let_me_quit (loop);
+  g_unix_signal_add (SIGINT, (GSourceFunc) g_main_loop_quit, loop);
+
+  if (!quiet)
+    g_printf ("Hit Control-C to stop logging.\n");
+
   g_main_loop_run (loop);
   g_main_loop_unref (loop);
 
