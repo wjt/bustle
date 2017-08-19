@@ -110,7 +110,7 @@ Executable bustle
   if flag(threaded)
     ghc-options: -threaded
   C-sources: c-sources/pcap-monitor.c
-  cc-options: -fPIC
+  cc-options: -fPIC -g
   pkgconfig-depends: glib-2.0 >= 2.44
   Build-Depends: base >= 4 && < 5
                , bytestring
