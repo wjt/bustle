@@ -203,7 +203,7 @@ bustle_pcap_monitor_class_init (BustlePcapMonitorClass *klass)
    *  messages, including our own.
    * @sec: seconds since 1970.
    * @usec: microseconds! (These are not combined into a single %gint64 because
-   *  my version of gtk2hs crashes when it encounters %G_TYPE_UINT64 in a
+   *  gtk2hs as of 2018-01-08 crashes when it encounters %G_TYPE_UINT64 in a
    *  #GValue.)
    * @blob: an array of bytes containing the serialized message.
    * @length: the size in bytes of @blob.
