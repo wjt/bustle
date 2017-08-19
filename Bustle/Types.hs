@@ -44,7 +44,6 @@ module Bustle.Types
   , fakeUniqueName
 
   , Microseconds(..)
-  , µsFromPair
   , µsToMs
 
   , Member(..)
@@ -112,11 +111,6 @@ fakeUniqueName = UniqueName . busName_ . (":fake." ++)
 
 newtype Microseconds = Microseconds Integer
   deriving (Show, Ord, Eq, Num, Real, Enum, Integral)
-
-µsFromPair :: Integer
-           -> Integer
-           -> Microseconds
-µsFromPair s µs = Microseconds $ (s * 1000000) + µs
 
 µsToMs :: Microseconds
        -> Integer
