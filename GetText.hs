@@ -192,8 +192,7 @@ targetDataDir l =
     in dataEx ++ "/locale"
 
 getPackageName :: LocalBuildInfo -> String
-getPackageName = fromPackageName . packageName . localPkgDescr
-    where fromPackageName (PackageName s) = s
+getPackageName = unPackageName . packageName . localPkgDescr
 
 getCustomFields :: LocalBuildInfo -> [(String, String)]
 getCustomFields = customFieldsPD . localPkgDescr
