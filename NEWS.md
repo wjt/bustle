@@ -1,3 +1,12 @@
+Bustle 0.6.2 (2017-10-26)
+-------------------------
+
+* Check link type header in pcap files
+* Bump minimum GLib version to 2.44, and remove code for older versions
+* Compile C code with -g
+* Fix building with Cabal >= 2
+* Fix a few compiler warnings
+
 Bustle 0.6.1 (2017-07-27)
 -------------------------
 
