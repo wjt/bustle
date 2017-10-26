@@ -32,7 +32,6 @@ import Bustle.Translation (__)
 import Bustle.Types (Log)
 import qualified Bustle.Marquee as Marquee
 import Bustle.Marquee (Marquee)
-import Data.Monoid
 
 data StatsPane =
     StatsPane { spCountStore :: ListStore FrequencyInfo

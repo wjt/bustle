@@ -22,7 +22,7 @@ module Bustle.UI.AboutDialog
   )
 where
 
-import Prelude hiding (catch)
+import Prelude
 
 import Data.Version (showVersion)
 import Control.Exception

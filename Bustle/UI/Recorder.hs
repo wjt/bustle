@@ -26,7 +26,6 @@ where
 import Control.Monad (when, liftM)
 import Control.Concurrent.MVar
 import qualified Data.Map as Map
-import Data.Monoid
 import Data.Maybe (maybeToList)
 import Control.Monad.State (runStateT)
 import Text.Printf
