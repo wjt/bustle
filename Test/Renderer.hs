@@ -13,7 +13,7 @@ import qualified Data.Set as Set
 import Data.Monoid
 import Data.List
 import System.Exit (exitFailure)
-import DBus (objectPath_, busName_)
+import DBus (objectPath_, busName_, ReceivedMessage(ReceivedMethodReturn), firstSerial, methodReturn)
 
 import Bustle.Types
 import Bustle.Renderer
@@ -39,7 +39,8 @@ main = defaultMain tests
 -- disconnect from the bus before the end of the log. This is a regression test
 -- for a bug I almost introduced.
 activeService = UniqueName ":1.1"
-swaddle messages timestamps = map (\(e, ts) -> Detailed ts e Nothing)
+dummyReceivedMessage = ReceivedMethodReturn firstSerial (methodReturn firstSerial)
+swaddle messages timestamps = map (\(e, ts) -> Detailed ts e 0 dummyReceivedMessage)
                                   (zip messages timestamps)
 sessionLogWithoutDisconnect =
     [ NOCEvent $ Connected activeService
