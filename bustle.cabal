@@ -183,6 +183,7 @@ Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
     main-is: Test/PcapCrash.hs
     other-modules: Bustle.Loader.Pcap
+                 , Bustle.Types
     default-language: Haskell2010
     Build-Depends: base
                  , bytestring
@@ -203,7 +204,16 @@ Test-suite test-regions
 Test-suite test-renderer
     type: exitcode-stdio-1.0
     main-is: Test/Renderer.hs
-    other-modules: Bustle.Renderer
+    other-modules: Bustle.Diagram
+                 , Bustle.Marquee
+                 , Bustle.Regions
+                 , Bustle.Renderer
+                 , Bustle.Translation
+                 , Bustle.Types
+                 , Bustle.Util
+
+
+
     default-language: Haskell2010
     Build-Depends: base
                  , cairo
