@@ -1,10 +1,10 @@
 [Desktop Entry]
-_Name=Bustle
-_Comment=Draw sequence diagrams of D-Bus activity
+Name=Bustle
+Comment=Draw sequence diagrams of D-Bus activity
 Exec=bustle
 Icon=org.freedesktop.Bustle
 Terminal=false
 Type=Application
 Categories=GTK;Development;Debugger;Profiling;
 StartupNotify=true
-_Keywords=debug;profile;d-bus;dbus;sequence;monitor;
+Keywords=debug;profile;d-bus;dbus;sequence;monitor;
