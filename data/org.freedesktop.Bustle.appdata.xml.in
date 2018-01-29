@@ -1,36 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2014 Philip Withnall <philip@tecnocode.co.uk> -->
-<application>
-	<id type="desktop">org.freedesktop.Bustle.desktop</id>
+<component type="desktop-application">
+	<id>org.freedesktop.Bustle.desktop</id>
 	<metadata_license>CC-BY-SA-3.0</metadata_license>
-	<project_license>LGPL-2.1+ and GPL-2.0+ and GPL-3.0</project_license>
-	<_name>Bustle</_name>
-	<_summary>Draw sequence diagrams of D-Bus activity</_summary>
+	<name>Bustle</name>
+	<summary>Draw sequence diagrams of D-Bus activity</summary>
 	<description>
 		<!-- Translators: These are the application description paragraphs in the AppData file. -->
-		<_p>Bustle draws sequence diagrams of D-Bus activity.
+		<p>Bustle draws sequence diagrams of D-Bus activity.
 		    It shows signal emissions, method calls and their
 		    corresponding returns, with time stamps for each individual
 		    event and the duration of each method call. This can help
 		    you check for unwanted D-Bus traffic, and pinpoint why your
-		    D-Bus-based application isn't performing as well as you
+		    D-Bus-based application is not performing as well as you
 		    like. It also provides statistics like signal frequencies
-		    and average method call times.</_p>
+		    and average method call times.</p>
 	</description>
+	<project_license>LGPL-2.1+ AND GPL-2.0+ AND GPL-3.0</project_license>
 	<screenshots>
 		<screenshot type="default">
-			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
-			<_image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-1.png</_image>
-			</screenshot>
+			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you cannot take a screenshot, leave the string as the English screenshot. -->
+			<image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-1.png</image>
+		</screenshot>
 		<screenshot>
-			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you can't take a screenshot, leave the string as the English screenshot. -->
-			<_image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-2.png</_image>
+			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you cannot take a screenshot, leave the string as the English screenshot. -->
+			<image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-2.png</image>
 		</screenshot>
 	</screenshots>
 	<url type="homepage">https://www.freedesktop.org/wiki/Software/Bustle/</url>
-	<updatecontact>will_at_willthompson.co.uk</updatecontact>
+	<update_contact>will_at_willthompson.co.uk</update_contact>
 	<translation type="gettext">bustle</translation>
 	<provides>
 		<id>bustle.desktop</id>
 	</provides>
-</application>
+</component>

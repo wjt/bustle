@@ -32,10 +32,10 @@ bustle-pcap.1: dist/build/bustle-pcap
 	help2man --output=$@ --no-info --name='Generate D-Bus logs for bustle' $<
 
 org.freedesktop.Bustle.desktop: data/org.freedesktop.Bustle.desktop.in
-	LC_ALL=C intltool-merge -d -u po $< $@
+	msgfmt --desktop -d po --template $< -o $@
 
 org.freedesktop.Bustle.appdata.xml: data/org.freedesktop.Bustle.appdata.xml.in
-	LC_ALL=C intltool-merge -x -u po $< $@
+	msgfmt --xml -d po --template $< -o $@
 
 # https://github.com/flathub/flathub/wiki/Review-Guidelines
 validate-metadata: org.freedesktop.Bustle.desktop org.freedesktop.Bustle.appdata.xml
@@ -109,6 +109,8 @@ org.freedesktop.Bustle.flatpak: flatpak/org.freedesktop.Bustle.json
 # Maintainer stuff
 maintainer-update-messages-pot:
 	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
+	xgettext data/bustle.ui data/org.freedesktop.Bustle.desktop.in \
+		data/org.freedesktop.Bustle.appdata.xml.in --join-existing -o po/messages.pot
 
 maintainer-make-release: bustle.cabal dist/build/autogen/version.txt
 	cabal test
