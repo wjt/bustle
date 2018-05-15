@@ -270,11 +270,12 @@ headers xss y = (height, shapes)
 --
 
 diagramBounds :: Diagram -> ((Double, Double), (Double, Double))
-diagramBounds shapes = ((minimum (0:x1s), minimum (0:y1s))
-                       ,(maximum (0:x2s), maximum (0:y2s))
+diagramBounds shapes = ((minimum (0:x1s) - padding, minimum (0:y1s) - padding)
+                       ,(maximum (0:x2s) + padding, maximum (0:y2s) + padding)
                        )
   where
     (x1s, y1s, x2s, y2s) = unzip4 $ map bounds shapes
+    padding              = 6
 
 diagramDimensions :: Diagram -> (Double, Double)
 diagramDimensions shapes = (x2 - x1, y2 - y1)
