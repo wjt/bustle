@@ -44,8 +44,8 @@ modules:
       - x86_64
     sources:
       - type: archive
-        url: https://haskell.org/platform/download/8.2.1/haskell-platform-8.2.1-unknown-posix--full-x86_64.tar.gz
-        sha256: bb5629af143e7d257cb1f3710874f2ca17d1090cc6e5c1c2b80003bc37e0b9ec
+        url: https://haskell.org/platform/download/8.4.2/haskell-platform-8.4.2-unknown-posix--full-x86_64.tar.gz
+        sha256: f0d0efcd961c52ee0833941047c8d2cda5c0736ad2715edc41079286de57ac8f
         # there are no leading compoments in this file; so the default of 1 makes tar silently extract no files!
         strip-components: 0
       - type: file
@@ -57,15 +57,15 @@ modules:
       # for UID 0. We know better -- we have permission to write
       # everywhere -- so patch out this check.
       - tar -C / -xf hp-usr-local.tar.gz
-      - patch /usr/local/haskell/ghc-8.2.1-x86_64/bin/activate-hs activate-hs.patch
-      - /usr/local/haskell/ghc-8.2.1-x86_64/bin/activate-hs --verbose --prefix /usr
+      - patch /usr/local/haskell/ghc-8.4.2-x86_64/bin/activate-hs activate-hs.patch
+      - /usr/local/haskell/ghc-8.4.2-x86_64/bin/activate-hs --verbose --prefix /usr
   - name: haskell-platform
     only-arches:
       - i386
     sources:
       - type: archive
-        url: https://haskell.org/platform/download/8.2.1/haskell-platform-8.2.1-unknown-posix--full-i386.tar.gz
-        sha256: 1b2a3ec99cd9dfd491253496ee368500b5ff3d039e043158ea51ae3e855719a4
+        url: https://haskell.org/platform/download/8.4.2/haskell-platform-8.4.2-unknown-posix--full-i386.tar.gz
+        sha256: bd40cf359b47c88ee9538d9ce47ff42038d88b47533173a957979097d6504565
         # there are no leading compoments in this file; so the default of 1 makes tar silently extract no files!
         strip-components: 0
       - type: file
@@ -77,8 +77,8 @@ modules:
       # for UID 0. We know better -- we have permission to write
       # everywhere -- so patch out this check.
       - tar -C / -xf hp-usr-local.tar.gz
-      - patch /usr/local/haskell/ghc-8.2.1-i386/bin/activate-hs activate-hs.patch
-      - /usr/local/haskell/ghc-8.2.1-i386/bin/activate-hs --verbose --prefix /usr
+      - patch /usr/local/haskell/ghc-8.4.2-i386/bin/activate-hs activate-hs.patch
+      - /usr/local/haskell/ghc-8.4.2-i386/bin/activate-hs --verbose --prefix /usr
 
   # pcap dependencies begin here
   - name: libpcap
@@ -99,20 +99,20 @@ modules:
   - name: haskell-hashtables
     sources:
       - type: archive
-        url: http://hackage.haskell.org/package/hashtables-1.2.2.1/hashtables-1.2.2.1.tar.gz
-        sha256: 7aad530a9acca57ebe58774876c5a32e13f9c4ea37e80aa50c9be9ca88dcf6bc
+        url: https://hackage.haskell.org/package/hashtables-1.2.3.1/hashtables-1.2.3.1.tar.gz
+        sha256: 8fd1c7c77c267eae6af01f1d9ca427754fb092cfffc8041cd50764a9144b3cbe
       - type: file
         path: Makefile
     no-autogen: true
   - name: haskell-utf8-string
     sources:
-      # latest release doesn't install on HP 8.2.1!
-      # https://github.com/glguy/utf8-string/issues/21
-      # This is because Hackage allows you to update a new .cabal
-      # without replacing the tarball.
-      - type: git
-        url: https://github.com/glguy/utf8-string.git
-        commit: 58f5636d419e942784996d117bc5ee00a2ecdabc
+      - type: archive
+        url: https://hackage.haskell.org/package/utf8-string-1.0.1.1/utf8-string-1.0.1.1.tar.gz
+        sha256: fb0b9e3acbe0605bcd1c63e51f290a7bbbe6628dfa3294ff453e4235fbaef140
+      - type: file
+        url: https://hackage.haskell.org/package/utf8-string-1.0.1.1/revision/3.cabal
+        dest-filename: utf8-string.cabal
+        sha256: 68cc6cf665e7212334a51b63d6936daeaca023b2cfe8637d130acfe95f91700b
       - type: file
         path: Makefile
     no-autogen: true
@@ -121,8 +121,8 @@ modules:
       # Installing from Git saves us listing each subpackage separately.
       - type: git
         url: https://github.com/gtk2hs/gtk2hs
-        # No tags? Great! Just pick today's HEAD.
-        commit: f066503df2c6d8d57e06630615d2097741d09d39
+        # No tags? Great! HEAD as of 2018-07-17
+        commit: d3d62fbd9460f23559a9ca44637480b9cc773e43
       - type: file
         path: Makefile
         # Makefile interprets build-% as cabal install %
@@ -155,11 +155,15 @@ modules:
   - name: haskell-cereal
     sources:
       - type: archive
-        url: https://hackage.haskell.org/package/cereal-0.5.4.0/cereal-0.5.4.0.tar.gz
-        sha256: daca6c5aeff21ca233bebe006c158b0e4421b239c722768b568fca9b32cafee7
+        url: https://hackage.haskell.org/package/cereal-0.5.5.0/cereal-0.5.5.0.tar.gz
+        sha256: 0b97320ffbfa6df2e5679022215dbd0fe6e3b5ae8428c2ff4310d9e1acf16822
       - type: file
         path: Makefile
     no-autogen: true
+  # TODO: bump dependency to dbus 1.0.1, and revise licensing info: it's now
+  # Apache-2, which is compatible with LGPL-3, rather than GPL-3. However, it
+  # brings with it tens of new dependencies, at which point it is probably
+  # worth generating this manifest.
   - name: haskell-dbus
     sources:
       - type: archive
@@ -173,7 +177,7 @@ modules:
   - name: help2man
     sources:
       - type: archive
-        url: http://ftpmirror.gnu.org/help2man/help2man-1.47.4.tar.xz
+        url: https://ftpmirror.gnu.org/help2man/help2man-1.47.4.tar.xz
         sha256: d4ecf697d13f14dd1a78c5995f06459bff706fd1ce593d1c02d81667c0207753
     build-options:
       prefix: /usr
