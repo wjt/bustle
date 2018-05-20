@@ -353,8 +353,6 @@ emptyWindow = do
   filterNames <- getW castToMenuItem "filter"
   aboutItem <- getW castToMenuItem "about"
 
-  [newButton, openButton] <- mapM (getW castToButton) ["newButton", "openButton"]
-
   [nb, statsBook] <- mapM (getW castToNotebook)
       ["diagramOrNot", "statsBook"]
   contentVPaned <- getW castToVPaned "contentVPaned"
@@ -369,14 +367,9 @@ emptyWindow = do
 
   -- File menu and related buttons
   embedIO $ \r -> do
-      let new = makeCallback startRecording r
-      forM [headerNew, newButton] $ \button ->
-          button `on` buttonActivated $ new
+      headerNew `on` buttonActivated $ makeCallback startRecording r
 
-      let open = makeCallback openDialogue r
-      onMenuItemActivate openItem open
-      openButton `on` buttonActivated $ open
-
+      onMenuItemActivate openItem $ makeCallback openDialogue r
       onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
   -- TODO: really this wants to live in the application menu, but that entails binding GApplication,
