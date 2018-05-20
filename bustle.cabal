@@ -82,6 +82,7 @@ Executable bustle
                , Bustle.Loader
                , Bustle.Loader.Pcap
                , Bustle.Marquee
+               , Bustle.Missing
                , Bustle.Monitor
                , Bustle.Noninteractive
                , Bustle.Regions

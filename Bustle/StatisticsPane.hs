@@ -27,6 +27,7 @@ import Control.Applicative ((<$>))
 import Control.Monad (forM_)
 import Text.Printf
 import Graphics.UI.Gtk
+import Bustle.Missing (formatSize)
 import Bustle.Stats
 import Bustle.Translation (__)
 import Bustle.Types (Log)
@@ -222,19 +223,6 @@ formatSizeInfoMember si =
             SizeError  -> Marquee.red
             _          -> id
 
-formatSize :: Int -> Marquee
-formatSize s
-    | s < maxB = value 1 `mappend` units (__ "B")
-    | s < maxKB = value 1024 `mappend` units (__ "KB")
-    | otherwise = value (1024 * 1024) `mappend` units (__ "MB")
-  where
-    maxB = 10000
-    maxKB = 10000 * 1024
-
-    units = Marquee.escape . (' ':)
-
-    value factor = Marquee.escape (show (s `div` factor))
-
 newSizeView :: Maybe Pixbuf
             -> Maybe Pixbuf
             -> IO (ListStore SizeInfo, TreeView)
@@ -258,8 +246,8 @@ newSizeView methodIcon_ signalIcon_ = do
   addMemberRenderer nameColumn sizeStore True formatSizeInfoMember
   treeViewAppendColumn sizeView nameColumn
 
-  addStatColumn sizeView sizeStore (__ "Smallest") (formatSize . siMinSize)
-  addStatColumn sizeView sizeStore (__ "Mean") (formatSize . siMeanSize)
-  addStatColumn sizeView sizeStore (__ "Largest") (formatSize . siMaxSize)
+  addStatColumn sizeView sizeStore (__ "Smallest") (Marquee.escape . formatSize . siMinSize)
+  addStatColumn sizeView sizeStore (__ "Mean") (Marquee.escape . formatSize . siMeanSize)
+  addStatColumn sizeView sizeStore (__ "Largest") (Marquee.escape . formatSize . siMaxSize)
 
   return (sizeStore, sizeView)
