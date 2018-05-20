@@ -29,85 +29,38 @@ import Graphics.UI.Gtk hiding (Signal)
 
 import qualified DBus as D
 
-import Bustle.Translation (__)
 import Bustle.Types
 import Bustle.Marquee
 import Bustle.VariantFormatter
 
 data DetailsView =
-    DetailsView { detailsTable :: Table
-                , detailsTitle :: Label
+    DetailsView { detailsGrid :: Grid
+                , detailsType :: Stack
                 , detailsPath :: Label
                 , detailsMember :: Label
                 , detailsBodyView :: TextView
                 }
 
-addTitle :: Table
-         -> String
-         -> Int
-         -> IO ()
-addTitle table title row = do
-    label <- labelNew $ Just title
-    miscSetAlignment label 0 0
-    tableAttach table label 0 1 row (row + 1) [Fill] [Fill] 0 0
+detailsViewNew :: Builder
+               -> IO DetailsView
+detailsViewNew builder = do
+    grid        <- builderGetObject builder castToGrid "detailsGrid"
+    type_       <- builderGetObject builder castToStack "detailsType"
+    pathLabel   <- builderGetObject builder castToLabel "detailsPath"
+    memberLabel <- builderGetObject builder castToLabel "detailsMember"
+    view        <- builderGetObject builder castToTextView "detailsArguments"
 
-addValue :: Table
-         -> Int
-         -> IO Label
-addValue table row = do
-    label <- labelNew (Nothing :: Maybe String)
-    miscSetAlignment label 0 0
-    labelSetEllipsize label EllipsizeStart
-    labelSetSelectable label True
-    tableAttach table label 1 2 row (row + 1) [Expand, Fill] [Fill] 0 0
-    return label
+    return $ DetailsView grid type_ pathLabel memberLabel view
 
-addField :: Table
-         -> String
-         -> Int
-         -> IO Label
-addField table title row = do
-    addTitle table title row
-    addValue table row
-
-detailsViewNew :: IO DetailsView
-detailsViewNew = do
-    table <- tableNew 2 3 False
-    table `set` [ tableRowSpacing := 6
-                , tableColumnSpacing := 6
-                ]
-
-    title <- labelNew (Nothing :: Maybe String)
-    miscSetAlignment title 0 0
-    tableAttach table title 0 2 0 1 [Fill] [Fill] 0 0
-
-    pathLabel <- addField table (__ "Path:") 1
-    memberLabel <- addField table (__ "Member:") 2
-
-    addTitle table (__ "Arguments:") 3
-
-    view <- textViewNew
-    textViewSetWrapMode view WrapWordChar
-    textViewSetEditable view False
-
-    sw <- scrolledWindowNew Nothing Nothing
-    scrolledWindowSetPolicy sw PolicyAutomatic PolicyAutomatic
-    containerAdd sw view
-
-    tableAttachDefaults table sw 1 2 3 4
-
-    widgetShowAll table
-    return $ DetailsView table title pathLabel memberLabel view
-
-pickTitle :: Detailed Message -> Marquee
-pickTitle (Detailed _ m _ _) = case m of
-    MethodCall {} -> b (escape (__ "Method call"))
-    MethodReturn {} -> b (escape (__ "Method return"))
-    Error {} -> b (escape (__ "Error"))
+pickType :: Detailed Message -> String
+pickType (Detailed _ m _ _) = case m of
+    MethodCall {} -> "methodCall"
+    MethodReturn {} -> "methodReturn"
+    Error {} -> "error"
     Signal { signalDestination = d } ->
-        b . escape $ case d of
-            Nothing -> (__ "Signal")
-            Just _  -> (__ "Directed signal")
+        case d of
+            Nothing -> "signal"
+            Just _  -> "directedSignal"
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =
@@ -129,7 +82,7 @@ formatMessage (Detailed _ _ _ rm) =
     formatArgs = intercalate "\n" . map (format_Variant VariantStyleSignature)
 
 detailsViewGetTop :: DetailsView -> Widget
-detailsViewGetTop = toWidget . detailsTable
+detailsViewGetTop = toWidget . detailsGrid
 
 detailsViewUpdate :: DetailsView
                   -> Detailed Message
@@ -137,9 +90,9 @@ detailsViewUpdate :: DetailsView
 detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
-    labelSetMarkup (detailsTitle d) (toPangoMarkup $ pickTitle m)
+    stackSetVisibleChildName (detailsType d) (pickType m)
     labelSetText (detailsPath d) (maybe unknown (D.formatObjectPath . path) member_)
     labelSetMarkup (detailsMember d) (maybe unknown getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m
   where
-    unknown = __ "<unknown>"
+    unknown = ""

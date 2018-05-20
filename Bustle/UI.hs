@@ -389,13 +389,7 @@ emptyWindow = do
   s <- asks signalIcon
   statsPane <- io $ statsPaneNew builder m s
 
-  details <- io $ detailsViewNew
-  io $ do
-      let top = detailsViewGetTop details
-      panedPack2 contentVPaned top False False
-      -- Hide the details by default; they'll be shown when the user selects a
-      -- message.
-      widgetHide top
+  details <- io $ detailsViewNew builder
 
   -- The stats start off hidden.
   io $ widgetHide statsBook
