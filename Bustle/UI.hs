@@ -100,8 +100,6 @@ data WindowInfo =
 
 data BConfig =
     BConfig { debugEnabled :: Bool
-            , methodIcon :: Maybe Pixbuf
-            , signalIcon :: Maybe Pixbuf
             }
 
 data BState = BState { windows :: Int
@@ -124,12 +122,7 @@ uiMain = failOnGError $ do
     -- FIXME: get a real option parser
     let debug = any isDebug args
 
-    [method, signal] <- mapM loadPixbuf
-        ["dfeet-method.png", "dfeet-signal.png"]
-
     let config = BConfig { debugEnabled = debug
-                         , methodIcon = method
-                         , signalIcon = signal
                          }
         initialState = BState { windows = 0
                               , initialWindow = Nothing
@@ -539,12 +532,6 @@ displayLog wi@(WindowInfo { wiWindow = window
         updateDisplayedLog wi rr'
 
   return ()
-
-loadPixbuf :: FilePath -> IO (Maybe Pixbuf)
-loadPixbuf filename = do
-  iconName <- getDataFileName $ "data/" ++ filename
-  C.catch (fmap Just (pixbufNewFromFile iconName))
-          (\(GError _ _ msg) -> warn (toString msg) >> return Nothing)
 
 openDialogue :: B ()
 openDialogue = embedIO $ \r -> do

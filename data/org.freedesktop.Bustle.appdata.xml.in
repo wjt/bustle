@@ -16,7 +16,7 @@
 		    like. It also provides statistics like signal frequencies
 		    and average method call times.</p>
 	</description>
-	<project_license>LGPL-2.1+ AND GPL-2.0+ AND GPL-3.0</project_license>
+	<project_license>LGPL-2.1+ AND GPL-3.0</project_license>
 	<screenshots>
 		<screenshot type="default">
 			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you cannot take a screenshot, leave the string as the English screenshot. -->
