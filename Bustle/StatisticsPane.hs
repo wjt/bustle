@@ -41,20 +41,18 @@ data StatsPane =
               }
 
 statsPaneNew :: Builder
-             -> Maybe Pixbuf
-             -> Maybe Pixbuf
              -> IO StatsPane
-statsPaneNew builder methodIcon signalIcon = do
+statsPaneNew builder = do
   [frequencySW, durationSW, sizeSW] <- mapM (builderGetObject builder castToScrolledWindow)
       ["frequencySW", "durationSW", "sizeSW"]
 
-  (countStore, countView) <- newCountView methodIcon signalIcon
+  (countStore, countView) <- newCountView
   containerAdd frequencySW countView
 
   (timeStore, timeView) <- newTimeView
   containerAdd durationSW timeView
 
-  (sizeStore, sizeView) <- newSizeView methodIcon signalIcon
+  (sizeStore, sizeView) <- newSizeView
   containerAdd sizeSW sizeView
 
   widgetShow countView
@@ -128,40 +126,23 @@ addTextStatColumn :: TreeView
 addTextStatColumn view store title f =
     addStatColumn view store title (Marquee.escape . f)
 
--- If we managed to load the method and signal icons...
-maybeAddTypeIconColumn :: CellLayoutClass layout
-                       => layout
-                       -> ListStore a
-                       -> Maybe Pixbuf
-                       -> Maybe Pixbuf
-                       -> (a -> Bool)
-                       -> IO ()
-maybeAddTypeIconColumn nameColumn store (Just m) (Just s) isMethod = do
-    typeRenderer <- cellRendererPixbufNew
-    cellLayoutPackStart nameColumn typeRenderer False
-    cellLayoutSetAttributes nameColumn typeRenderer store $ \row ->
-            [ cellPixbuf := if isMethod row then m else s ]
-maybeAddTypeIconColumn _ _ _ _ _ = return ()
-
-newCountView :: Maybe Pixbuf
-             -> Maybe Pixbuf
-             -> IO (ListStore FrequencyInfo, TreeView)
-newCountView method signal = do
+newCountView :: IO (ListStore FrequencyInfo, TreeView)
+newCountView = do
   countStore <- listStoreNew []
   countView <- treeViewNewWithModel countStore
 
-  set countView [ treeViewHeadersVisible := False ]
+  set countView [ treeViewHeadersVisible := True ]
 
   nameColumn <- treeViewColumnNew
-  treeViewColumnSetTitle nameColumn (__ "Name")
+  treeViewColumnSetTitle nameColumn (__ "Member")
   set nameColumn [ treeViewColumnResizable := True
                  , treeViewColumnExpand := True
                  ]
 
-  maybeAddTypeIconColumn nameColumn countStore method signal $ \fi ->
-      case fiType fi of
-          TallyMethod -> True
-          TallySignal -> False
+  addTextRenderer nameColumn countStore False $ \fi ->
+      Marquee.escape $ case fiType fi of
+          TallyMethod -> __ "Method"
+          TallySignal -> __ "Signal"
 
   addMemberRenderer nameColumn countStore True $ \fi ->
       Marquee.formatMember (fiInterface fi) (fiMember fi)
@@ -223,10 +204,8 @@ formatSizeInfoMember si =
             SizeError  -> Marquee.red
             _          -> id
 
-newSizeView :: Maybe Pixbuf
-            -> Maybe Pixbuf
-            -> IO (ListStore SizeInfo, TreeView)
-newSizeView methodIcon_ signalIcon_ = do
+newSizeView :: IO (ListStore SizeInfo, TreeView)
+newSizeView = do
   sizeStore <- listStoreNew []
   sizeView <- treeViewNewWithModel sizeStore
 
@@ -238,11 +217,12 @@ newSizeView methodIcon_ signalIcon_ = do
                  , treeViewColumnExpand := True
                  ]
 
-  maybeAddTypeIconColumn nameColumn sizeStore methodIcon_ signalIcon_ $ \si ->
-      case siType si of
-          SizeSignal -> False
-          -- We distinguish between call, return and error by <i> and red.
-          _          -> True
+  addTextRenderer nameColumn sizeStore False $ \si ->
+      Marquee.escape $ case siType si of
+          SizeCall   -> __ "Method call"
+          SizeReturn -> __ "Method return"
+          SizeError  -> __ "Error"
+          SizeSignal -> __ "Signal"
   addMemberRenderer nameColumn sizeStore True formatSizeInfoMember
   treeViewAppendColumn sizeView nameColumn
 

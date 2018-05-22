@@ -381,9 +381,7 @@ emptyWindow = do
   -- Similarly, the drop-down menus would look better as popovers. But here we are.
   io $ onMenuItemActivate aboutItem $ showAboutDialog window
 
-  m <- asks methodIcon
-  s <- asks signalIcon
-  statsPane <- io $ statsPaneNew builder m s
+  statsPane <- io $ statsPaneNew builder
 
   details <- io $ detailsViewNew builder
 
