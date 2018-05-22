@@ -72,12 +72,13 @@ data LogDetails =
   | SingleLog FilePath
   | TwoLogs FilePath FilePath
 
+-- Must be kept in sync with the names in the GtkBuilder file
 data Page =
     InstructionsPage
   | PleaseHoldPage
   | CanvasPage
   deriving
-    (Enum)
+    (Show)
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
@@ -86,7 +87,7 @@ data WindowInfo =
                , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
-               , wiNotebook :: Notebook
+               , wiStack :: Stack
                , wiStatsBook :: Notebook
                , wiStatsPane :: StatsPane
                , wiContentVPaned :: VPaned
@@ -353,8 +354,8 @@ emptyWindow = do
   filterNames <- getW castToMenuItem "filter"
   aboutItem <- getW castToMenuItem "about"
 
-  [nb, statsBook] <- mapM (getW castToNotebook)
-      ["diagramOrNot", "statsBook"]
+  stack <- getW castToStack "diagramOrNot"
+  statsBook <- getW castToNotebook "statsBook"
   contentVPaned <- getW castToVPaned "contentVPaned"
 
   -- Open two logs dialog
@@ -397,7 +398,7 @@ emptyWindow = do
                               , wiExport = headerExport
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
-                              , wiNotebook = nb
+                              , wiStack = stack
                               , wiStatsBook = statsBook
                               , wiStatsPane = statsPane
                               , wiContentVPaned = contentVPaned
@@ -479,7 +480,7 @@ setPage :: MonadIO io
         => WindowInfo
         -> Page
         -> io ()
-setPage wi page = io $ notebookSetCurrentPage (wiNotebook wi) (fromEnum page)
+setPage wi page = io $ stackSetVisibleChildName (wiStack wi) (show page)
 
 displayLog :: WindowInfo
            -> LogDetails

@@ -192,11 +192,9 @@
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <object class="GtkNotebook" id="diagramOrNot">
+          <object class="GtkStack" id="diagramOrNot">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="show_tabs">False</property>
-            <property name="show_border">False</property>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
@@ -260,15 +258,8 @@
                   </packing>
                 </child>
               </object>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel" id="label1">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Instructions</property>
-              </object>
               <packing>
-                <property name="tab_fill">False</property>
+                <property name="name">InstructionsPage</property>
               </packing>
             </child>
             <child>
@@ -279,18 +270,8 @@
                 <property name="use_markup">True</property>
               </object>
               <packing>
+                <property name="name">PleaseHoldPage</property>
                 <property name="position">1</property>
-              </packing>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel" id="label2">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Please hold</property>
-              </object>
-              <packing>
-                <property name="position">1</property>
-                <property name="tab_fill">False</property>
               </packing>
             </child>
             <child>
@@ -615,18 +596,8 @@
                 </child>
               </object>
               <packing>
+                <property name="name">CanvasPage</property>
                 <property name="position">2</property>
-              </packing>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel" id="label3">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Diagram</property>
-              </object>
-              <packing>
-                <property name="position">2</property>
-                <property name="tab_fill">False</property>
               </packing>
             </child>
           </object>
