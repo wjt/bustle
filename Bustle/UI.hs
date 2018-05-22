@@ -82,15 +82,16 @@ data Page =
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
-               , wiHeaderBar :: Widget -- TODO
+               , wiHeaderBar :: Widget -- TODO, GtkHeaderBar
                , wiSave :: Button
                , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
                , wiStack :: Stack
-               , wiStatsBook :: Notebook
+               , wiSidebarHeader :: Widget -- TODO, GtkHeaderBar
+               , wiSidebarStack :: Stack
                , wiStatsPane :: StatsPane
-               , wiContentVPaned :: VPaned
+               , wiContentPaned :: Paned
                , wiCanvas :: Canvas (Detailed Message)
                , wiDetailsView :: DetailsView
 
@@ -355,8 +356,9 @@ emptyWindow = do
   aboutItem <- getW castToMenuItem "about"
 
   stack <- getW castToStack "diagramOrNot"
-  statsBook <- getW castToNotebook "statsBook"
-  contentVPaned <- getW castToVPaned "contentVPaned"
+  sidebarHeader <- getW castToWidget "sidebarHeader"
+  sidebarStack <- getW castToStack "sidebarStack"
+  contentPaned <- getW castToPaned "contentPaned"
 
   -- Open two logs dialog
   openTwoDialog <- embedIO $ \r ->
@@ -386,7 +388,7 @@ emptyWindow = do
   details <- io $ detailsViewNew builder
 
   -- The stats start off hidden.
-  io $ widgetHide statsBook
+  io $ widgetHide sidebarStack
 
   showBounds <- asks debugEnabled
   canvas <- io $ canvasNew builder showBounds (updateDetailsView details)
@@ -399,9 +401,10 @@ emptyWindow = do
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
                               , wiStack = stack
-                              , wiStatsBook = statsBook
+                              , wiSidebarHeader = sidebarHeader
+                              , wiSidebarStack = sidebarStack
                               , wiStatsPane = statsPane
-                              , wiContentVPaned = contentVPaned
+                              , wiContentPaned = contentPaned
                               , wiCanvas = canvas
                               , wiDetailsView = details
                               , wiLogDetails = logDetailsRef
@@ -493,7 +496,8 @@ displayLog wi@(WindowInfo { wiWindow = window
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
                        , wiCanvas = canvas
-                       , wiStatsBook = statsBook
+                       , wiSidebarHeader = sidebarHeader
+                       , wiSidebarStack = sidebarStack
                        , wiStatsPane = statsPane
                        })
            logDetails
@@ -522,8 +526,10 @@ displayLog wi@(WindowInfo { wiWindow = window
     viewStatistics `on` checkMenuItemToggled $ do
         active <- checkMenuItemGetActive viewStatistics
         if active
-            then widgetShow statsBook
-            else widgetHide statsBook
+            then do widgetShow sidebarStack
+                    widgetShow sidebarHeader
+            else do widgetHide sidebarStack
+                    widgetHide sidebarHeader
 
     widgetSetSensitivity filterNames True
     onMenuItemActivate filterNames $ do
