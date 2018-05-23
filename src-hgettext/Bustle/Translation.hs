@@ -20,6 +20,6 @@ initTranslation = do
     textDomain (Just domain)
     return ()
 
--- FIXME: I do not like this unsafePerformIO one little bit.
 __ :: String -> String
+-- FIXME: I do not like this unsafePerformIO one little bit.
 __ = unsafePerformIO . getText
