@@ -553,7 +553,7 @@ advanceBy d = do
     shape $ Rule leftMargin rightMargin (current + 15)
 
     let appColumns :: Applications -> [Double]
-        appColumns = catMaybes . Map.fold ((:) . aiCurrentColumn) []
+        appColumns = catMaybes . Map.foldr ((:) . aiCurrentColumn) []
     xs <- (++) <$> getsApps appColumns SessionBus
                <*> getsApps appColumns SystemBus
     case xs of

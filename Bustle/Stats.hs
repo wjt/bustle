@@ -36,6 +36,7 @@ import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
 
 import qualified Data.Map as Map
+import qualified Data.Map.Strict
 import Data.Map (Map)
 
 import Bustle.Types
@@ -159,7 +160,7 @@ messageSizes messages =
       -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
       -> Map (SizeType, Maybe InterfaceName, MemberName) [Int]
     f dm = case sizeKeyRepr dm of
-        Just key -> Map.insertWith' (++) key [deMessageSize dm]
+        Just key -> Data.Map.Strict.insertWith (++) key [deMessageSize dm]
         _        -> id
 
     callDetails :: Message
