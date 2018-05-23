@@ -1,56 +1,45 @@
-# Translation file
-
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
 msgid ""
 msgstr ""
-
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-01-13 06:05-0800\n"
+"POT-Creation-Date: 2018-05-23 10:21+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: Bustle/StatisticsPane.hs:210
-#: Bustle/StatisticsPane.hs:213
+#: Bustle/StatisticsPane.hs:191 Bustle/StatisticsPane.hs:194
 msgid "%.1f ms"
-msgstr ""
-
-#: Bustle/UI.hs:467
-msgid "%s - Bustle"
 msgstr ""
 
 #: Bustle/Noninteractive.hs:55
 msgid "(no interface)"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:148
-msgid "<unknown>"
-msgstr ""
-
-#: Bustle/UI/DetailsView.hs:87
-msgid "Arguments:"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:228
-msgid "B"
-msgstr ""
-
-#: Bustle/UI/AboutDialog.hs:47
+#: Bustle/UI/AboutDialog.hs:46 data/bustle.ui:76
+#: data/org.freedesktop.Bustle.desktop.in:3
+#: data/org.freedesktop.Bustle.appdata.xml.in:6
 msgid "Bustle"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:211
+#: Bustle/StatisticsPane.hs:192
 msgid "Calls"
 msgstr ""
 
-#: Bustle/UI.hs:294
+#: Bustle/UI.hs:314
 msgid "Close _Without Saving"
 msgstr ""
 
-#: Bustle/UI.hs:210
+#: Bustle/UI.hs:208
 msgid "Could not read '%s'"
 msgstr ""
 
@@ -58,100 +47,198 @@ msgstr ""
 msgid "Couldn't parse '%s': %s"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:110
-msgid "Directed signal"
+#: Bustle/UI.hs:279
+msgid "Couldn't save log"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:106
+#: Bustle/StatisticsPane.hs:224 data/bustle.ui:547
 msgid "Error"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:171
+#: Bustle/UI.hs:282
+msgid ""
+"Error: <i>%s</i>\n"
+"\n"
+"You might want to manually recover the log from the temporary file at\n"
+"<tt>%s</tt>"
+msgstr ""
+
+#: Bustle/StatisticsPane.hs:152
 msgid "Frequency"
 msgstr ""
 
-#: Bustle/UI.hs:293
+#: Bustle/UI.hs:313
 msgid "If you don't save, this log will be lost forever."
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:229
-msgid "KB"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:264
+#: Bustle/StatisticsPane.hs:231
 msgid "Largest"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:230
-msgid "MB"
+#: Bustle/UI/Recorder.hs:82 Bustle/UI/Recorder.hs:106
+msgid "Logged <b>%u</b> messages&#8230;"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:212
-#: Bustle/StatisticsPane.hs:263
+#: Bustle/StatisticsPane.hs:193 Bustle/StatisticsPane.hs:230
 msgid "Mean"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:249
+#: Bustle/StatisticsPane.hs:137 Bustle/StatisticsPane.hs:215 data/bustle.ui:448
 msgid "Member"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:85
-msgid "Member:"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:200
+#: Bustle/StatisticsPane.hs:144 Bustle/StatisticsPane.hs:181
 msgid "Method"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:104
+#: Bustle/StatisticsPane.hs:222 data/bustle.ui:522
 msgid "Method call"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:105
+#: Bustle/StatisticsPane.hs:223 data/bustle.ui:534
 msgid "Method return"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:156
-msgid "Name"
-msgstr ""
-
-#: Bustle/UI/DetailsView.hs:127
-msgid "No message body information is available. Please capture a fresh log using a recent version of Bustle!"
-msgstr ""
-
-#: Bustle/Loader.hs:64
-msgid "Parse error %s"
-msgstr ""
-
-#: Bustle/UI/DetailsView.hs:84
-msgid "Path:"
-msgstr ""
-
-#: Bustle/UI.hs:286
+#: Bustle/UI.hs:306
 msgid "Save log '%s' before closing?"
 msgstr ""
 
-#: Bustle/UI/DetailsView.hs:109
+#: Bustle/StatisticsPane.hs:145 Bustle/StatisticsPane.hs:225 data/bustle.ui:560
 msgid "Signal"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:262
+#: Bustle/StatisticsPane.hs:229
 msgid "Smallest"
 msgstr ""
 
-#: Bustle/UI/AboutDialog.hs:49
+#: Bustle/UI/AboutDialog.hs:48
 msgid "Someone's favourite D-Bus profiler"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:209
+#: Bustle/StatisticsPane.hs:190
 msgid "Total"
 msgstr ""
 
-#: Bustle/UI/FilterDialog.hs:105
-msgid "Unticking a service hides its column in the diagram, and all messages it is involved in. That is, all methods it calls or are called on it, the corresponding returns, and all signals it emits will be hidden."
+#: Bustle/UI/FilterDialog.hs:123
+msgid ""
+"Unticking a service hides its column in the diagram, and all messages it is "
+"involved in. That is, all methods it calls or are called on it, the "
+"corresponding returns, and all signals it emits will be hidden."
 msgstr ""
 
 #: Bustle/Util.hs:53
 msgid "Warning: "
 msgstr ""
 
+#: Bustle/Loader/Pcap.hs:275
+msgid ""
+"libpcap 1.8.0 and 1.8.1 are incompatible with Bustle. See https://bugs."
+"freedesktop.org/show_bug.cgi?id=100220#c7 for details. Distributions should "
+"apply downstream patches until until a new upstream release is made; users "
+"should install Bustle from Flathub, which already includes the necessary "
+"patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
+msgstr ""
+
+#: data/bustle.ui:15
+msgid "_Filter Visible Services…"
+msgstr ""
+
+#: data/bustle.ui:26
+msgid "_Statistics"
+msgstr ""
+
+#: data/bustle.ui:68
+msgid ""
+"Display two logs—one for the session bus, one for the system bus—side by "
+"side."
+msgstr ""
+
+#: data/bustle.ui:69
+msgid "O_pen a Pair of Logs…"
+msgstr ""
+
+#: data/bustle.ui:111
+msgid "Open an existing log"
+msgstr ""
+
+#: data/bustle.ui:128
+msgid "Record"
+msgstr ""
+
+#: data/bustle.ui:132
+msgid "Record a new log"
+msgstr ""
+
+#: data/bustle.ui:167
+msgid "Export as PDF"
+msgstr ""
+
+#: data/bustle.ui:191
+msgid "Save"
+msgstr ""
+
+#: data/bustle.ui:253
+msgid ""
+"Start recording D-Bus activity with the <b>Record</b> button above\n"
+" You can also run <i>dbus-monitor --pcap</i> from the command line"
+msgstr ""
+
+#: data/bustle.ui:272
+msgid "Welcome to Bustle"
+msgstr ""
+
+#: data/bustle.ui:297
+msgid "<big><b>Waiting for D-Bus traffic; please hold…</b></big>"
+msgstr ""
+
+#: data/bustle.ui:324
+msgid "Frequencies"
+msgstr ""
+
+#: data/bustle.ui:338
+msgid "Durations"
+msgstr ""
+
+#: data/bustle.ui:353
+msgid "Sizes"
+msgstr ""
+
+#: data/bustle.ui:400
+msgid "Type"
+msgstr ""
+
+#: data/bustle.ui:416
+msgid "Path"
+msgstr ""
+
+#: data/bustle.ui:480
+msgid "Arguments"
+msgstr ""
+
+#: data/bustle.ui:573
+msgid "Directed signal"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.desktop.in:4
+#: data/org.freedesktop.Bustle.appdata.xml.in:7
+msgid "Draw sequence diagrams of D-Bus activity"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.desktop.in:6
+msgid "org.freedesktop.Bustle"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.desktop.in:11
+msgid "debug;profile;d-bus;dbus;sequence;monitor;"
+msgstr ""
+
+#. Translators: These are the application description paragraphs in the AppData file.
+#: data/org.freedesktop.Bustle.appdata.xml.in:10
+msgid ""
+"Bustle draws sequence diagrams of D-Bus activity. It shows signal emissions, "
+"method calls and their corresponding returns, with time stamps for each "
+"individual event and the duration of each method call. This can help you "
+"check for unwanted D-Bus traffic, and pinpoint why your D-Bus-based "
+"application is not performing as well as you like. It also provides "
+"statistics like signal frequencies and average method call times."
+msgstr ""
