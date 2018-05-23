@@ -186,6 +186,7 @@ Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
     main-is: Test/PcapCrash.hs
     other-modules: Bustle.Loader.Pcap
+                 , Bustle.Translation
                  , Bustle.Types
     default-language: Haskell2010
     Build-Depends: base
@@ -195,6 +196,14 @@ Test-suite test-pcap-crash
                  , mtl
                  , pcap
                  , text
+    if flag(hgettext)
+        Build-Depends: hgettext >= 0.1.5
+                     , setlocale
+        hs-source-dirs: .
+                      , src-hgettext
+    else
+        hs-source-dirs: .
+                      , src-no-hgettext
 
 Test-suite test-regions
     type: exitcode-stdio-1.0

@@ -30,9 +30,14 @@ import Data.Maybe (fromMaybe)
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Control.Exception (try)
+import Control.Exception (try, tryJust)
 import Control.Monad.State
-import System.IO.Error (mkIOError, userErrorType)
+import System.IO.Error ( mkIOError
+                       , userErrorType
+                       , isUserError
+                       , ioeGetErrorString
+                       , ioeSetErrorString
+                       )
 
 import Network.Pcap
 
@@ -41,6 +46,7 @@ import DBus
 import qualified Data.ByteString as BS
 
 import qualified Bustle.Types as B
+import Bustle.Translation (__)
 
 -- Conversions from dbus-core's types into Bustle's more stupid types. This
 -- whole section is pretty upsetting.
@@ -254,7 +260,8 @@ mapBodies p f = do
 readPcap :: FilePath
          -> IO (Either IOError ([String], [B.DetailedEvent]))
 readPcap path = try $ do
-    p <- openOffline path
+    p_ <- tryJust matchSnaplenBug $ openOffline path
+    p <- either ioError return p_
     dlt <- datalink p
     -- DLT_NULL for extremely old logs.
     -- DLT_DBUS is missing: https://github.com/bos/pcap/pull/8
@@ -263,3 +270,15 @@ readPcap path = try $ do
         ioError $ mkIOError userErrorType message Nothing (Just path)
 
     liftM partitionEithers $ evalStateT (mapBodies p convert) Map.empty
+  where
+    snaplenErrorString = "invalid file capture length 134217728, bigger than maximum of 262144"
+    snaplenBugReference = __ "libpcap 1.8.0 and 1.8.1 are incompatible with Bustle. See \
+                             \https://bugs.freedesktop.org/show_bug.cgi?id=100220#c7 for \
+                             \details. Distributions should apply downstream patches until \
+                             \until a new upstream release is made; users should install \
+                             \Bustle from Flathub, which already includes the necessary \
+                             \patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
+    matchSnaplenBug e =
+      if isUserError e && ioeGetErrorString e == snaplenErrorString
+          then Just $ ioeSetErrorString e snaplenBugReference
+          else Nothing
