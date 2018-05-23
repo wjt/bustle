@@ -53,7 +53,9 @@ import Bustle.Loader
 
 import qualified Control.Exception as C
 import System.Glib.GError (GError(..), failOnGError)
-import System.Glib.Properties (objectSetPropertyMaybeString)
+import System.Glib.Properties ( objectSetPropertyString
+                              , objectSetPropertyMaybeString
+                              )
 
 import Graphics.UI.Gtk
 
@@ -468,6 +470,7 @@ wiSetLogDetails wi logDetails = do
     let (title, subtitle) = logWindowTitle logDetails
     (wiWindow wi) `set` [ windowTitle := title ]
     -- TODO: add to gtk2hs
+    objectSetPropertyString "title" (wiHeaderBar wi) title
     objectSetPropertyMaybeString "subtitle" (wiHeaderBar wi) subtitle
 
 setPage :: MonadIO io
