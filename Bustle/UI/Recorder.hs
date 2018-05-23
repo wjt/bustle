@@ -79,7 +79,7 @@ processBatch pendingRef n label incoming = do
                 i <- takeMVar n
                 let j = i + (length pending)
                 labelSetMarkup label $
-                    (printf (__ "Logged <b>%u</b> messages…") j :: String)
+                    (printf (__ "Logged <b>%u</b> messages&#8230;") j :: String)
                 putMVar n j
 
                 incoming rr'
@@ -103,7 +103,7 @@ recorderRun filename mwindow incoming finished = C.handle newFailed $ do
 
     label <- labelNew (Nothing :: Maybe String)
     labelSetMarkup label $
-        (printf (__ "Logged <b>%u</b> messages…") (0 :: Int) :: String)
+        (printf (__ "Logged <b>%u</b> messages&#8230;") (0 :: Int) :: String)
     loaderStateRef <- newMVar Map.empty
     pendingRef <- newMVar []
     let updateLabel µs body = do
