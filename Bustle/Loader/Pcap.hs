@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, MultiParamTypeClasses #-}
 {-
 Bustle.Loader.Pcap: loads logs out of pcap files
 Copyright © 2011–2012 Collabora Ltd.
