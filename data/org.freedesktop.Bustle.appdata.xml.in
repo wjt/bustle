@@ -18,13 +18,17 @@
 	</description>
 	<project_license>LGPL-2.1+ AND GPL-3.0</project_license>
 	<screenshots>
-		<screenshot type="default">
-			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you cannot take a screenshot, leave the string as the English screenshot. -->
-			<image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-1.png</image>
+		<screenshot width="1548" height="848" type="default">
+			<image>https://gitlab.freedesktop.org/bustle/bustle/raw/master/data/appdata/bustle-diagram.png</image>
+			<caption>Explore sequence diagrams of D-Bus activity</caption>
 		</screenshot>
-		<screenshot>
-			<!-- Translators: This should be the URI of a 2400×1350, pixel screenshot of Bustle in your language. If you cannot take a screenshot, leave the string as the English screenshot. -->
-			<image type="source">https://wiki.freedesktop.org/www/Software/Bustle/bustle-0.5.2-2.png</image>
+		<screenshot width="1548" height="848">
+			<image>https://gitlab.freedesktop.org/bustle/bustle/raw/master/data/appdata/bustle-statistics.png</image>
+			<caption>See statistics summarizing the log</caption>
+		</screenshot>
+		<screenshot width="1548" height="848">
+			<image>https://gitlab.freedesktop.org/bustle/bustle/raw/master/data/appdata/bustle-welcome.png</image>
+			<caption>Relax with this soothing greyscale welcome page</caption>
 		</screenshot>
 	</screenshots>
 	<url type="homepage">https://www.freedesktop.org/wiki/Software/Bustle/</url>
@@ -33,4 +37,9 @@
 	<provides>
 		<id>bustle.desktop</id>
 	</provides>
+	<release date="2018-05-24" version="0.6.3">
+		<description>
+			<p>The statistics sidebar has a more modern look and feel, and uses text to distinguish signals, method calls, etc. rather than font colour, italic text, and abstract shapes. Sizes now use power-of-10 units, in common with the rest of the GNOME desktop. Padding and alignment is more consistent. Most importantly, the welcome page is more beautiful.</p>
+		</description>
+	</release>
 </component>

@@ -1,3 +1,19 @@
+Bustle 0.6.3 (2018-05-24)
+-------------------------
+
+* The statistics sidebar now a more modern look and feel, and uses text
+  to distinguish signals, method calls, etc. rather than font colour,
+  italic text, and abstract shapes.
+* Sizes now use power-of-10 units, in common with the rest of the GNOME desktop.
+* Padding and alignment is more consistent.
+* A libpcap 0.8.0/0.8.1 incompatibility is now detected and handled
+  specially. See [bug
+  #100220](https://bugs.freedesktop.org/show_bug.cgi?id=100220#c7) for
+  details. Distributions should apply downstream patches until until a
+  new upstream release is made; users should [install Bustle from
+  Flathub](https://flathub.org/apps/details/org.freedesktop.Bustle).
+* Most importantly, the welcome page is more beautiful.
+
 Bustle 0.6.2 (2017-10-26)
 -------------------------
 
