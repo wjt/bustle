@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-05-23 10:21+0100\n"
+"POT-Creation-Date: 2018-05-24 11:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -241,4 +241,16 @@ msgid ""
 "check for unwanted D-Bus traffic, and pinpoint why your D-Bus-based "
 "application is not performing as well as you like. It also provides "
 "statistics like signal frequencies and average method call times."
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:23
+msgid "Explore sequence diagrams of D-Bus activity"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:27
+msgid "See statistics summarizing the log"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:31
+msgid "Relax with this soothing greyscale welcome page"
 msgstr ""
