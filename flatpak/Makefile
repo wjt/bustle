@@ -9,14 +9,18 @@ all: build-.
 # make build-foo to build subdirectory foo
 # make build-. to build top-level directory
 # cabal install -j does not pass -j to ghc!
+#
+# Write a mostly-blank config file with no remote repositories. This causes a
+# warning, but without this cabal will attempt to access hackage.haskell.org
+# and fail because there is no network access.
 build-%:
-	( \
-		cd $* && \
-		cabal configure --global $(EXTRA) && \
-		cabal build $(DASH_J) && \
-		cabal copy && \
-		cabal register \
-	)
+	mkdir -p $$HOME/.cabal
+	echo 'jobs: $$ncpus' > $$HOME/.cabal/config
+
+	( cd $* && cabal configure --global $(EXTRA) )
+	( cd $* && cabal build $(DASH_J) )
+	( cd $* && cabal copy )
+	( cd $* && cabal register )
 
 install:
 
