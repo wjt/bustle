@@ -85,8 +85,6 @@ uninstall:
 
 clean:
 	rm -f $(BINARIES) $(MANPAGE) $(BUSTLE_PCAP_GENERATED_HEADERS) $(DESKTOP_FILE) $(APPDATA_FILE)
-	if test -d ./$(TARBALL_DIR); then rm -r ./$(TARBALL_DIR); fi
-	rm -f ./$(TARBALL)
 
 # Icon cache stuff
 gtk_update_icon_cache = gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor
