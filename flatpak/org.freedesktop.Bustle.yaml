@@ -186,10 +186,10 @@ modules:
         skip:
           - .cabal-sandbox
           - cabal.sandbox.config
-    # TODO: get -j in here too
+      - type: file
+        path: Makefile
+        dest-filename: Makefile-flatpak
     buildsystem: simple
     build-commands:
       - make install PREFIX=/app DESTDIR=/
-      - mkdir -p $HOME/.cabal &&
-        touch $HOME/.cabal/config &&
-        cabal install --prefix=/app --flags=-hgettext
+      - make -f Makefile-flatpak EXTRA='--prefix=/app --flags=-hgettext'

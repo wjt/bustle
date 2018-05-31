@@ -1,8 +1,5 @@
 # vim: syntax=make
-# Dummy Makefile to get -j value from flatpak-builder and pass it on to
-# cabal install
-DASH_J = $(filter -j%,$(MAKEFLAGS))
-EXTRA = --extra-lib-dirs=/app/lib --extra-include-dirs=/app/include
+EXTRA = --extra-lib-dirs=$(LD_LIBRARY_PATH) --extra-include-dirs=$(C_INCLUDE_PATH)
 
 all: build-.
 
@@ -15,10 +12,10 @@ all: build-.
 # and fail because there is no network access.
 build-%:
 	mkdir -p $$HOME/.cabal
-	echo 'jobs: $$ncpus' > $$HOME/.cabal/config
+	echo 'jobs: $(FLATPAK_BUILDER_N_JOBS)' > $$HOME/.cabal/config
 
 	( cd $* && cabal configure --global $(EXTRA) )
-	( cd $* && cabal build $(DASH_J) )
+	( cd $* && cabal build -j$(FLATPAK_BUILDER_N_JOBS) )
 	( cd $* && cabal copy )
 	( cd $* && cabal register )
 
