@@ -3,7 +3,7 @@ import System.FilePath ( (</>), (<.>) )
 
 import Distribution.PackageDescription
 import Distribution.Simple
-import Distribution.Simple.BuildPaths ( autogenModulesDir )
+import Distribution.Simple.BuildPaths ( autogenPackageModulesDir )
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup as S
 import Distribution.Simple.Utils
@@ -42,9 +42,9 @@ writeGetTextConstantsFile :: PackageDescription -> LocalBuildInfo -> BuildFlags 
 writeGetTextConstantsFile pkg lbi flags = do
     let verbosity = fromFlag (buildVerbosity flags)
 
-    createDirectoryIfMissingVerbose verbosity True (autogenModulesDir lbi)
+    createDirectoryIfMissingVerbose verbosity True (autogenPackageModulesDir lbi)
 
-    let pathsModulePath = autogenModulesDir lbi
+    let pathsModulePath = autogenPackageModulesDir lbi
                       </> ModuleName.toFilePath (getTextConstantsModuleName pkg) <.> "hs"
     rewriteFile pathsModulePath (generateModule pkg lbi)
 

@@ -103,6 +103,7 @@ Executable bustle
                , Bustle.UI.Util
                , Bustle.Util
                , Bustle.VariantFormatter
+               , Paths_bustle
   default-language: Haskell2010
   Ghc-options: -Wall
                -fno-warn-unused-do-bind
@@ -130,6 +131,7 @@ Executable bustle
   if flag(hgettext)
     Build-Depends: hgettext >= 0.1.5
                  , setlocale
+    Other-Modules: GetText_bustle
     hs-source-dirs: .
                   , src-hgettext
   else
@@ -199,6 +201,7 @@ Test-suite test-pcap-crash
     if flag(hgettext)
         Build-Depends: hgettext >= 0.1.5
                      , setlocale
+        Other-Modules: GetText_bustle
         hs-source-dirs: .
                       , src-hgettext
     else
@@ -243,6 +246,7 @@ Test-suite test-renderer
     if flag(hgettext)
         Build-Depends: hgettext >= 0.1.5
                      , setlocale
+        Other-Modules: GetText_bustle
         hs-source-dirs: .
                       , src-hgettext
     else
