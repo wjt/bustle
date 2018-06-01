@@ -62,4 +62,6 @@ void bustle_pcap_monitor_stop (
   (G_TYPE_INSTANCE_GET_CLASS ((obj), BUSTLE_TYPE_PCAP_MONITOR, \
                               BustlePcapMonitorClass))
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BustlePcapMonitor, g_object_unref)
+
 #endif /* BUSTLE_PCAP_MONITOR_H */
