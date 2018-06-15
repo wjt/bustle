@@ -64,7 +64,7 @@ custom-setup
 
 Source-Repository head
   Type:           git
-  Location:       git://anongit.freedesktop.org/bustle
+  Location:       https://gitlab.freedesktop.org/bustle/bustle.git
 
 Flag hgettext
   Description:    Enable translations. Since there are no translations this is currently rather pointless.

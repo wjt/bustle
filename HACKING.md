@@ -3,10 +3,10 @@ Want to get involved? Great!
 
 Grab the latest code from git:
 
-    git clone git://anongit.freedesktop.org/bustle
+    git clone https://gitlab.freedesktop.org/bustle/bustle.git
 
-and get stuck in! Please submit patches, or links to git branches, as
-bugs on <https://bugs.freedesktop.org/enter_bug.cgi?product=Bustle>.
+and get stuck in! Please file bugs and merge requests at
+<https://gitlab.freedesktop.org/bustle/bustle>.
 
 In new code, try to follow
 <https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md>.
