@@ -133,7 +133,7 @@ Executable bustle
   if flag(hgettext)
     Build-Depends: hgettext >= 0.1.5
                  , setlocale
-    Other-Modules: GetText_bustle
+    -- Other-Modules: GetText_bustle
     hs-source-dirs: .
                   , src-hgettext
   else
@@ -203,7 +203,7 @@ Test-suite test-pcap-crash
     if flag(hgettext)
         Build-Depends: hgettext >= 0.1.5
                      , setlocale
-        Other-Modules: GetText_bustle
+        -- Other-Modules: GetText_bustle
         hs-source-dirs: .
                       , src-hgettext
     else
@@ -248,7 +248,7 @@ Test-suite test-renderer
     if flag(hgettext)
         Build-Depends: hgettext >= 0.1.5
                      , setlocale
-        Other-Modules: GetText_bustle
+        -- Other-Modules: GetText_bustle
         hs-source-dirs: .
                       , src-hgettext
     else
