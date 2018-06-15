@@ -31,15 +31,6 @@ version of the statistics shown in the UI:
     bustle --count logfile.bustle
     bustle --time logfile.bustle
 
-If you want to log all system bus traffic, you need to edit
-`/etc/dbus/system.conf` to enable eavesdropping, and then remove the include of
-`/etc/dbus-1/system.conf.d` which seems to re-enable strictness. Then you can run
-the stand-alone logger against the system bus:
-
-    bustle-pcap --system system-log.bustle
-
-Please remember to **undo these changes** when you're done.
-
 
 More information
 ================

@@ -1,4 +1,4 @@
-Bustle 0.7.0 (2018-06-15)
+Bustle 0.7.1 (2018-06-15)
 -------------------------
 
 * It's now possible to monitor the system bus (from the user interface

@@ -38,7 +38,7 @@
 		<id>bustle.desktop</id>
 	</provides>
 	<releases>
-		<release date="2018-06-15" version="0.7.0">
+		<release date="2018-06-15" version="0.7.1">
 			<description>
 				<p>It's now possible to monitor the system bus (from the user interface and with the bustle-pcap command-line tool), with no need to reconfigure the system bus. It's also possible to monitor an arbitrary bus by address.</p>
 				<p>Bustle now requires that dbus-monitor (≥ 1.9.10) and pkexec are installed on your system.</p>
