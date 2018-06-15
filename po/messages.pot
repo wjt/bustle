@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-05-24 11:54+0100\n"
+"POT-Creation-Date: 2018-06-15 09:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,7 +25,7 @@ msgstr ""
 msgid "(no interface)"
 msgstr ""
 
-#: Bustle/UI/AboutDialog.hs:46 data/bustle.ui:76
+#: Bustle/UI/AboutDialog.hs:46 data/bustle.ui:101
 #: data/org.freedesktop.Bustle.desktop.in:3
 #: data/org.freedesktop.Bustle.appdata.xml.in:6
 msgid "Bustle"
@@ -35,11 +35,11 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
-#: Bustle/UI.hs:314
+#: Bustle/UI.hs:317
 msgid "Close _Without Saving"
 msgstr ""
 
-#: Bustle/UI.hs:208
+#: Bustle/UI.hs:210
 msgid "Could not read '%s'"
 msgstr ""
 
@@ -47,15 +47,15 @@ msgstr ""
 msgid "Couldn't parse '%s': %s"
 msgstr ""
 
-#: Bustle/UI.hs:279
+#: Bustle/UI.hs:282
 msgid "Couldn't save log"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:224 data/bustle.ui:547
+#: Bustle/StatisticsPane.hs:224 data/bustle.ui:610
 msgid "Error"
 msgstr ""
 
-#: Bustle/UI.hs:282
+#: Bustle/UI.hs:285
 msgid ""
 "Error: <i>%s</i>\n"
 "\n"
@@ -67,7 +67,7 @@ msgstr ""
 msgid "Frequency"
 msgstr ""
 
-#: Bustle/UI.hs:313
+#: Bustle/UI.hs:316
 msgid "If you don't save, this log will be lost forever."
 msgstr ""
 
@@ -75,7 +75,7 @@ msgstr ""
 msgid "Largest"
 msgstr ""
 
-#: Bustle/UI/Recorder.hs:82 Bustle/UI/Recorder.hs:106
+#: Bustle/UI/Recorder.hs:86 Bustle/UI/Recorder.hs:111
 msgid "Logged <b>%u</b> messages&#8230;"
 msgstr ""
 
@@ -83,7 +83,7 @@ msgstr ""
 msgid "Mean"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:137 Bustle/StatisticsPane.hs:215 data/bustle.ui:448
+#: Bustle/StatisticsPane.hs:137 Bustle/StatisticsPane.hs:215 data/bustle.ui:511
 msgid "Member"
 msgstr ""
 
@@ -91,19 +91,19 @@ msgstr ""
 msgid "Method"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:222 data/bustle.ui:522
+#: Bustle/StatisticsPane.hs:222 data/bustle.ui:585
 msgid "Method call"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:223 data/bustle.ui:534
+#: Bustle/StatisticsPane.hs:223 data/bustle.ui:597
 msgid "Method return"
 msgstr ""
 
-#: Bustle/UI.hs:306
+#: Bustle/UI.hs:309
 msgid "Save log '%s' before closing?"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:145 Bustle/StatisticsPane.hs:225 data/bustle.ui:560
+#: Bustle/StatisticsPane.hs:145 Bustle/StatisticsPane.hs:225 data/bustle.ui:623
 msgid "Signal"
 msgstr ""
 
@@ -130,7 +130,7 @@ msgstr ""
 msgid "Warning: "
 msgstr ""
 
-#: Bustle/Loader/Pcap.hs:275
+#: Bustle/Loader/Pcap.hs:276
 msgid ""
 "libpcap 1.8.0 and 1.8.1 are incompatible with Bustle. See https://bugs."
 "freedesktop.org/show_bug.cgi?id=100220#c7 for details. Distributions should "
@@ -139,83 +139,95 @@ msgid ""
 "patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
 msgstr ""
 
-#: data/bustle.ui:15
+#: data/bustle.ui:14
 msgid "_Filter Visible Services…"
 msgstr ""
 
-#: data/bustle.ui:26
+#: data/bustle.ui:24
 msgid "_Statistics"
 msgstr ""
 
-#: data/bustle.ui:68
+#: data/bustle.ui:62
 msgid ""
 "Display two logs—one for the session bus, one for the system bus—side by "
 "side."
 msgstr ""
 
-#: data/bustle.ui:69
+#: data/bustle.ui:63
 msgid "O_pen a Pair of Logs…"
 msgstr ""
 
-#: data/bustle.ui:111
-msgid "Open an existing log"
+#: data/bustle.ui:75
+msgid "Record S_ession Bus"
 msgstr ""
 
-#: data/bustle.ui:128
-msgid "Record"
+#: data/bustle.ui:84
+msgid "Record S_ystem Bus"
 msgstr ""
 
-#: data/bustle.ui:132
+#: data/bustle.ui:93
+msgid "Record _Address…"
+msgstr ""
+
+#: data/bustle.ui:136
 msgid "Record a new log"
 msgstr ""
 
-#: data/bustle.ui:167
+#: data/bustle.ui:147
+msgid "_Record"
+msgstr ""
+
+#: data/bustle.ui:183
+msgid "Open an existing log"
+msgstr ""
+
+#: data/bustle.ui:230
 msgid "Export as PDF"
 msgstr ""
 
-#: data/bustle.ui:191
+#: data/bustle.ui:254
 msgid "Save"
 msgstr ""
 
-#: data/bustle.ui:253
+#: data/bustle.ui:316
 msgid ""
 "Start recording D-Bus activity with the <b>Record</b> button above\n"
 " You can also run <i>dbus-monitor --pcap</i> from the command line"
 msgstr ""
 
-#: data/bustle.ui:272
+#: data/bustle.ui:335
 msgid "Welcome to Bustle"
 msgstr ""
 
-#: data/bustle.ui:297
+#: data/bustle.ui:360
 msgid "<big><b>Waiting for D-Bus traffic; please hold…</b></big>"
 msgstr ""
 
-#: data/bustle.ui:324
+#: data/bustle.ui:387
 msgid "Frequencies"
 msgstr ""
 
-#: data/bustle.ui:338
+#: data/bustle.ui:401
 msgid "Durations"
 msgstr ""
 
-#: data/bustle.ui:353
+#: data/bustle.ui:416
 msgid "Sizes"
 msgstr ""
 
-#: data/bustle.ui:400
+#: data/bustle.ui:463
 msgid "Type"
 msgstr ""
 
-#: data/bustle.ui:416
+#: data/bustle.ui:479
 msgid "Path"
 msgstr ""
 
-#: data/bustle.ui:480
+#: data/bustle.ui:543
 msgid "Arguments"
 msgstr ""
 
-#: data/bustle.ui:573
+#: data/bustle.ui:636
 msgid "Directed signal"
 msgstr ""
 

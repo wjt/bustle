@@ -1,3 +1,20 @@
+Bustle 0.7.0 (2018-06-15)
+-------------------------
+
+* It's now possible to monitor the system bus (from the user interface
+  and with the bustle-pcap command-line tool), with no need to
+  reconfigure the system bus. It's also possible to monitor an arbitrary
+  bus by address.
+* Bustle now requires that a version of dbus-monitor new enough to
+  support the --pcap argument is installed on the system. (This was
+  added in DBus 1.9.10, released in February 2015.)
+* To monitor the system bus, Bustle requires the pkexec command to be
+  installed on the host system.
+* Bustle now requires GLib 2.54 or newer.
+* The canonical Git repository and issue tracker has moved to
+  <https://gitlab.freedesktop.org/bustle/bustle>. All open tickets have
+  been migrated.
+
 Bustle 0.6.3 (2018-05-24)
 -------------------------
 
