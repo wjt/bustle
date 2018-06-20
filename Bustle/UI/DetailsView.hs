@@ -36,6 +36,9 @@ import Bustle.VariantFormatter
 data DetailsView =
     DetailsView { detailsGrid :: Grid
                 , detailsType :: Stack
+                , detailsSender :: Label
+                , detailsDestinationCaption :: Label
+                , detailsDestination :: Label
                 , detailsPath :: Label
                 , detailsMember :: Label
                 , detailsBodyView :: TextView
@@ -43,14 +46,15 @@ data DetailsView =
 
 detailsViewNew :: Builder
                -> IO DetailsView
-detailsViewNew builder = do
-    grid        <- builderGetObject builder castToGrid "detailsGrid"
-    type_       <- builderGetObject builder castToStack "detailsType"
-    pathLabel   <- builderGetObject builder castToLabel "detailsPath"
-    memberLabel <- builderGetObject builder castToLabel "detailsMember"
-    view        <- builderGetObject builder castToTextView "detailsArguments"
-
-    return $ DetailsView grid type_ pathLabel memberLabel view
+detailsViewNew builder = DetailsView
+    <$> builderGetObject builder castToGrid "detailsGrid"
+    <*> builderGetObject builder castToStack "detailsType"
+    <*> builderGetObject builder castToLabel "detailsSender"
+    <*> builderGetObject builder castToLabel "detailsDestinationCaption"
+    <*> builderGetObject builder castToLabel "detailsDestination"
+    <*> builderGetObject builder castToLabel "detailsPath"
+    <*> builderGetObject builder castToLabel "detailsMember"
+    <*> builderGetObject builder castToTextView "detailsArguments"
 
 pickType :: Detailed Message -> String
 pickType (Detailed _ m _ _) = case m of
@@ -75,6 +79,11 @@ getMember (Detailed _ m _ _) = case m of
   where
     callMember = fmap (member . deEvent) $ inReplyTo m
 
+getDestination :: Detailed Message -> Maybe TaggedBusName
+getDestination (Detailed _ m _ _) = case m of
+    Signal { signalDestination = d } -> d
+    _                                -> Just (destination m)
+
 formatMessage :: Detailed Message -> String
 formatMessage (Detailed _ _ _ rm) =
     formatArgs $ D.receivedMessageBody rm
@@ -91,6 +100,19 @@ detailsViewUpdate d m = do
     buf <- textViewGetBuffer $ detailsBodyView d
     let member_ = getMember m
     stackSetVisibleChildName (detailsType d) (pickType m)
+
+    -- TODO: these would be a lot more useful if we could resolve unique names
+    -- to/from well-known names and show both
+    labelSetText (detailsSender d) (unBusName . sender . deEvent $ m)
+    case getDestination m of
+        Just n -> do
+            labelSetText (detailsDestination d) (unBusName n)
+            widgetShow (detailsDestination d)
+            widgetShow (detailsDestinationCaption d)
+        Nothing -> do
+            widgetHide (detailsDestination d)
+            widgetHide (detailsDestinationCaption d)
+
     labelSetText (detailsPath d) (maybe unknown (D.formatObjectPath . path) member_)
     labelSetMarkup (detailsMember d) (maybe unknown getMemberMarkup member_)
     textBufferSetText buf $ formatMessage m
