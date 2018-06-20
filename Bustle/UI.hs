@@ -28,9 +28,11 @@ import Control.Monad.State
 import Control.Monad.Except
 
 import Data.IORef
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.List (intercalate)
 import Data.Time
+import Data.Tuple (swap)
 import Data.Monoid (mempty)
 import Text.Printf
 
@@ -40,6 +42,7 @@ import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Marquee (toString)
+import Bustle.Monitor
 import Bustle.Util
 import Bustle.UI.AboutDialog
 import Bustle.UI.Canvas
@@ -52,12 +55,11 @@ import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Translation (__)
 import Bustle.Loader
+import Bustle.Loader.Pcap (convert)
 
 import qualified Control.Exception as C
 import System.Glib.GError (GError(..), failOnGError)
-import System.Glib.Properties ( objectSetPropertyString
-                              , objectSetPropertyMaybeString
-                              )
+import System.GIO.Enums (IOErrorEnum(IoErrorCancelled))
 
 import Graphics.UI.Gtk
 
@@ -86,7 +88,12 @@ data Page =
 
 data WindowInfo =
     WindowInfo { wiWindow :: Window
-               , wiHeaderBar :: Widget -- TODO, GtkHeaderBar
+               , wiTitle :: Label
+               , wiSubtitle :: Label
+               , wiSpinner :: Spinner
+               , wiRecord :: Button
+               , wiStop :: Button
+               , wiOpen :: Button
                , wiSave :: Button
                , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
@@ -210,6 +217,110 @@ loadLogWith getWindow logDetails = do
           displayError Nothing (printf (__ "Could not read '%s'") f) (Just e)
       Right () -> return ()
 
+
+updateRecordingSubtitle :: WindowInfo
+                        -> Int
+                        -> IO ()
+updateRecordingSubtitle wi j = do
+    let message = (printf (__ "Logged <b>%u</b> messages") j :: String)
+    labelSetMarkup (wiSubtitle wi) message
+
+
+processBatch :: IORef [DetailedEvent]
+             -> IORef Int
+             -> WindowInfo
+             -> IO (IO Bool)
+processBatch pendingRef n wi = do
+    rendererStateRef <- newIORef rendererStateNew
+    -- FIXME: this is stupid. If we have to manually combine the outputs, it's
+    -- basically just more state.
+    rendererResultRef <- newIORef mempty
+
+    return $ do
+        pending <- readIORef pendingRef
+        writeIORef pendingRef []
+
+        when (not (null pending)) $ do
+            rr <- atomicModifyIORef' rendererStateRef $ \s ->
+                swap $ processSome (reverse pending) [] s
+
+            oldRR <- readIORef rendererResultRef
+            let rr' = oldRR `mappend` rr
+            writeIORef rendererResultRef rr'
+
+            when (not (null (rrShapes rr))) $ do
+                -- If the renderer produced some visible output, count it as a
+                -- message from the user's perspective.
+                modifyIORef' n (+ length pending)
+                j <- readIORef n
+                updateRecordingSubtitle wi j
+
+                aChallengerAppears wi rr'
+
+        return True
+
+
+recorderRun :: WindowInfo
+            -> Either BusType String
+            -> FilePath
+            -> BustleEnv BConfig BState
+            -> IO ()
+recorderRun wi target filename r = C.handle newFailed $ do
+    -- TODO: I'm pretty sure the monitor is leaked
+    monitor <- monitorNew target filename
+    loaderStateRef <- newIORef Map.empty
+    pendingRef <- newIORef []
+
+    let updateLabel µs body = do
+            s <- readIORef loaderStateRef
+            (m, s') <- runStateT (convert µs body) s
+            s' `seq` writeIORef loaderStateRef s'
+
+            case m of
+                Left e -> warn e
+                Right message
+                  | isRelevant (deEvent message) -> do
+                        modifyIORef' pendingRef (message:)
+                  | otherwise -> return ()
+
+    n <- newIORef (0 :: Int)
+    processor <- processBatch pendingRef n wi
+    processorId <- timeoutAdd processor 200
+
+    stopActivatedId <- (wiStop wi) `on` buttonActivated $ monitorStop monitor
+    handlerId <- monitor `on` monitorMessageLogged $ updateLabel
+    _stoppedId <- monitor `on` monitorStopped $ \domain code message -> do
+        handleError domain code message
+
+        signalDisconnect stopActivatedId
+        signalDisconnect handlerId
+
+        -- Flush out any last messages from the queue.
+        timeoutRemove processorId
+        processor
+
+        hadOutput <- liftM (/= 0) (readIORef n)
+        finished hadOutput
+
+    return ()
+  where
+    newFailed (GError domain code message) = do
+        finished False
+        handleError domain code message
+
+    finished hadOutput =
+        makeCallback (finishedRecording wi filename hadOutput) r
+
+    -- Filter out IoErrorCancelled. In theory one should use
+    --   catchGErrorJust IoErrorCancelled computation (\_ -> return ())
+    -- but IOErrorEnum does not have an instance for GError domain.
+    handleError domain code message = do
+        gIoErrorQuark <- quarkFromString "g-io-error-quark"
+        let cancelled = fromEnum IoErrorCancelled
+        when (not (domain == gIoErrorQuark && code == cancelled)) $ do
+            displayError (Just (wiWindow wi)) (toString message) Nothing
+
+
 startRecording :: Either BusType String
                -> B ()
 startRecording target = do
@@ -222,12 +333,23 @@ startRecording target = do
     cacheDir <- io $ getCacheDir
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
+    let title = printf (__ "Recording %s&#8230;") $ case target of
+            Left BusTypeNone    -> error "whoops, this value shouldn't exist"
+            Left BusTypeSession -> "session bus"
+            Left BusTypeSystem  -> "system bus"
+            Right address       -> address
+
+    io $ do
+        widgetHide (wiRecord wi)
+        widgetHide (wiOpen wi)
+        widgetShow (wiStop wi)
+        widgetGrabFocus (wiStop wi)
+        spinnerStart (wiSpinner wi)
+        labelSetMarkup (wiTitle wi) (title :: String)
+        updateRecordingSubtitle wi 0
+
     setPage wi PleaseHoldPage
-    let mwindow = Just (wiWindow wi)
-        progress = aChallengerAppears wi
-        finished = finishedRecording wi filename
-    embedIO $ \r -> recorderRun target filename mwindow progress
-                                (\p -> makeCallback (finished p) r)
+    embedIO $ recorderRun wi target filename
 
 aChallengerAppears :: WindowInfo
                    -> RendererResult a
@@ -249,6 +371,12 @@ finishedRecording :: WindowInfo
                   -> Bool
                   -> B ()
 finishedRecording wi tempFilePath producedOutput = do
+    io $ do
+        widgetShow (wiRecord wi)
+        widgetShow (wiOpen wi)
+        widgetHide (wiStop wi)
+        spinnerStop (wiSpinner wi)
+
     if producedOutput
       then do
         -- TODO: There is a noticable lag when reloading big files. It would be
@@ -265,6 +393,9 @@ finishedRecording wi tempFilePath producedOutput = do
         setPage wi InstructionsPage
         modify $ \s -> s { initialWindow = Just wi }
         updateDisplayedLog wi (mempty :: RendererResult ())
+        io $ do
+            (wiTitle wi) `set` [ labelText := "" ]
+            (wiSubtitle wi) `set` [ labelText := "" ]
 
 showSaveDialog :: WindowInfo
                -> IO ()
@@ -344,13 +475,20 @@ emptyWindow = do
   let getW cast name = io $ builderGetObject builder cast name
 
   window <- getW castToWindow "diagramWindow"
-  header <- getW castToWidget "header"
+
+  title    <- getW castToLabel "headerTitle"
+  subtitle <- getW castToLabel "headerSubtitle"
+  spinner  <- getW castToSpinner "headerSpinner"
 
   [openItem, openTwoItem] <- mapM (getW castToMenuItem) ["open", "openTwo"]
   recordSessionItem <- getW castToMenuItem "recordSession"
   recordSystemItem <- getW castToMenuItem "recordSystem"
   recordAddressItem <- getW castToMenuItem "recordAddress"
-  [headerSave, headerExport] <- mapM (getW castToButton) ["headerSave", "headerExport"]
+  headerRecord <- getW castToButton "headerRecord"
+  headerStop   <- getW castToButton "headerStop"
+  headerOpen   <- getW castToButton "headerOpen"
+  headerSave   <- getW castToButton "headerSave"
+  headerExport <- getW castToButton "headerExport"
 
   viewStatistics <- getW castToCheckMenuItem "statistics"
   filterNames <- getW castToMenuItem "filter"
@@ -400,7 +538,12 @@ emptyWindow = do
 
   logDetailsRef <- io $ newIORef Nothing
   let windowInfo = WindowInfo { wiWindow = window
-                              , wiHeaderBar = header
+                              , wiTitle = title
+                              , wiSubtitle = subtitle
+                              , wiSpinner = spinner
+                              , wiRecord = headerRecord
+                              , wiOpen   = headerOpen
+                              , wiStop = headerStop
                               , wiSave = headerSave
                               , wiExport = headerExport
                               , wiViewStatistics = viewStatistics
@@ -451,15 +594,15 @@ splitFileName_ s = (dropTrailingPathSeparator d, f)
       (d, f) = splitFileName s
 
 logWindowTitle :: LogDetails
-               -> (String, Maybe String)
-logWindowTitle (RecordedLog filepath) = ("*" ++ takeFileName filepath, Nothing)
-logWindowTitle (SingleLog   filepath) = (name, Just directory)
+               -> (String, String)
+logWindowTitle (RecordedLog filepath) = ("*" ++ takeFileName filepath, "")
+logWindowTitle (SingleLog   filepath) = (name, directory)
   where
     (directory, name) = splitFileName_ filepath
 logWindowTitle (TwoLogs sessionPath systemPath) =
     -- TODO: this looks terrible, need a custom widget
     (sessionName ++ " & " ++ systemName,
-     Just $ if sessionDirectory == systemDirectory
+     if sessionDirectory == systemDirectory
         then sessionDirectory
         else sessionDirectory ++ " & " ++ systemDirectory)
   where
@@ -481,9 +624,8 @@ wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
     let (title, subtitle) = logWindowTitle logDetails
     (wiWindow wi) `set` [ windowTitle := title ]
-    -- TODO: add to gtk2hs
-    objectSetPropertyString "title" (wiHeaderBar wi) title
-    objectSetPropertyMaybeString "subtitle" (wiHeaderBar wi) subtitle
+    (wiTitle wi) `set` [ labelText := title ]
+    (wiSubtitle wi) `set` [ labelText := subtitle ]
 
 setPage :: MonadIO io
         => WindowInfo
