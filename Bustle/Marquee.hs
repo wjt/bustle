@@ -23,6 +23,7 @@ module Bustle.Marquee
   , tag
   , b
   , i
+  , small
   , light
   , red
   , a
@@ -61,9 +62,10 @@ tag name contents =
                     , "</", name, ">"
                     ]
 
-b, i :: Marquee -> Marquee
+b, i, small :: Marquee -> Marquee
 b = tag "b"
 i = tag "i"
+small = tag "small"
 
 a :: String
   -> String

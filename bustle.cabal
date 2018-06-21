@@ -102,7 +102,6 @@ Executable bustle
                , Bustle.UI.OpenTwoDialog
                , Bustle.UI.RecordAddressDialog
                , Bustle.UI.Recorder
-               , Bustle.UI.Util
                , Bustle.Util
                , Bustle.VariantFormatter
                , Paths_bustle

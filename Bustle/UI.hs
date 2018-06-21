@@ -41,7 +41,7 @@ import Bustle.Application.Monad
 import Bustle.Renderer
 import Bustle.Types
 import Bustle.Diagram
-import Bustle.Marquee (toString)
+import qualified Bustle.Marquee as Marquee
 import Bustle.Monitor
 import Bustle.Util
 import Bustle.UI.AboutDialog
@@ -51,7 +51,6 @@ import Bustle.UI.FilterDialog
 import Bustle.UI.OpenTwoDialog (setupOpenTwoDialog)
 import Bustle.UI.Recorder
 import Bustle.UI.RecordAddressDialog (showRecordAddressDialog)
-import Bustle.UI.Util (displayError)
 import Bustle.StatisticsPane
 import Bustle.Translation (__)
 import Bustle.Loader
@@ -98,6 +97,9 @@ data WindowInfo =
                , wiExport :: Button
                , wiViewStatistics :: CheckMenuItem
                , wiFilterNames :: MenuItem
+               , wiErrorBar :: InfoBar
+               , wiErrorBarTitle :: Label
+               , wiErrorBarDetails :: Label
                , wiStack :: Stack
                , wiSidebarHeader :: Widget -- TODO, GtkHeaderBar
                , wiSidebarStack :: Stack
@@ -197,6 +199,8 @@ loadLogWith :: B WindowInfo   -- ^ action returning a window to load the log(s) 
             -> LogDetails
             -> B ()
 loadLogWith getWindow logDetails = do
+    windowInfo <- getWindow
+
     ret <- runExceptT $ do
         ((sessionWarnings, sessionMessages),
          (systemWarnings, systemMessages)) <- openLog logDetails
@@ -205,17 +209,18 @@ loadLogWith getWindow logDetails = do
         let rr = process sessionMessages systemMessages
         io $ mapM warn $ sessionWarnings ++ systemWarnings ++ rrWarnings rr
 
-        windowInfo <- lift getWindow
         lift $ displayLog windowInfo
                           logDetails
                           sessionMessages
                           systemMessages
                           rr
 
-    case ret of
-      Left (LoadError f e) -> io $
-          displayError Nothing (printf (__ "Could not read '%s'") f) (Just e)
-      Right () -> return ()
+    io $ case ret of
+      Left (LoadError f e) -> do
+          let title = printf (__ "Could not read '%s'") f
+          displayError windowInfo title (Just e)
+      Right () -> do
+          hideError windowInfo
 
 
 updateRecordingSubtitle :: WindowInfo
@@ -318,7 +323,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
         gIoErrorQuark <- quarkFromString "g-io-error-quark"
         let cancelled = fromEnum IoErrorCancelled
         when (not (domain == gIoErrorQuark && code == cancelled)) $ do
-            displayError (Just (wiWindow wi)) (toString message) Nothing
+            displayError wi (Marquee.toString message) Nothing
 
 
 startRecording :: Either BusType String
@@ -340,6 +345,7 @@ startRecording target = do
             Right address       -> address
 
     io $ do
+        hideError wi
         widgetHide (wiRecord wi)
         widgetHide (wiOpen wi)
         widgetShow (wiStop wi)
@@ -409,22 +415,19 @@ showSaveDialog wi savedCb = do
         let tempFile = fileFromParseName tempFilePath
         let newFile  = fileFromParseName newFilePath
 
-        C.catch (fileMove tempFile newFile [FileCopyOverwrite] Nothing Nothing) $ \(GError _ _ msg) -> do
-            d <- messageDialogNew mwindow [DialogModal] MessageError ButtonsOk (__ "Couldn't save log")
-            let secondary :: String
-                secondary = printf
-                    (__ "Error: <i>%s</i>\n\n\
-                        \You might want to manually recover the log from the temporary file at\n\
-                        \<tt>%s</tt>") (toString msg) tempFilePath
-            messageDialogSetSecondaryMarkup d secondary
-            widgetShowAll d
-            d `after` response $ \_ -> do
-                widgetDestroy d
-            return ()
-
-        widgetSetSensitivity (wiSave wi) False
-        wiSetLogDetails wi (SingleLog newFilePath)
-        savedCb
+        result <- C.try $ fileMove tempFile newFile [FileCopyOverwrite] Nothing Nothing
+        case result of
+            Right _ -> do
+                widgetSetSensitivity (wiSave wi) False
+                wiSetLogDetails wi (SingleLog newFilePath)
+                hideError wi
+                savedCb
+            Left (GError _ _ msg) -> do
+                let title = (__ "Couldn't save log: ") ++ (Marquee.toString msg)
+                    secondary = printf
+                        (__ "You might want to manually recover the log from the temporary file at \
+                            \\"%s\".") (tempFilePath)
+                displayError wi title (Just secondary)
 
 -- | Show a confirmation dialog if the log is unsaved. Suitable for use as a
 --   'delete-event' handler.
@@ -494,6 +497,13 @@ emptyWindow = do
   filterNames <- getW castToMenuItem "filter"
   aboutItem <- getW castToMenuItem "about"
 
+  errorBar        <- getW castToInfoBar "errorBar"
+  errorBarTitle   <- getW castToLabel "errorBarTitle"
+  errorBarDetails <- getW castToLabel "errorBarDetails"
+
+  io $ errorBar `on` infoBarResponse $ \_ -> do
+      widgetHide errorBar
+
   stack <- getW castToStack "diagramOrNot"
   sidebarHeader <- getW castToWidget "sidebarHeader"
   sidebarStack <- getW castToStack "sidebarStack"
@@ -548,6 +558,9 @@ emptyWindow = do
                               , wiExport = headerExport
                               , wiViewStatistics = viewStatistics
                               , wiFilterNames = filterNames
+                              , wiErrorBar = errorBar
+                              , wiErrorBarTitle = errorBarTitle
+                              , wiErrorBarDetails = errorBarDetails
                               , wiStack = stack
                               , wiSidebarHeader = sidebarHeader
                               , wiSidebarStack = sidebarStack
@@ -738,10 +751,44 @@ saveToPDFDialogue wi shapes = do
       when (resp == ResponseAccept) $ do
           Just fn <- io $ fileChooserGetFilename chooser
           let (width, height) = diagramDimensions shapes
-          withPDFSurface fn width height $
-            \surface -> renderWith surface $ drawDiagram False shapes
+
+          r <- C.try $ withPDFSurface fn width height $ \surface ->
+              renderWith surface $ drawDiagram False shapes
+          case r of
+              Left (e :: C.IOException) -> do
+                  let title = (__ "Couldn't export log as PDF: ") ++ show e
+                  displayError wi title Nothing
+              Right () -> do
+                  hideError wi
+
       widgetDestroy chooser
 
   widgetShowAll chooser
+
+
+displayError :: WindowInfo
+             -> String
+             -> Maybe String
+             -> IO ()
+displayError wi title mbody = do
+    labelSetMarkup (wiErrorBarTitle wi) . Marquee.toPangoMarkup
+                                        . Marquee.b
+                                        $ Marquee.escape title
+
+    let details = wiErrorBarDetails wi
+    case mbody of
+        Just body -> do
+            labelSetMarkup details . Marquee.toPangoMarkup
+                                   . Marquee.small
+                                   $ Marquee.escape body
+            widgetShow details
+        Nothing   -> widgetHide details
+
+    widgetShow $ wiErrorBar wi
+
+
+hideError :: WindowInfo
+          -> IO ()
+hideError = widgetHide . wiErrorBar
 
 -- vim: sw=2 sts=2
