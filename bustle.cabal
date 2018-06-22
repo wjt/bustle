@@ -155,6 +155,16 @@ Executable dump-messages
                , pcap
                , text
 
+  if flag(hgettext)
+      Build-Depends: hgettext >= 0.1.5
+                   , setlocale
+      -- Other-Modules: GetText_bustle
+      hs-source-dirs: .
+                    , src-hgettext
+  else
+      hs-source-dirs: .
+                    , src-no-hgettext
+
 Test-suite test-pcap-crash
     type: exitcode-stdio-1.0
     main-is: Test/PcapCrash.hs
