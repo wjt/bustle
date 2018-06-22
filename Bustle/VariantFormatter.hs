@@ -39,11 +39,12 @@ format_Word8 = show
 
 format_ByteArray :: Array -> String
 format_ByteArray ay =
-    if all (\y -> isPrint (chr (fromIntegral y))) bytes
-        then show (map (chr . fromIntegral) bytes :: String)
+    if all isPrint chars
+        then show chars
         else format_Array ay
   where
     bytes = map (fromJust . fromVariant) (arrayItems ay) :: [Word8]
+    chars = map (chr . fromIntegral) bytes
 
 
 format_Int16 :: Int16 -> String
