@@ -161,8 +161,8 @@ mainB args = do
 
 createInitialWindow :: B ()
 createInitialWindow = do
-  misc <- emptyWindow
-  modify $ \s -> s { initialWindow = Just misc }
+  wi <- emptyWindow
+  putInitialWindow wi
 
 consumeInitialWindow :: B WindowInfo
 consumeInitialWindow = do
@@ -172,6 +172,11 @@ consumeInitialWindow = do
         Just windowInfo -> do
             modify $ \s -> s { initialWindow = Nothing }
             return windowInfo
+
+putInitialWindow :: WindowInfo
+                 -> B ()
+putInitialWindow wi = do
+    modify $ \s -> s { initialWindow = Just wi }
 
 loadInInitialWindow :: LogDetails -> B ()
 loadInInitialWindow = loadLogWith consumeInitialWindow
@@ -215,12 +220,15 @@ loadLogWith getWindow logDetails = do
                           systemMessages
                           rr
 
-    io $ case ret of
+    case ret of
       Left (LoadError f e) -> do
           let title = printf (__ "Could not read '%s'") f
-          displayError windowInfo title (Just e)
+          io $ displayError windowInfo title (Just e)
+          putInitialWindow windowInfo
       Right () -> do
-          hideError windowInfo
+          io $ hideError windowInfo
+
+    io $ windowPresent (wiWindow windowInfo)
 
 
 updateRecordingSubtitle :: WindowInfo
@@ -397,7 +405,7 @@ finishedRecording wi tempFilePath producedOutput = do
         return ()
       else do
         setPage wi InstructionsPage
-        modify $ \s -> s { initialWindow = Just wi }
+        putInitialWindow wi
         updateDisplayedLog wi (mempty :: RendererResult ())
         io $ do
             (wiTitle wi) `set` [ labelText := "" ]
@@ -527,7 +535,7 @@ emptyWindow = do
           showRecordAddressDialog window $ \address ->
               makeCallback (startRecording (Right address)) r
 
-      onMenuItemActivate openItem $ makeCallback openDialogue r
+      onMenuItemActivate openItem $ makeCallback (showOpenDialog window) r
       onMenuItemActivate openTwoItem $ widgetShowAll openTwoDialog
 
   -- TODO: really this wants to live in the application menu, but that entails binding GApplication,
@@ -703,13 +711,15 @@ displayLog wi@(WindowInfo { wiWindow = window
 
   return ()
 
-openDialogue :: B ()
-openDialogue = embedIO $ \r -> do
-  chooser <- fileChooserDialogNew Nothing Nothing FileChooserActionOpen
+showOpenDialog :: Window
+               -> B ()
+showOpenDialog window = embedIO $ \r -> do
+  chooser <- fileChooserDialogNew Nothing (Just window) FileChooserActionOpen
              [ ("gtk-cancel", ResponseCancel)
              , ("gtk-open", ResponseAccept)
              ]
-  chooser `set` [ fileChooserLocalOnly := True
+  chooser `set` [ windowModal := True
+                , fileChooserLocalOnly := True
                 ]
 
   chooser `after` response $ \resp -> do
