@@ -25,7 +25,7 @@ Extra-source-files:
                   -- Stuff for nerds
                     README.md,
                     NEWS.md,
-                    HACKING.md,
+                    CONTRIBUTING.md,
                     INSTALL.md,
                     run-uninstalled.sh
                   , Test/data/log-with-h.bustle
