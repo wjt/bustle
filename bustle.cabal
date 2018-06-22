@@ -139,36 +139,6 @@ Executable bustle
     hs-source-dirs: .
                   , src-no-hgettext
 
-Executable test-monitor
-  if flag(InteractiveTests)
-    buildable: True
-  else
-    buildable: False
-
-  main-is: tests/Monitor.hs
-  other-modules: Bustle.Monitor
-  default-language: Haskell2010
-  if flag(threaded)
-    Ghc-options: -threaded
-  C-sources: c-sources/pcap-monitor.c
-  cc-options: -fPIC
-  pkgconfig-depends: glib-2.0
-  Build-Depends: base >= 4 && < 5
-               , bytestring
-               , cairo
-               , containers
-               , dbus
-               , directory
-               , filepath
-               -- 0.13.6 doesn't compile with GCC 5: https://github.com/gtk2hs/gtk2hs/issues/104
-               , gtk3 >= 0.13.7
-               , glib
-               , mtl
-               , pango
-               , pcap
-               , text
-
-
 Executable dump-messages
   if flag(InteractiveTests)
     buildable: True
