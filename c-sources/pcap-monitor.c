@@ -523,7 +523,8 @@ dump_names_thread_func (
     {
       bus = g_dbus_proxy_new_sync (connection,
                                    G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
-                                   G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+                                   G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS |
+                                   G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
                                    NULL,
                                    "org.freedesktop.DBus",
                                    "/org/freedesktop/DBus",
