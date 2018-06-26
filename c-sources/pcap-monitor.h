@@ -18,27 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef BUSTLE_PCAP_MONITOR_H
-#define BUSTLE_PCAP_MONITOR_H
+#pragma once
 
 #include <glib-object.h>
 #include <gio/gio.h>
 
-typedef struct _BustlePcapMonitor BustlePcapMonitor;
-typedef struct _BustlePcapMonitorClass BustlePcapMonitorClass;
-typedef struct _BustlePcapMonitorPrivate BustlePcapMonitorPrivate;
-
-struct _BustlePcapMonitorClass {
-    GObjectClass parent_class;
-};
-
-struct _BustlePcapMonitor {
-    GObject parent;
-
-    BustlePcapMonitorPrivate *priv;
-};
-
-GType bustle_pcap_monitor_get_type (void);
+#define BUSTLE_TYPE_PCAP_MONITOR bustle_pcap_monitor_get_type ()
+G_DECLARE_FINAL_TYPE (BustlePcapMonitor, bustle_pcap_monitor, BUSTLE, PCAP_MONITOR, GObject)
 
 BustlePcapMonitor *bustle_pcap_monitor_new (
     GBusType bus_type,
@@ -47,23 +33,3 @@ BustlePcapMonitor *bustle_pcap_monitor_new (
     GError **error);
 void bustle_pcap_monitor_stop (
     BustlePcapMonitor *self);
-
-/* TYPE MACROS */
-#define BUSTLE_TYPE_PCAP_MONITOR \
-  (bustle_pcap_monitor_get_type ())
-#define BUSTLE_PCAP_MONITOR(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj), BUSTLE_TYPE_PCAP_MONITOR, BustlePcapMonitor))
-#define BUSTLE_PCAP_MONITOR_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_CAST((klass), BUSTLE_TYPE_PCAP_MONITOR,\
-                           BustlePcapMonitorClass))
-#define BUSTLE_IS_PCAP_MONITOR(obj) \
-  (G_TYPE_CHECK_INSTANCE_TYPE((obj), BUSTLE_TYPE_PCAP_MONITOR))
-#define BUSTLE_IS_PCAP_MONITOR_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE((klass), BUSTLE_TYPE_PCAP_MONITOR))
-#define BUSTLE_PCAP_MONITOR_GET_CLASS(obj) \
-  (G_TYPE_INSTANCE_GET_CLASS ((obj), BUSTLE_TYPE_PCAP_MONITOR, \
-                              BustlePcapMonitorClass))
-
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (BustlePcapMonitor, g_object_unref)
-
-#endif /* BUSTLE_PCAP_MONITOR_H */
