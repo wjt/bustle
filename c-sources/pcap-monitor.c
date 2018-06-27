@@ -31,6 +31,9 @@
 # define DLT_DBUS 231
 #endif
 
+/* Prefix of name claimed by the connection that collects name owners. */
+const char *BUSTLE_MONITOR_NAME_PREFIX = "org.freedesktop.Bustle.Monitor.";
+
 /*
  * Transitions:
  *
@@ -508,6 +511,35 @@ dump_names_thread_func (
   connection = get_connection (self, cancellable, &error);
   if (connection != NULL)
     {
+      const gchar *unique_name = g_dbus_connection_get_unique_name (connection);
+
+      if (unique_name != NULL)
+        {
+          g_autofree gchar *mangled = g_strdup (unique_name);
+          g_autofree gchar *well_known_name =
+            g_strconcat (BUSTLE_MONITOR_NAME_PREFIX,
+                         /* ":3.14" -> "_3_14", a legal bus name component */
+                         g_strcanon (mangled, "0123456789", '_'),
+                         NULL);
+
+          g_debug ("%s: attempting to own %s", G_STRFUNC, well_known_name);
+          /* Ignore returned ID: we'll own it until we disconnect.
+           *
+           * Also ignore callbacks: we don't need to be notified, since this
+           * name is just for the benefit of the viewer. On the system bus we
+           * won't be able to own this name, but if we're smart we can teach
+           * the viewer that merely requesting the name is enough to hide this
+           * connection.
+           */
+          g_bus_own_name_on_connection (connection,
+                                        well_known_name,
+                                        G_BUS_NAME_OWNER_FLAGS_NONE,
+                                        NULL /* acquired */,
+                                        NULL /* lost */,
+                                        NULL /* user_data */,
+                                        NULL /* free_func */);
+        }
+
       bus = g_dbus_proxy_new_sync (connection,
                                    G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
                                    G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS |

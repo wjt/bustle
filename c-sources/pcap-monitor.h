@@ -33,3 +33,5 @@ BustlePcapMonitor *bustle_pcap_monitor_new (
     GError **error);
 void bustle_pcap_monitor_stop (
     BustlePcapMonitor *self);
+
+extern const char *BUSTLE_MONITOR_NAME_PREFIX;
