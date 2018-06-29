@@ -76,13 +76,15 @@ data Participants =
   deriving
     (Show, Eq)
 
-instance Monoid Participants where
-    mempty = Participants Map.empty Map.empty
-    mappend (Participants sess1 sys1) (Participants sess2 sys2) =
-        Participants (f sess1 sess2)
-                     (f sys1  sys2)
+instance Semigroup Participants where
+    (<>) (Participants sess1 sys1) (Participants sess2 sys2) =
+          Participants (f sess1 sess2)
+                       (f sys1  sys2)
       where
         f = Map.unionWith Set.union
+
+instance Monoid Participants where
+    mempty = Participants Map.empty Map.empty
 
 sessionParticipants :: Participants
                     -> [(UniqueName, Set OtherName)] -- ^ sorted by column
@@ -109,9 +111,9 @@ data RendererResult apps =
 --
 -- This is extremely unpleasant but it's a Monday. There's a test case in
 -- Test/Renderer.hs because I don't trust myself.
-instance Monoid apps => Monoid (RendererResult apps) where
-    mempty = RendererResult 0 0 [] [] mempty []
-    mappend rr1 rr2 = RendererResult centreOffset topOffset shapes regions applications warnings
+
+instance Semigroup apps => Semigroup (RendererResult apps) where
+    rr1 <> rr2 = RendererResult centreOffset topOffset shapes regions applications warnings
       where
         centreOffset = rrCentreOffset rr1 `max` rrCentreOffset rr2
         topOffset = rrTopOffset rr1 `max` rrTopOffset rr2
@@ -136,8 +138,12 @@ instance Monoid apps => Monoid (RendererResult apps) where
 
         regions = translatedRegions rr1 ++ translatedRegions rr2
 
-        applications = rrApplications rr1 `mappend` rrApplications rr2
-        warnings = rrWarnings rr1 `mappend` rrWarnings rr2
+        applications = rrApplications rr1 <> rrApplications rr2
+        warnings = rrWarnings rr1 <> rrWarnings rr2
+
+
+instance Monoid apps => Monoid (RendererResult apps) where
+    mempty = RendererResult 0 0 [] [] mempty []
 
 processWithFilters :: (Log, Set UniqueName)
                    -> (Log, Set UniqueName)
@@ -229,12 +235,13 @@ data RendererOutput =
   deriving
     (Show)
 
-instance Monoid RendererOutput where
-    mempty = RendererOutput [] [] []
-    mappend (RendererOutput s1 r1 w1)
-            (RendererOutput s2 r2 w2) = RendererOutput (s1 ++ s2)
+instance Semigroup RendererOutput where
+    (<>) (RendererOutput s1 r1 w1)
+         (RendererOutput s2 r2 w2) = RendererOutput (s1 ++ s2)
                                                        (r1 ++ r2)
                                                        (w1 ++ w2)
+instance Monoid RendererOutput where
+    mempty = RendererOutput [] [] []
 
 data BusState =
     BusState { apps :: Applications

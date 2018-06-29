@@ -50,9 +50,11 @@ newtype Marquee = Marquee { unMarquee :: String }
 toPangoMarkup :: Marquee -> String
 toPangoMarkup = unMarquee
 
+instance Semigroup Marquee where
+    Marquee x <> Marquee y = Marquee (x <> y)
+
 instance Monoid Marquee where
     mempty = Marquee ""
-    mappend x y = Marquee (unMarquee x `mappend` unMarquee y)
     mconcat = Marquee . mconcat . map unMarquee
 
 tag :: String -> Marquee -> Marquee
