@@ -1,0 +1,29 @@
+image: zenhaskell/gtk:nightly-2018-06-29
+
+before_script:
+- apt install -y libpcap-dev
+
+cache:
+  key: "stack-work"
+  paths:
+  - .stack-work
+
+stages:
+  - build
+  - lint
+  - test
+
+lint:
+  stage: lint
+  script:
+  - hlint .
+
+build:
+  stage: build
+  script:
+  - stack build
+
+test:
+  stage: test
+  script:
+  - stack test
