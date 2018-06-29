@@ -47,7 +47,6 @@ import Data.Map (Map)
 
 import Control.Arrow (first)
 import Control.Monad
-import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Writer
