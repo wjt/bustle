@@ -95,7 +95,7 @@ monitorNew target filename =
 
 monitorStop :: Monitor
             -> IO ()
-monitorStop monitor = do
+monitorStop monitor =
     withForeignPtr (unMonitor monitor) bustle_pcap_monitor_stop
 
 messageLoggedHandler :: (Microseconds -> BS.ByteString -> IO ())

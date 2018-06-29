@@ -86,15 +86,15 @@ hits y stripe = y `relativeTo` stripe == EQ
 nonOverlapping :: [Stripe]
                -> Bool
 nonOverlapping []         = True
-nonOverlapping (_:[])     = True
+nonOverlapping [_]     = True
 nonOverlapping (s1:s2:ss) =
     stripeBottom s1 <= stripeTop s2 && nonOverlapping (s2:ss)
 
 regionSelectionNew :: Regions a
                    -> RegionSelection a
 regionSelectionNew rs
-    | sorted /= map fst rs        = error $ "regionSelectionNew: unsorted regions"
-    | not (nonOverlapping sorted) = error $ "regionSelectionNew: overlapping regions"
+    | sorted /= map fst rs        = error "regionSelectionNew: unsorted regions"
+    | not (nonOverlapping sorted) = error "regionSelectionNew: overlapping regions"
     | otherwise                   = RegionSelection [] 0 Nothing rs
   where
     sorted = sort (map fst rs)
@@ -169,7 +169,7 @@ regionSelectionDown = invert . regionSelectionUp . invert
 regionSelectionFirst :: RegionSelection a
                      -> RegionSelection a
 regionSelectionFirst rs =
-    case (reverse (rsBefore rs) ++ maybeToList (rsCurrent rs) ++ rsAfter rs) of
+    case reverse (rsBefore rs) ++ maybeToList (rsCurrent rs) ++ rsAfter rs of
         []             -> rs
         (first:others) -> RegionSelection []
                                           (midpoint (fst first))

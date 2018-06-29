@@ -48,7 +48,7 @@ process filepath analyze format = do
             warn $ printf (__ "Couldn't parse '%s': %s") filepath err
             exitFailure
         Right (warnings, log) -> do
-            mapM warn warnings
+            mapM_ warn warnings
             mapM_ (putStrLn . format) $ analyze log
 
 formatInterface :: Maybe InterfaceName -> String
@@ -82,5 +82,5 @@ runDot filepath = process filepath makeDigraph id
         | (s, d) <- nub . mapMaybe (methodCall . deEvent) $ log
         ]
 
-    methodCall (MessageEvent (MethodCall {sender = s, destination = d})) = Just (s, d)
+    methodCall (MessageEvent MethodCall {sender = s, destination = d}) = Just (s, d)
     methodCall _ = Nothing
