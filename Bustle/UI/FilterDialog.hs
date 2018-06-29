@@ -23,7 +23,7 @@ module Bustle.UI.FilterDialog
   )
 where
 
-import Data.List (intercalate, groupBy, findIndices)
+import Data.List (intercalate, groupBy, elemIndices)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Function as F
@@ -35,7 +35,7 @@ import Bustle.Types
 
 namespace :: String
           -> (String, String)
-namespace name = case reverse (findIndices (== '.') name) of
+namespace name = case reverse (elemIndices '.' name) of
     []    -> ("", name)
     (i:_) -> splitAt (i + 1) name
 
@@ -51,17 +51,17 @@ formatNames (u, os)
     groupGroup xs@((ns, _):_) = (ns, map snd xs)
 
     formatGroup (ns, [y]) = ns ++ y
-    formatGroup (ns, ys)  = ns ++ "{" ++ (intercalate "," ys) ++ "}"
+    formatGroup (ns, ys)  = ns ++ "{" ++ intercalate "," ys ++ "}"
 
 type NameStore = ListStore (Bool, (UniqueName, Set OtherName))
 
 makeStore :: [(UniqueName, Set OtherName)]
           -> Set UniqueName
           -> IO NameStore
-makeStore names currentlyHidden = do
+makeStore names currentlyHidden =
     listStoreNew $ map toPair names
   where
-    toPair (name@(u, _)) = (not (Set.member u currentlyHidden), name)
+    toPair name@(u, _) = (not (Set.member u currentlyHidden), name)
 
 makeView :: NameStore
          -> IO ScrolledWindow
@@ -111,7 +111,7 @@ runFilterDialog parent names currentlyHidden = do
     windowSetDefaultSize d (windowWidth * 7 `div` 8) (windowHeight `div` 2)
     d `set` [ windowTransientFor := parent ]
     dialogAddButton d stockClose ResponseClose
-    vbox <- fmap castToBox $ dialogGetContentArea d
+    vbox <- castToBox <$> dialogGetContentArea d
     boxSetSpacing vbox 6
 
     nameStore <- makeStore names currentlyHidden

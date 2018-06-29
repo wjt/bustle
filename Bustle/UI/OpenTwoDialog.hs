@@ -42,10 +42,7 @@ propagateCurrentFolder d1 d2 = d1 `on` currentFolderChanged $ do
     f1 <- fileChooserGetCurrentFolder d1
     f2 <- fileChooserGetCurrentFolder d2
     otherFile <- fileChooserGetFilename d2
-    when (and [ isNothing otherFile
-              , f1 /= f2
-              , isJust f1
-              ]) $ do
+    when (isNothing otherFile && f1 /= f2 && isJust f1) $ do
         fileChooserSetCurrentFolder d2 (fromJust f1)
         return ()
 
