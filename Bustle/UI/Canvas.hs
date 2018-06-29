@@ -281,8 +281,7 @@ canvasDraw canvas = do
 
 canvasFocus :: Canvas a
             -> IO ()
-canvasFocus canvas = do
-    (canvasLayout canvas) `set` [ widgetIsFocus := True ]
+canvasFocus canvas = canvasLayout canvas `set` [ widgetIsFocus := True ]
 
 canvasScrollToBottom :: Canvas a
                      -> IO ()
