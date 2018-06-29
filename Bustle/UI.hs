@@ -755,7 +755,7 @@ saveToPDFDialogue wi shapes = do
           RecordedLog _ -> Nothing
           SingleLog p   -> Just $ takeDirectory p
           TwoLogs p _   -> Just $ takeDirectory p
-  maybeM mdirectory $ fileChooserSetCurrentFolder chooser
+  forM_ mdirectory $ fileChooserSetCurrentFolder chooser
 
   chooser `after` response $ \resp -> do
       when (resp == ResponseAccept) $ do

@@ -22,8 +22,6 @@ module Bustle.Util
     io
   , warn
 
-  , maybeM
-
   , getCacheDir
 
   -- You probably don't actually want to use this function.
@@ -55,13 +53,6 @@ warn = hPutStrLn stderr . ((__ "Warning: ") ++)
 -- Shorthand for liftIO.
 io :: MonadIO m => IO a -> m a
 io = liftIO
-
-maybeM :: Monad m
-       => Maybe a
-       -> (a -> m b)
-       -> m ()
-maybeM Nothing _ = return ()
-maybeM (Just x) act = act x >> return ()
 
 foreign import ccall "g_get_user_cache_dir"
     g_get_user_cache_dir :: IO CString

@@ -406,13 +406,13 @@ drawSignalArrow e mleft mright y = do
     arc e y 5 0 (2 * pi)
     stroke
 
-    maybeM mleft $ \left -> do
+    forM_ mleft $ \left -> do
         moveTo left y
         arrowHead False
         lineTo (e - 5) y
         stroke
 
-    maybeM mright $ \right -> do
+    forM_ mright $ \right -> do
         moveTo (e + 5) y
         lineTo right y
         arrowHead True

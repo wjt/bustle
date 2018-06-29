@@ -32,7 +32,7 @@ where
 
 import Data.Maybe (isNothing)
 import Data.IORef
-import Control.Monad (when)
+import Control.Monad (forM_, when)
 
 import Graphics.UI.Gtk
 import Graphics.Rendering.Cairo (Render, translate)
@@ -206,10 +206,10 @@ canvasUpdateSelection canvas f = do
     writeIORef regionSelectionRef rs'
 
     when (newMessage /= currentMessage) $ do
-        maybeM currentMessage $ \(r, _) ->
+        forM_ currentMessage $ \(r, _) ->
             canvasInvalidateStripe canvas r
 
-        maybeM newMessage $ \(r, _) -> do
+        forM_ newMessage $ \(r, _) -> do
             canvasInvalidateStripe canvas r
             canvasClampAroundSelection canvas
 

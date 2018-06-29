@@ -40,7 +40,7 @@ import Prelude hiding (log)
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
-import Bustle.Util (maybeM, NonEmpty(..))
+import Bustle.Util (NonEmpty(..))
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -473,7 +473,7 @@ remUnique bus n = do
     ai <- lookupUniqueName bus n
     let mcolumn = aiCurrentColumn ai
     modifyApps bus $ Map.insert n (ai { aiColumn = FormerColumn mcolumn })
-    maybeM mcolumn $ \x ->
+    forM_ mcolumn $ \x ->
         modifyBusState bus $ \bs ->
             bs { columnsInUse = Set.delete x (columnsInUse bs) }
 
