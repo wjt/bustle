@@ -175,7 +175,7 @@ consumeInitialWindow = do
 
 putInitialWindow :: WindowInfo
                  -> B ()
-putInitialWindow wi = do
+putInitialWindow wi =
     modify $ \s -> s { initialWindow = Just wi }
 
 loadInInitialWindow :: LogDetails -> B ()
@@ -225,7 +225,7 @@ loadLogWith getWindow logDetails = do
           let title = printf (__ "Could not read '%s'") f
           io $ displayError windowInfo title (Just e)
           putInitialWindow windowInfo
-      Right () -> do
+      Right () ->
           io $ hideError windowInfo
 
     io $ windowPresent (wiWindow windowInfo)
@@ -235,7 +235,7 @@ updateRecordingSubtitle :: WindowInfo
                         -> Int
                         -> IO ()
 updateRecordingSubtitle wi j = do
-    let message = (printf (__ "Logged <b>%u</b> messages") j :: String)
+    let message = printf (__ "Logged <b>%u</b> messages") j :: String
     labelSetMarkup (wiSubtitle wi) message
 
 
@@ -253,7 +253,7 @@ processBatch pendingRef n wi = do
         pending <- readIORef pendingRef
         writeIORef pendingRef []
 
-        when (not (null pending)) $ do
+        unless (null pending) $ do
             rr <- atomicModifyIORef' rendererStateRef $ \s ->
                 swap $ processSome (reverse pending) [] s
 
@@ -261,7 +261,7 @@ processBatch pendingRef n wi = do
             let rr' = oldRR `mappend` rr
             writeIORef rendererResultRef rr'
 
-            when (not (null (rrShapes rr))) $ do
+            unless (null (rrShapes rr)) $ do
                 -- If the renderer produced some visible output, count it as a
                 -- message from the user's perspective.
                 modifyIORef' n (+ length pending)
@@ -292,7 +292,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
             case m of
                 Left e -> warn e
                 Right message
-                  | isRelevant (deEvent message) -> do
+                  | isRelevant (deEvent message) ->
                         modifyIORef' pendingRef (message:)
                   | otherwise -> return ()
 
@@ -300,7 +300,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
     processor <- processBatch pendingRef n wi
     processorId <- timeoutAdd processor 200
 
-    stopActivatedId <- (wiStop wi) `on` buttonActivated $ monitorStop monitor
+    stopActivatedId <- wiStop wi `on` buttonActivated $ monitorStop monitor
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
     _stoppedId <- monitor `on` monitorStopped $ \domain code message -> do
         handleError domain code message
@@ -312,7 +312,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
         timeoutRemove processorId
         processor
 
-        hadOutput <- liftM (/= 0) (readIORef n)
+        hadOutput <- fmap (/= 0) (readIORef n)
         finished hadOutput
 
     return ()
@@ -330,7 +330,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
     handleError domain code message = do
         gIoErrorQuark <- quarkFromString "g-io-error-quark"
         let cancelled = fromEnum IoErrorCancelled
-        when (not (domain == gIoErrorQuark && code == cancelled)) $ do
+        unless (domain == gIoErrorQuark && code == cancelled) $
             displayError wi (Marquee.toString message) Nothing
 
 
@@ -339,11 +339,11 @@ startRecording :: Either BusType String
 startRecording target = do
     wi <- consumeInitialWindow
 
-    zt <- io $ getZonedTime
+    zt <- io getZonedTime
     -- I hate time manipulation
     let yyyy_mm_dd_hh_mm_ss = takeWhile (/= '.') (show zt)
 
-    cacheDir <- io $ getCacheDir
+    cacheDir <- io getCacheDir
     let filename = cacheDir </> yyyy_mm_dd_hh_mm_ss <.> "bustle"
 
     let title = printf (__ "Recording %s&#8230;") $ case target of
@@ -408,8 +408,8 @@ finishedRecording wi tempFilePath producedOutput = do
         putInitialWindow wi
         updateDisplayedLog wi (mempty :: RendererResult ())
         io $ do
-            (wiTitle wi) `set` [ labelText := "" ]
-            (wiSubtitle wi) `set` [ labelText := "" ]
+            wiTitle wi `set` [ labelText := "" ]
+            wiSubtitle wi `set` [ labelText := "" ]
 
 showSaveDialog :: WindowInfo
                -> IO ()
@@ -431,10 +431,10 @@ showSaveDialog wi savedCb = do
                 hideError wi
                 savedCb
             Left (GError _ _ msg) -> do
-                let title = (__ "Couldn't save log: ") ++ (Marquee.toString msg)
+                let title = __ "Couldn't save log: " ++ Marquee.toString msg
                     secondary = printf
                         (__ "You might want to manually recover the log from the temporary file at \
-                            \\"%s\".") (tempFilePath)
+                            \\"%s\".") tempFilePath
                 displayError wi title (Just secondary)
 
 -- | Show a confirmation dialog if the log is unsaved. Suitable for use as a
@@ -509,7 +509,7 @@ emptyWindow = do
   errorBarTitle   <- getW castToLabel "errorBarTitle"
   errorBarDetails <- getW castToLabel "errorBarDetails"
 
-  io $ errorBar `on` infoBarResponse $ \_ -> do
+  io $ errorBar `on` infoBarResponse $ \_ ->
       widgetHide errorBar
 
   stack <- getW castToStack "diagramOrNot"
@@ -587,9 +587,9 @@ emptyWindow = do
 updateDetailsView :: DetailsView
                   -> Maybe (Detailed Message)
                   -> IO ()
-updateDetailsView detailsView newMessage = do
+updateDetailsView detailsView newMessage =
     case newMessage of
-        Nothing -> do
+        Nothing ->
             widgetHide $ detailsViewGetTop detailsView
         Just m  -> do
             detailsViewUpdate detailsView m
@@ -644,9 +644,9 @@ wiSetLogDetails :: WindowInfo
 wiSetLogDetails wi logDetails = do
     writeIORef (wiLogDetails wi) (Just logDetails)
     let (title, subtitle) = logWindowTitle logDetails
-    (wiWindow wi) `set` [ windowTitle := title ]
-    (wiTitle wi) `set` [ labelText := title ]
-    (wiSubtitle wi) `set` [ labelText := subtitle ]
+    wiWindow wi `set` [ windowTitle := title ]
+    wiTitle wi `set` [ labelText := title ]
+    wiSubtitle wi `set` [ labelText := subtitle ]
 
 setPage :: MonadIO io
         => WindowInfo
@@ -660,7 +660,7 @@ displayLog :: WindowInfo
            -> Log
            -> RendererResult Participants
            -> B ()
-displayLog wi@(WindowInfo { wiWindow = window
+displayLog wi@WindowInfo { wiWindow = window
                        , wiExport = exportItem
                        , wiViewStatistics = viewStatistics
                        , wiFilterNames = filterNames
@@ -668,7 +668,7 @@ displayLog wi@(WindowInfo { wiWindow = window
                        , wiSidebarHeader = sidebarHeader
                        , wiSidebarStack = sidebarStack
                        , wiStatsPane = statsPane
-                       })
+                       }
            logDetails
            sessionMessages
            systemMessages
@@ -766,9 +766,9 @@ saveToPDFDialogue wi shapes = do
               renderWith surface $ drawDiagram False shapes
           case r of
               Left (e :: C.IOException) -> do
-                  let title = (__ "Couldn't export log as PDF: ") ++ show e
+                  let title = __ "Couldn't export log as PDF: " ++ show e
                   displayError wi title Nothing
-              Right () -> do
+              Right () ->
                   hideError wi
 
       widgetDestroy chooser
