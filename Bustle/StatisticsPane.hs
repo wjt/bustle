@@ -23,7 +23,6 @@ module Bustle.StatisticsPane
   )
 where
 
-import Control.Applicative ((<$>))
 import Control.Monad (forM_)
 import Text.Printf
 import Graphics.UI.Gtk

@@ -4,7 +4,6 @@ import Test.QuickCheck.All
 
 import Data.List (sort, group)
 import Data.Maybe (isNothing, isJust)
-import Control.Applicative ((<$>), (<*>))
 
 import Bustle.Regions
 

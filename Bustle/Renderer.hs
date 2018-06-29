@@ -47,7 +47,6 @@ import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 
-import Control.Applicative (Applicative(..), (<$>), (<*>))
 import Control.Arrow ((***))
 import Control.Monad.Except
 import Control.Monad.Identity

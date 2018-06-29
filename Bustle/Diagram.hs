@@ -49,7 +49,6 @@ where
 
 import Data.List (unzip4)
 import Control.Arrow ((&&&))
-import Control.Applicative ((<$>), (<*>))
 
 import Control.Monad.Reader
 
