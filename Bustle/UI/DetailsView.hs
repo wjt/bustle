@@ -77,7 +77,7 @@ getMember (Detailed _ m _ _) = case m of
     MethodReturn {} -> callMember
     Error {}        -> callMember
   where
-    callMember = fmap (member . deEvent) $ inReplyTo m
+    callMember = member . deEvent <$> inReplyTo m
 
 getDestination :: Detailed Message -> Maybe TaggedBusName
 getDestination (Detailed _ m _ _) = case m of
