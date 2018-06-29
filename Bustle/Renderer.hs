@@ -35,8 +35,6 @@ module Bustle.Renderer
     )
 where
 
-import Prelude hiding (log)
-
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
@@ -47,7 +45,8 @@ import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 
-import Control.Arrow ((***))
+import Control.Arrow (first)
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.State
@@ -87,7 +86,7 @@ instance Monoid Participants where
 
 sessionParticipants :: Participants
                     -> [(UniqueName, Set OtherName)] -- ^ sorted by column
-sessionParticipants = map (snd *** id) . Map.toAscList . pSession
+sessionParticipants = map (first snd) . Map.toAscList . pSession
 
 data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
@@ -149,7 +148,7 @@ processWithFilters :: (Log, Set UniqueName)
                    -> RendererResult ()
 processWithFilters (sessionBusLog, sessionFilter)
                    (systemBusLog,  systemFilter ) =
-    fmap (const ()) $ fst $ processSome sessionBusLog systemBusLog rs
+    void $ fst $ processSome sessionBusLog systemBusLog rs
   where
     rs = initialState sessionFilter systemFilter
 
@@ -547,7 +546,7 @@ advanceBy d = do
                   ]
         let (height, ss) = headers xs' (current' + 20)
         tellShapes ss
-        modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
+        modify $ \bs -> bs { mostRecentLabels = current' + height + 10
                            , row = row bs + height + 10
                            }
     current <- gets row
@@ -569,7 +568,7 @@ advanceBy d = do
 bestNames :: UniqueName -> Set OtherName -> [String]
 bestNames u os
     | Set.null os = [unUniqueName u]
-    | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
+    | otherwise   = (sortBy (flip (comparing length)) . map readable) $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
@@ -639,7 +638,7 @@ returnArc bus mr callx cally duration = do
 
     shape $ Arc { topx = callx, topy = cally
                 , bottomx = currentx, bottomy = currenty
-                , arcside = if (destinationx > currentx) then L else R
+                , arcside = if destinationx > currentx then L else R
                 , caption = show (µsToMs duration) ++ "ms"
                 }
 
@@ -709,7 +708,7 @@ processNOC :: Bus
            -> Renderer ()
 processNOC bus noc =
     case noc of
-        Connected { actor = u } -> addUnique bus u >> return ()
+        Connected { actor = u } -> void (addUnique bus u)
         Disconnected { actor = u } -> remUnique bus u
         NameChanged { changedName = n
                     , change = c
@@ -740,7 +739,7 @@ signal bus dm = do
     mtarget <- signalDestinationCoordinate bus dm
 
     case mtarget of
-        Just target -> do
+        Just target ->
             shape $ DirectedSignalArrow emitter target t
         Nothing -> do
             -- fromJust is safe here because we must have an app to have a
