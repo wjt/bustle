@@ -138,7 +138,7 @@ timestampLabel s y = TimestampLabel s timestampx y
 type Diagram = [Shape]
 
 arcControlPoints :: Shape -> (Point, Point)
-arcControlPoints (Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s }) =
+arcControlPoints Arc { topx=x1, topy=y1, bottomx=x2, bottomy=y2, arcside=s } =
     let (+-) = offset s
         cp1 = (x1 +- 60, y1 + 10)
         cp2 = (x2 +- 60, y2 - 10)
@@ -229,11 +229,11 @@ bounds s = case s of
     in (x1, y1, x2, y2)
   SignalArrow {} ->
     let (x1, x2) = xMinMax s
-        (y1, y2) = (subtract 5) &&& (+5) $ shapey s
+        (y1, y2) = subtract 5 &&& (+5) $ shapey s
     in (x1, y1, x2, y2)
   DirectedSignalArrow {} ->
     let (x1, x2) = minMax (epicentre s, shapex s)
-        (y1, y2) = (subtract 5) &&& (+5) $ shapey s
+        (y1, y2) = subtract 5 &&& (+5) $ shapey s
     in (x1, y1, x2, y2)
   Arc { topx=x1, bottomx=x2, topy=y1, bottomy=y2 } ->
     let ((cx, _), (dx, _)) = arcControlPoints s
