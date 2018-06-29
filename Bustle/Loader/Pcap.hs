@@ -118,10 +118,10 @@ isNOC (Just sender) s | looksLikeNOC =
     names = map fromVariant $ signalBody s
 
     looksLikeNOC =
-        and [ sender == B.dbusName
-            , signalInterface s == B.dbusInterface
-            , formatMemberName (signalMember s) == "NameOwnerChanged"
-            ]
+      (sender == B.dbusName) &&
+        (signalInterface s == B.dbusInterface) &&
+          (formatMemberName (signalMember s) == "NameOwnerChanged")
+
 isNOC _ _ = Nothing
 
 
@@ -152,10 +152,10 @@ tryBustlifyGetNameOwnerReply maybeCall mr = do
     --  • don't crash if the body of the call or reply doesn't contain one bus name.
     (rawCall, _) <- maybeCall
     guard (formatMemberName (methodCallMember rawCall) == "GetNameOwner")
-    ownedName <- fromVariant $ (methodCallBody rawCall !! 0)
+    ownedName <- fromVariant (head (methodCallBody rawCall))
     return $ bustlifyNOC ( ownedName
                          , Nothing
-                         , fromVariant $ (methodReturnBody mr !! 0)
+                         , fromVariant (head (methodReturnBody mr))
                          )
 
 bustlify :: Monad m
@@ -209,8 +209,7 @@ bustlify µs bytes m = do
             | otherwise                      -> return $ B.MessageEvent $
                 B.Signal { B.sender = wrappedSender
                          , B.member = convertMember signalPath (Just . signalInterface) signalMember sig
-                         , B.signalDestination = fmap stupifyBusName
-                                               $ signalDestination sig
+                         , B.signalDestination = stupifyBusName <$> signalDestination sig
                          }
 
         _ -> error "woah there! someone added a new message type."
@@ -222,7 +221,7 @@ convert :: Monad m
 convert µs body =
     case unmarshal body of
         Left e  -> return $ Left $ unmarshalErrorMessage e
-        Right m -> liftM Right $ bustlify µs (BS.length body) m
+        Right m -> Right <$> bustlify µs (BS.length body) m
 
 data Result e a =
     EOF
@@ -242,7 +241,7 @@ readOne p f = do
     -- or something?
     if hdrCaptureLength hdr == 0
         then return EOF
-        else liftM Packet $ f (fromIntegral (hdrTime hdr)) body
+        else Packet <$> f (fromIntegral (hdrTime hdr)) body
 
 -- This shows up as the biggest thing on the heap profile. Which is kind of a
 -- surprise. It's supposedly the list.
@@ -253,7 +252,7 @@ mapBodies :: (Monad m, MonadIO m)
 mapBodies p f = do
     ret <- readOne p f
     case ret of
-        EOF      -> return $ []
+        EOF      -> return []
         Packet x -> do
             xs <- mapBodies p f
             return $ x:xs
@@ -266,11 +265,11 @@ readPcap path = try $ do
     dlt <- datalink p
     -- DLT_NULL for extremely old logs.
     -- DLT_DBUS is missing: https://github.com/bos/pcap/pull/8
-    when (not $ elem dlt [DLT_NULL, DLT_UNKNOWN 231]) $ do
+    unless (dlt `elem` [DLT_NULL, DLT_UNKNOWN 231]) $ do
         let message = "Incorrect link type " ++ show dlt
         ioError $ mkIOError userErrorType message Nothing (Just path)
 
-    liftM partitionEithers $ evalStateT (mapBodies p convert) Map.empty
+    partitionEithers <$> evalStateT (mapBodies p convert) Map.empty
   where
     snaplenErrorString = "invalid file capture length 134217728, bigger than maximum of 262144"
     snaplenBugReference = __ "libpcap 1.8.0 and 1.8.1 are incompatible with Bustle. See \
@@ -280,6 +279,6 @@ readPcap path = try $ do
                              \Bustle from Flathub, which already includes the necessary \
                              \patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
     matchSnaplenBug e =
-      if isUserError e && (snaplenErrorString `isSuffixOf` (ioeGetErrorString e))
+      if isUserError e && (snaplenErrorString `isSuffixOf` ioeGetErrorString e)
           then Just $ ioeSetErrorString e snaplenBugReference
           else Nothing
