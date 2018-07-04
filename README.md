@@ -6,6 +6,8 @@ D-Bus-based application isn't performing as well as you like. It also
 provides statistics like signal frequencies and average method call
 times.
 
+[![pipeline status](https://gitlab.freedesktop.org/bustle/bustle/badges/master/pipeline.svg)](https://gitlab.freedesktop.org/bustle/bustle/commits/master)
+
 
 Using Bustle
 ============
