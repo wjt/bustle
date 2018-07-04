@@ -32,7 +32,7 @@ where
 
 import Data.Maybe (isNothing)
 import Data.IORef
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, when, void)
 
 import Graphics.UI.Gtk
 import Graphics.Rendering.Cairo (Render, translate)
@@ -92,7 +92,7 @@ incdec (+-) f adj = do
 setupCanvas :: Eq a
             => Canvas a
             -> IO ()
-setupCanvas canvas = do
+setupCanvas canvas = void $ do
     let layout = canvasLayout canvas
 
     -- Scrolling
@@ -133,7 +133,6 @@ setupCanvas canvas = do
         _           -> stopEvent
 
     layout `on` draw $ canvasDraw canvas
-    return ()
 
 canvasInvalidateArea :: Canvas a
                      -> Int
@@ -174,12 +173,10 @@ canvasClampAroundSelection canvas = do
     when (isNothing id_) $ do
         id' <- flip idleAdd priorityDefaultIdle $ do
             rs <- readIORef $ canvasSelection canvas
-            case rsCurrent rs of
-                Nothing -> return ()
-                Just (Stripe top bottom, _) -> do
-                    vadj <- layoutGetVAdjustment $ canvasLayout canvas
-                    let padding = (bottom - top) / 2
-                    adjustmentClampPage vadj (top - padding) (bottom + padding)
+            forM_ (rsCurrent rs) $ \(Stripe top bottom, _) -> do
+                vadj <- layoutGetVAdjustment $ canvasLayout canvas
+                let padding = (bottom - top) / 2
+                adjustmentClampPage vadj (top - padding) (bottom + padding)
 
             writeIORef idRef Nothing
             return False

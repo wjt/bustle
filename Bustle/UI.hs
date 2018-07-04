@@ -23,6 +23,7 @@ module Bustle.UI
   )
 where
 
+import Control.Monad (void)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
@@ -302,7 +303,7 @@ recorderRun wi target filename r = C.handle newFailed $ do
 
     stopActivatedId <- wiStop wi `on` buttonActivated $ monitorStop monitor
     handlerId <- monitor `on` monitorMessageLogged $ updateLabel
-    _stoppedId <- monitor `on` monitorStopped $ \domain code message -> do
+    void $ monitor `on` monitorStopped $ \domain code message -> do
         handleError domain code message
 
         signalDisconnect stopActivatedId
@@ -314,8 +315,6 @@ recorderRun wi target filename r = C.handle newFailed $ do
 
         hadOutput <- fmap (/= 0) (readIORef n)
         finished hadOutput
-
-    return ()
   where
     newFailed (GError domain code message) = do
         finished False
@@ -391,7 +390,7 @@ finishedRecording wi tempFilePath producedOutput = do
         spinnerStop (wiSpinner wi)
 
     if producedOutput
-      then do
+      then void $ do
         -- TODO: There is a noticable lag when reloading big files. It would be
         -- nice to either make the loading faster, or eliminate the reload.
         loadLogWith (return wi) (RecordedLog tempFilePath)
@@ -401,7 +400,6 @@ finishedRecording wi tempFilePath producedOutput = do
         io $ do
             widgetSetSensitivity saveItem True
             saveItem `on` buttonActivated $ showSaveDialog wi (return ())
-        return ()
       else do
         setPage wi InstructionsPage
         putInitialWindow wi
@@ -671,8 +669,7 @@ displayLog wi@WindowInfo { wiWindow = window
            logDetails
            sessionMessages
            systemMessages
-           rr = do
-  io $ do
+           rr = io $ void $ do
     wiSetLogDetails wi logDetails
 
     hiddenRef <- newIORef Set.empty
@@ -707,8 +704,6 @@ displayLog wi@WindowInfo { wiWindow = window
         let rr' = processWithFilters (sessionMessages, hidden') (systemMessages, Set.empty)
 
         updateDisplayedLog wi rr'
-
-  return ()
 
 showOpenDialog :: Window
                -> B ()

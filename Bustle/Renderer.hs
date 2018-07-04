@@ -454,12 +454,10 @@ addUnique :: Bus -> UniqueName -> Renderer ApplicationInfo
 addUnique bus n = do
     let ai = ApplicationInfo NoColumn Set.empty Set.empty
     existing <- getsApps (Map.lookup n) bus
-    case existing of
-        Nothing -> return ()
-        Just _  -> warn $ concat [ "Unique name '"
-                                 , unUniqueName n
-                                 , "' apparently connected to the bus twice"
-                                 ]
+    forM_ existing $ const $ warn $ concat [ "Unique name '"
+                                           , unUniqueName n
+                                           , "' apparently connected to the bus twice"
+                                           ]
     modifyApps bus $ Map.insert n ai
     return ai
 
@@ -691,16 +689,14 @@ processMessage bus dm@(Detailed _ m _ _) = do
   where advance = advanceBy eventHeight -- FIXME: use some function of timestamp?
         returnOrError f = do
             call <- findCallCoordinates bus (inReplyTo m)
-            case call of
-                Nothing    -> return ()
-                Just (dm', (x,y)) -> do
-                    advance
-                    relativeTimestamp dm
-                    memberName dm' True
-                    f dm
-                    let duration = deTimestamp dm - deTimestamp dm'
-                    returnArc bus dm x y duration
-                    addMessageRegion dm
+            forM_ call $ \(dm', (x,y)) -> do
+                advance
+                relativeTimestamp dm
+                memberName dm' True
+                f dm
+                let duration = deTimestamp dm - deTimestamp dm'
+                returnArc bus dm x y duration
+                addMessageRegion dm
 
 processNOC :: Bus
            -> NOC
