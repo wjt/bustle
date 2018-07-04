@@ -1,7 +1,7 @@
 Name:           bustle
 Category:       Network, Desktop
 Version:        0.7.1.1
-Cabal-Version:  >= 1.24
+Cabal-Version:  >= 2.0
 Tested-With:    GHC == 8.2.2, GHC == 8.4.3
 Synopsis:       Draw sequence diagrams of D-Bus traffic
 Description:    Draw sequence diagrams of D-Bus traffic
@@ -56,8 +56,8 @@ x-gettext-domain-name:  bustle
 
 custom-setup
   setup-depends:
-    base >= 4 && < 5,
-    Cabal >= 1.24,
+    base >= 4.11 && < 5,
+    Cabal >= 2.0,
     filepath,
     directory,
     process
@@ -114,7 +114,7 @@ Executable bustle
   cc-options: -fPIC -g
   pkgconfig-depends: glib-2.0 >= 2.54,
                      gio-unix-2.0
-  Build-Depends: base >= 4 && < 5
+  Build-Depends: base >= 4.11 && < 5
                , bytestring
                , cairo
                , containers
