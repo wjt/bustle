@@ -111,7 +111,7 @@ data WindowInfo =
                , wiLogDetails :: IORef (Maybe LogDetails)
                }
 
-data BConfig =
+newtype BConfig =
     BConfig { debugEnabled :: Bool
             }
 
@@ -377,8 +377,7 @@ onMenuItemActivate :: MenuItemClass menuItem
                    => menuItem
                    -> IO ()
                    -> IO (ConnectId menuItem)
-onMenuItemActivate mi act =
-    on mi menuItemActivate act
+onMenuItemActivate mi = on mi menuItemActivate
 
 finishedRecording :: WindowInfo
                   -> FilePath

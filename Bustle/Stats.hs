@@ -105,7 +105,7 @@ methodTimes = sortBy (flip (comparing tiTotalTime)) . map summarize
           methodReturn dm = do
               let m = deEvent dm
               guard (isReturn m)
-              Detailed start call@(MethodCall {}) _ _ <- inReplyTo m
+              Detailed start call@MethodCall {} _ _ <- inReplyTo m
               return ( iface (member call)
                      , membername (member call)
                      , deTimestamp dm - start

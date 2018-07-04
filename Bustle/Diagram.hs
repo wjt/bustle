@@ -130,10 +130,10 @@ memberLabel :: ObjectPath
             -> Bool   -- ^ True if this is a return; False if it's a call
             -> Double -- ^ y-coordinate
             -> Shape
-memberLabel p i m isReturn y = MemberLabel p i m isReturn memberx y
+memberLabel p i m isReturn = MemberLabel p i m isReturn memberx
 
 timestampLabel :: String -> Double -> Shape
-timestampLabel s y = TimestampLabel s timestampx y
+timestampLabel s = TimestampLabel s timestampx
 
 type Diagram = [Shape]
 

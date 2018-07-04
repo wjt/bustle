@@ -156,9 +156,9 @@ newCountView = do
   countBar <- cellRendererProgressNew
   cellLayoutPackStart countColumn countBar True
   cellLayoutSetAttributes countColumn countBar countStore $
-      \(FrequencyInfo {fiFrequency = count}) ->
+      \FrequencyInfo {fiFrequency = count} ->
       [ cellProgressValue :=> do
-          upperBound <- (maximum . map fiFrequency) <$>
+          upperBound <- maximum . map fiFrequency <$>
                         listStoreToList countStore
           -- ensure that we always show *something*
           return $ 2 + (count * 98 `div` upperBound)

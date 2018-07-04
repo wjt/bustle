@@ -48,7 +48,7 @@ traceM x = trace (show x) $ return ()
 -- Log a warning which isn't worth showing to the user, but which might
 -- interest someone debugging the application.
 warn :: String -> IO ()
-warn = hPutStrLn stderr . ((__ "Warning: ") ++)
+warn = hPutStrLn stderr . (__ "Warning: " ++)
 
 -- Shorthand for liftIO.
 io :: MonadIO m => IO a -> m a

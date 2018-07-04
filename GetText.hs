@@ -119,7 +119,7 @@ installGetTextHooks :: UserHooks -- ^ initial user hooks
                     -> UserHooks -- ^ patched user hooks
 installGetTextHooks uh = uh{
                            confHook = \a b ->
-                                      updateLocalBuildInfo <$> (confHook uh) a b,
+                                      updateLocalBuildInfo <$> confHook uh a b,
 
                            postInst = \a b c d ->
                                       postInst uh a b c d >>
@@ -164,7 +164,7 @@ forBuildInfo l f =
                           executables = updExecs (executables x)}
         updLibrary Nothing = Nothing
         updLibrary (Just x) = Just $ x{libBuildInfo = f (libBuildInfo x)}
-        updExecs x = map updExec x
+        updExecs = map updExec
         updExec x = x{buildInfo = f (buildInfo x)}
     in a
 
@@ -200,7 +200,7 @@ findInParametersDefault :: [(String, String)] -> String -> String -> String
 findInParametersDefault al name def = (fromMaybe def . lookup name) al
 
 getDomainNameDefault :: [(String, String)] -> String -> String
-getDomainNameDefault al d = findInParametersDefault al "x-gettext-domain-name" d
+getDomainNameDefault al = findInParametersDefault al "x-gettext-domain-name"
 
 getDomainDefine :: [(String, String)] -> String
 getDomainDefine al = findInParametersDefault al "x-gettext-domain-def" "__MESSAGE_CATALOG_DOMAIN__"
