@@ -94,7 +94,7 @@ embedIO act = B $ do
   liftIO $ act r
 
 makeCallback :: Bustle config state a -> BustleEnv config state -> IO a
-makeCallback (B act) x = runReaderT act x
+makeCallback (B act) = runReaderT act
 
 runB :: config -> state -> Bustle config state a -> IO a
 runB config s (B act) = do

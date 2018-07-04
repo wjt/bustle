@@ -17,5 +17,4 @@ main = do
             exitFailure
         -- TODO: check there are no warnings (but there are because we don't
         -- understand 'h', so we just skip it)
-        Right _ -> do
-            return ()
+        Right _ -> return ()

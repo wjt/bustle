@@ -35,21 +35,18 @@ module Bustle.Renderer
     )
 where
 
-import Prelude hiding (log)
-
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
-import Bustle.Util (maybeM, NonEmpty(..))
+import Bustle.Util (NonEmpty(..))
 
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 
-import Control.Applicative (Applicative(..), (<$>), (<*>))
-import Control.Arrow ((***))
-import Control.Monad.Except
+import Control.Arrow (first)
+import Control.Monad
 import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Writer
@@ -76,17 +73,19 @@ data Participants =
   deriving
     (Show, Eq)
 
-instance Monoid Participants where
-    mempty = Participants Map.empty Map.empty
-    mappend (Participants sess1 sys1) (Participants sess2 sys2) =
-        Participants (f sess1 sess2)
-                     (f sys1  sys2)
+instance Semigroup Participants where
+    (<>) (Participants sess1 sys1) (Participants sess2 sys2) =
+          Participants (f sess1 sess2)
+                       (f sys1  sys2)
       where
         f = Map.unionWith Set.union
 
+instance Monoid Participants where
+    mempty = Participants Map.empty Map.empty
+
 sessionParticipants :: Participants
                     -> [(UniqueName, Set OtherName)] -- ^ sorted by column
-sessionParticipants = map (snd *** id) . Map.toAscList . pSession
+sessionParticipants = map (first snd) . Map.toAscList . pSession
 
 data RendererResult apps =
     RendererResult { rrCentreOffset :: Double
@@ -109,9 +108,9 @@ data RendererResult apps =
 --
 -- This is extremely unpleasant but it's a Monday. There's a test case in
 -- Test/Renderer.hs because I don't trust myself.
-instance Monoid apps => Monoid (RendererResult apps) where
-    mempty = RendererResult 0 0 [] [] mempty []
-    mappend rr1 rr2 = RendererResult centreOffset topOffset shapes regions applications warnings
+
+instance Semigroup apps => Semigroup (RendererResult apps) where
+    rr1 <> rr2 = RendererResult centreOffset topOffset shapes regions applications warnings
       where
         centreOffset = rrCentreOffset rr1 `max` rrCentreOffset rr2
         topOffset = rrTopOffset rr1 `max` rrTopOffset rr2
@@ -136,15 +135,19 @@ instance Monoid apps => Monoid (RendererResult apps) where
 
         regions = translatedRegions rr1 ++ translatedRegions rr2
 
-        applications = rrApplications rr1 `mappend` rrApplications rr2
-        warnings = rrWarnings rr1 `mappend` rrWarnings rr2
+        applications = rrApplications rr1 <> rrApplications rr2
+        warnings = rrWarnings rr1 <> rrWarnings rr2
+
+
+instance Monoid apps => Monoid (RendererResult apps) where
+    mempty = RendererResult 0 0 [] [] mempty []
 
 processWithFilters :: (Log, Set UniqueName)
                    -> (Log, Set UniqueName)
                    -> RendererResult ()
 processWithFilters (sessionBusLog, sessionFilter)
                    (systemBusLog,  systemFilter ) =
-    fmap (const ()) $ fst $ processSome sessionBusLog systemBusLog rs
+    void $ fst $ processSome sessionBusLog systemBusLog rs
   where
     rs = initialState sessionFilter systemFilter
 
@@ -229,12 +232,13 @@ data RendererOutput =
   deriving
     (Show)
 
-instance Monoid RendererOutput where
-    mempty = RendererOutput [] [] []
-    mappend (RendererOutput s1 r1 w1)
-            (RendererOutput s2 r2 w2) = RendererOutput (s1 ++ s2)
+instance Semigroup RendererOutput where
+    (<>) (RendererOutput s1 r1 w1)
+         (RendererOutput s2 r2 w2) = RendererOutput (s1 ++ s2)
                                                        (r1 ++ r2)
                                                        (w1 ++ w2)
+instance Monoid RendererOutput where
+    mempty = RendererOutput [] [] []
 
 data BusState =
     BusState { apps :: Applications
@@ -466,7 +470,7 @@ remUnique bus n = do
     ai <- lookupUniqueName bus n
     let mcolumn = aiCurrentColumn ai
     modifyApps bus $ Map.insert n (ai { aiColumn = FormerColumn mcolumn })
-    maybeM mcolumn $ \x ->
+    forM_ mcolumn $ \x ->
         modifyBusState bus $ \bs ->
             bs { columnsInUse = Set.delete x (columnsInUse bs) }
 
@@ -541,7 +545,7 @@ advanceBy d = do
                   ]
         let (height, ss) = headers xs' (current' + 20)
         tellShapes ss
-        modify $ \bs -> bs { mostRecentLabels = (current' + height + 10)
+        modify $ \bs -> bs { mostRecentLabels = current' + height + 10
                            , row = row bs + height + 10
                            }
     current <- gets row
@@ -563,7 +567,7 @@ advanceBy d = do
 bestNames :: UniqueName -> Set OtherName -> [String]
 bestNames u os
     | Set.null os = [unUniqueName u]
-    | otherwise   = reverse . sortBy (comparing length) . map readable $ Set.toList os
+    | otherwise   = (sortBy (flip (comparing length)) . map readable) $ Set.toList os
   where readable = reverse . takeWhile (/= '.') . reverse . unOtherName
 
 edgemostApp :: Bus -> Renderer (Maybe Double)
@@ -633,7 +637,7 @@ returnArc bus mr callx cally duration = do
 
     shape $ Arc { topx = callx, topy = cally
                 , bottomx = currentx, bottomy = currenty
-                , arcside = if (destinationx > currentx) then L else R
+                , arcside = if destinationx > currentx then L else R
                 , caption = show (µsToMs duration) ++ "ms"
                 }
 
@@ -703,7 +707,7 @@ processNOC :: Bus
            -> Renderer ()
 processNOC bus noc =
     case noc of
-        Connected { actor = u } -> addUnique bus u >> return ()
+        Connected { actor = u } -> void (addUnique bus u)
         Disconnected { actor = u } -> remUnique bus u
         NameChanged { changedName = n
                     , change = c
@@ -734,7 +738,7 @@ signal bus dm = do
     mtarget <- signalDestinationCoordinate bus dm
 
     case mtarget of
-        Just target -> do
+        Just target ->
             shape $ DirectedSignalArrow emitter target t
         Nothing -> do
             -- fromJust is safe here because we must have an app to have a

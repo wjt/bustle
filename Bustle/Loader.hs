@@ -26,7 +26,7 @@ module Bustle.Loader
 where
 
 import Control.Monad.Except
-import Control.Arrow ((***))
+import Control.Arrow (second)
 
 import qualified Bustle.Loader.Pcap as Pcap
 import Bustle.Types
@@ -43,7 +43,7 @@ readLog :: MonadIO io
 readLog f = do
     pcapResult <- io $ Pcap.readPcap f
     case pcapResult of
-        Right ms -> return $ (id *** filter (isRelevant . deEvent)) ms
+        Right ms -> return $ second (filter (isRelevant . deEvent)) ms
         Left ioe -> throwError $ LoadError f (show ioe)
 
 isRelevant :: Event

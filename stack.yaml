@@ -1,0 +1,10 @@
+resolver: nightly-2018-06-29
+packages:
+- .
+allow-newer: true
+extra-deps:
+- gio-0.13.5.0
+- gtk3-0.14.9
+- hgettext-0.1.31.0
+- pcap-0.4.5.2
+

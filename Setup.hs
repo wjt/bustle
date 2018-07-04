@@ -12,7 +12,7 @@ import Distribution.Text ( display )
 import Distribution.ModuleName (ModuleName)
 import qualified Distribution.ModuleName as ModuleName
 
-import qualified GetText as GetText
+import qualified GetText
 
 main :: IO ()
 main = defaultMainWithHooks $ installBustleHooks simpleUserHooks

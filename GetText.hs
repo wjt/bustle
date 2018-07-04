@@ -73,7 +73,7 @@
 -- see https://github.com/fpco/stackage/issues/746
 -- 
 
-module GetText 
+module GetText
     (
     -- | /TODO:/ upstream exporting the individual hooks?
      installPOFiles,
@@ -118,18 +118,17 @@ gettextDefaultMain = defaultMainWithHooks $ installGetTextHooks simpleUserHooks
 installGetTextHooks :: UserHooks -- ^ initial user hooks
                     -> UserHooks -- ^ patched user hooks
 installGetTextHooks uh = uh{
-                           confHook = \a b -> 
-                                      (confHook uh) a b >>= 
-                                      return . updateLocalBuildInfo,
+                           confHook = \a b ->
+                                      updateLocalBuildInfo <$> confHook uh a b,
 
-                           postInst = \a b c d -> 
-                                      (postInst uh) a b c d >> 
+                           postInst = \a b c d ->
+                                      postInst uh a b c d >>
                                       installPOFiles a b c d
                          }
 
 
 updateLocalBuildInfo :: LocalBuildInfo -> LocalBuildInfo
-updateLocalBuildInfo l = 
+updateLocalBuildInfo l =
     let sMap = getCustomFields l
         [domDef, catDef] = map ($ sMap) [getDomainDefine, getMsgCatalogDefine]
         dom = getDomainNameDefault sMap (getPackageName l)
@@ -138,7 +137,7 @@ updateLocalBuildInfo l =
     in (appendCPPOptions [domMS,catMS] . appendExtension [EnableExtension CPP]) l
 
 installPOFiles :: Args -> InstallFlags -> PackageDescription -> LocalBuildInfo -> IO ()
-installPOFiles _ _ _ l = 
+installPOFiles _ _ _ l =
     let sMap = getCustomFields l
         destDir = targetDataDir l
         dom = getDomainNameDefault sMap (getPackageName l)
@@ -148,43 +147,43 @@ installPOFiles _ _ _ l =
           let targetDir = destDir </> bname </> "LC_MESSAGES"
           -- ensure we have directory destDir/{loc}/LC_MESSAGES
           createDirectoryIfMissing True targetDir
-          system $ "msgfmt --output-file=" ++ 
-                     (targetDir </> dom <.> "mo") ++ 
+          system $ "msgfmt --output-file=" ++
+                     (targetDir </> dom <.> "mo") ++
                      " " ++ file
     in do
       filelist <- getPoFilesDefault sMap
       -- copy all whose name is in the form of dir/{loc}.po to the
       -- destDir/{loc}/LC_MESSAGES/dom.mo
       -- with the 'msgfmt' tool
-      mapM_ installFile filelist      
+      mapM_ installFile filelist
 
 forBuildInfo :: LocalBuildInfo -> (BuildInfo -> BuildInfo) -> LocalBuildInfo
-forBuildInfo l f = 
+forBuildInfo l f =
     let a = l{localPkgDescr = updPkgDescr (localPkgDescr l)}
-        updPkgDescr x = x{library = updLibrary (library x), 
+        updPkgDescr x = x{library = updLibrary (library x),
                           executables = updExecs (executables x)}
         updLibrary Nothing = Nothing
         updLibrary (Just x) = Just $ x{libBuildInfo = f (libBuildInfo x)}
-        updExecs x = map updExec x
+        updExecs = map updExec
         updExec x = x{buildInfo = f (buildInfo x)}
     in a
 
 appendExtension :: [Extension] -> LocalBuildInfo -> LocalBuildInfo
-appendExtension exts l = 
+appendExtension exts l =
     forBuildInfo l updBuildInfo
     where updBuildInfo x = x{defaultExtensions = updExts (defaultExtensions x)}
           updExts s = nub (s ++ exts)
 
 appendCPPOptions :: [String] -> LocalBuildInfo -> LocalBuildInfo
-appendCPPOptions opts l = 
+appendCPPOptions opts l =
     forBuildInfo l updBuildInfo
     where updBuildInfo x = x{cppOptions = updOpts (cppOptions x)}
           updOpts s = nub (s ++ opts)
 
-formatMacro name value = "-D" ++ name ++ "=" ++ (show value)
+formatMacro name value = "-D" ++ name ++ "=" ++ show value
 
 targetDataDir :: LocalBuildInfo -> FilePath
-targetDataDir l = 
+targetDataDir l =
     let dirTmpls = installDirTemplates l
         prefix' = prefix dirTmpls
         data' = datadir dirTmpls
@@ -201,7 +200,7 @@ findInParametersDefault :: [(String, String)] -> String -> String -> String
 findInParametersDefault al name def = (fromMaybe def . lookup name) al
 
 getDomainNameDefault :: [(String, String)] -> String -> String
-getDomainNameDefault al d = findInParametersDefault al "x-gettext-domain-name" d
+getDomainNameDefault al = findInParametersDefault al "x-gettext-domain-name"
 
 getDomainDefine :: [(String, String)] -> String
 getDomainDefine al = findInParametersDefault al "x-gettext-domain-def" "__MESSAGE_CATALOG_DOMAIN__"
@@ -212,8 +211,8 @@ getMsgCatalogDefine al = findInParametersDefault al "x-gettext-msg-cat-def" "__M
 getPoFilesDefault :: [(String, String)] -> IO [String]
 getPoFilesDefault al = toFileList $ findInParametersDefault al "x-gettext-po-files" ""
     where toFileList "" = return []
-          toFileList x = liftM concat $ mapM matchFileGlob $ split' x
+          toFileList x = fmap concat $ mapM matchFileGlob $ split' x
           -- from Blow your mind (HaskellWiki)
           -- splits string by newline, space and comma
-          split' x = concatMap lines $ concatMap words $ unfoldr (\b -> fmap (const . (second $ drop 1) . break (==',') $ b) . listToMaybe $ b) x
+          split' x = concatMap lines $ concatMap words $ unfoldr (\b -> fmap (const . second (drop 1) . break (==',') $ b) . listToMaybe $ b) x
 

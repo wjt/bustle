@@ -31,7 +31,7 @@ module Bustle.Stats
 where
 
 import Control.Monad (guard)
-import Data.List (sort, sortBy)
+import Data.List (sortBy)
 import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
 
@@ -62,9 +62,7 @@ data FrequencyInfo =
   deriving (Show, Eq, Ord)
 
 frequencies :: Log -> [FrequencyInfo]
-frequencies = reverse
-            . sort
-            . map (\((t, i, m), c) -> FrequencyInfo c t i m)
+frequencies = sortBy (flip compare) . map (\((t, i, m), c) -> FrequencyInfo c t i m)
             . Map.toList
             . foldr (Map.alter alt) Map.empty
             . mapMaybe repr
@@ -86,9 +84,7 @@ data TimeInfo =
 
 methodTimes :: Log
             -> [TimeInfo]
-methodTimes = reverse
-            . sortBy (comparing tiTotalTime)
-            . map summarize
+methodTimes = sortBy (flip (comparing tiTotalTime)) . map summarize
             . Map.toList
             . foldr (\(i, method, time) ->
                         Map.alter (alt time) (i, method)) Map.empty
@@ -101,7 +97,7 @@ methodTimes = reverse
               Just (newtime + total, newtime : times)
 
           isReturn :: Message -> Bool
-          isReturn (MethodReturn {}) = True
+          isReturn MethodReturn {} = True
           isReturn _                 = False
 
           methodReturn :: Detailed Message
@@ -109,7 +105,7 @@ methodTimes = reverse
           methodReturn dm = do
               let m = deEvent dm
               guard (isReturn m)
-              Detailed start (call@(MethodCall {})) _ _ <- inReplyTo m
+              Detailed start call@MethodCall {} _ _ <- inReplyTo m
               return ( iface (member call)
                      , membername (member call)
                      , deTimestamp dm - start
@@ -120,7 +116,7 @@ methodTimes = reverse
                        , tiMethodName = method
                        , tiTotalTime = fromIntegral total / 1000
                        , tiCallFrequency = length times
-                       , tiMeanCallTime = (mean $ map fromIntegral times) / 1000
+                       , tiMeanCallTime = mean (map fromIntegral times) / 1000
                        }
 
 -- FIXME: really? again?
@@ -145,7 +141,7 @@ data SizeInfo =
 messageSizes :: Log
              -> [SizeInfo]
 messageSizes messages =
-    reverse . sort . map summarize $ Map.assocs sizeTable
+    sortBy (flip compare) . map summarize $ Map.assocs sizeTable
   where
     summarize :: ((SizeType, Maybe InterfaceName, MemberName), [Int]) -> SizeInfo
     summarize ((t, i, m), sizes) =

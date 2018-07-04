@@ -4,7 +4,6 @@ import Test.QuickCheck.All
 
 import Data.List (sort, group)
 import Data.Maybe (isNothing, isJust)
-import Control.Applicative ((<$>), (<*>))
 
 import Bustle.Regions
 
@@ -15,7 +14,7 @@ newtype NonOverlappingStripes = NonOverlappingStripes [Stripe]
 instance Arbitrary NonOverlappingStripes where
     arbitrary = do
         -- listOf2
-        tops <- sort <$> ((:) <$> arbitrary <*> (listOf1 arbitrary))
+        tops <- sort <$> ((:) <$> arbitrary <*> listOf1 arbitrary)
 
         -- Generate dense stripes sometimes
         let g :: Gen Double
@@ -37,7 +36,7 @@ instance (Eq a, Arbitrary a) => Arbitrary (ValidRegions a) where
         values <- vector (length stripes) `suchThat` unique
         return $ ValidRegions (zip stripes values)
       where
-        unique xs = all (== 1) . map length . group $ xs
+        unique = all (== 1) . map length . group
 
 instance (Eq a, Arbitrary a) => Arbitrary (RegionSelection a) where
     arbitrary = do
@@ -46,8 +45,8 @@ instance (Eq a, Arbitrary a) => Arbitrary (RegionSelection a) where
 
 prop_NonOverlapping_generator_works (NonOverlappingStripes ss) = nonOverlapping ss
 
-prop_InitiallyUnselected = \rs -> isNothing $ rsCurrent rs
-prop_UpDoesNothing = \rs -> isNothing $ rsCurrent $ regionSelectionUp rs
+prop_InitiallyUnselected rs = isNothing $ rsCurrent rs
+prop_UpDoesNothing rs = isNothing $ rsCurrent $ regionSelectionUp rs
 
 prop_DownDoesNothing vr@(ValidRegions regions) =
     withRegions vr $ \rs ->
@@ -130,11 +129,10 @@ randomMutation = do
              ]
 
 randomMutations :: Gen (RegionSelection a -> RegionSelection a)
-randomMutations = do
-    fs <- listOf randomMutation
-    return $ foldr (.) id fs
+randomMutations =
+    foldr (.) id <$> listOf randomMutation
 
-prop_ClickAlwaysInSelection = \rs ->
+prop_ClickAlwaysInSelection rs =
     forAll (fmap Blind randomMutations) $ \(Blind f) ->
       let
         rs' = f rs
