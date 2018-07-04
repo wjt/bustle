@@ -69,4 +69,5 @@ authors = [ "Will Thompson <will@willthompson.co.uk>"
           , "Alex Merry"
           , "Philip Withnall"
           , "Jonny Lamb"
+          , "Daniel Firth"
           ]
