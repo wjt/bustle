@@ -37,4 +37,4 @@ version of the statistics shown in the UI:
 More information
 ================
 
-See <http://www.freedesktop.org/wiki/Software/Bustle/>.
+See <https://www.freedesktop.org/wiki/Software/Bustle/>.
