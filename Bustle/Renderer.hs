@@ -38,8 +38,8 @@ where
 import Bustle.Types
 import Bustle.Diagram
 import Bustle.Regions
-import Bustle.Util (NonEmpty(..))
 
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map

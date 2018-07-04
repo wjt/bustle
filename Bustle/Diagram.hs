@@ -48,6 +48,7 @@ module Bustle.Diagram
 where
 
 import Data.List (unzip4)
+import Data.List.NonEmpty (NonEmpty(..), toList)
 import Control.Arrow ((&&&))
 
 import Control.Monad.Reader
@@ -59,7 +60,6 @@ import Graphics.Rendering.Pango.Font
 
 import qualified Bustle.Marquee as Marquee
 import Bustle.Marquee (Marquee)
-import Bustle.Util
 import Bustle.Types (ObjectPath, InterfaceName, MemberName)
 
 -- Sorry Mum
@@ -160,7 +160,7 @@ mapX f s = case s of
     Arc {}         -> s { topx = f (topx s)
                         , bottomx = f (bottomx s)
                         }
-    ClientLines {} -> s { shapexs = mapNonEmpty f (shapexs s) }
+    ClientLines {} -> s { shapexs = f <$> shapexs s }
     _              -> s { shapex = f (shapex s) }
 
 mapY f s = case s of
@@ -219,7 +219,7 @@ headerHeight = fromIntegral . (10 *) . length
 bounds :: Shape -> Rect
 bounds s = case s of
   ClientLines {} ->
-    let xs = nonEmptyToList (shapexs s)
+    let xs = toList (shapexs s)
     in  (minimum xs, shapey1 s, maximum xs, shapey2 s)
   Rule {} -> (shapex1 s, shapey s, shapex2 s, shapey s)
   Arrow {} ->
@@ -503,7 +503,7 @@ drawTimestamp ts x y = do
 drawClientLines :: NonEmpty Double -> Double -> Double -> Render ()
 drawClientLines xs y1 y2 = saved $ do
     setSourceRGB 0.7 0.7 0.7
-    forM_ (nonEmptyToList xs) $ \x -> do
+    forM_ (toList xs) $ \x -> do
         moveTo x y1
         lineTo x y2
         stroke
