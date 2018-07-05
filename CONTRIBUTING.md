@@ -2,8 +2,8 @@ Want to get involved? Great!
 ============================
 
 Make sure you have an up-to-date Haskell toolchain. I recommend using
-[Stack](https://haskellstack.org/) for development. Make sure you run `stack
-update` if you install it from a distro package before continuing.
+[Stack](https://haskellstack.org/) for development. Make sure you run
+`stack update` if you install it from a distro package before continuing.
 
 Grab the latest code from git:
 
