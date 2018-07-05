@@ -46,7 +46,7 @@ writeGetTextConstantsFile pkg lbi flags = do
 
     let pathsModulePath = autogenPackageModulesDir lbi
                       </> ModuleName.toFilePath (getTextConstantsModuleName pkg) <.> "hs"
-    rewriteFile pathsModulePath (generateModule pkg lbi)
+    rewriteFileEx verbosity pathsModulePath (generateModule pkg lbi)
 
 getTextConstantsModuleName :: PackageDescription -> ModuleName
 getTextConstantsModuleName pkg_descr =
