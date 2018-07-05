@@ -260,10 +260,10 @@ data RendererState =
 initialBusState :: Set UniqueName
                 -> Double
                 -> BusState
-initialBusState ignore first =
+initialBusState ignore x =
     BusState { apps = Map.empty
-             , firstColumn = first
-             , nextColumn = first
+             , firstColumn = x
+             , nextColumn = x
              , columnsInUse = Set.empty
              , pending = Map.empty
              , bsIgnoredNames = ignore
