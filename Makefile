@@ -111,8 +111,8 @@ maintainer-update-messages-pot:
 		data/org.freedesktop.Bustle.appdata.xml.in --join-existing -o po/messages.pot
 
 maintainer-make-release: bustle.cabal dist/build/autogen/version.txt
-	cabal test
-	cabal sdist
+	stack test
+	stack sdist
 	git tag -s -m 'Bustle '`cat dist/build/autogen/version.txt` \
 		bustle-`cat dist/build/autogen/version.txt`
 	gpg --detach-sign --armor dist/bustle-`cat dist/build/autogen/version.txt`.tar.gz

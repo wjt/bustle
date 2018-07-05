@@ -1,11 +1,28 @@
 Want to get involved? Great!
 ============================
 
+Make sure you have an up-to-date Haskell toolchain. I recommend using
+[Stack](https://haskellstack.org/) for development. Make sure you run `stack
+update` if you install it from a distro package before continuing.
+
 Grab the latest code from git:
 
     git clone https://gitlab.freedesktop.org/bustle/bustle.git
+    cd bustle
 
-and get stuck in! Please file bugs and merge requests at
+Build it:
+
+    stack build
+
+Run it:
+
+    stack exec bustle
+
+Test it:
+
+    stack test
+
+Please file bugs and merge requests at
 <https://gitlab.freedesktop.org/bustle/bustle>.
 
 In new code, try to follow
@@ -31,7 +48,7 @@ cp dist/bustle-x.y.z* x.y.z/
 scp -r x.y.z annarchy.freedesktop.org:/srv/www.freedesktop.org/www/software/bustle/
 
 # Upload source to Hackage
-cabal upload
+stack upload
 
 git push origin --tags master
 ```
