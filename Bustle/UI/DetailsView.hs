@@ -62,9 +62,7 @@ pickType (Detailed _ m _ _) = case m of
     MethodReturn {} -> "methodReturn"
     Error {} -> "error"
     Signal { signalDestination = d } ->
-        case d of
-            Nothing -> "signal"
-            Just _  -> "directedSignal"
+        maybe "signal" (const "directedSignal") d
 
 getMemberMarkup :: Member -> String
 getMemberMarkup m =
