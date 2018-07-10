@@ -30,6 +30,7 @@ module Bustle.Util
 where
 
 import Control.Monad.Trans (MonadIO, liftIO)
+import Control.Monad
 import Debug.Trace (trace)
 import System.IO (hPutStrLn, stderr)
 import Foreign.C.String
@@ -39,7 +40,7 @@ import Bustle.Translation (__)
 
 -- Escape hatch to log a value from a non-IO monadic context.
 traceM :: (Show a, Monad m) => a -> m ()
-traceM x = trace (show x) $ return ()
+traceM = void . return . trace . show
 
 -- Log a warning which isn't worth showing to the user, but which might
 -- interest someone debugging the application.

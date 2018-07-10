@@ -23,7 +23,7 @@ module Bustle.StatisticsPane
   )
 where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, void)
 import Text.Printf
 import Graphics.UI.Gtk
 import Bustle.Missing (formatSize)
@@ -109,13 +109,12 @@ addStatColumn :: TreeView
               -> String
               -> (a -> Marquee)
               -> IO ()
-addStatColumn view store title f = do
+addStatColumn view store title f = void $ do
     col <- treeViewColumnNew
     treeViewColumnSetTitle col title
     renderer <- addTextRenderer col store True f
     set renderer [ cellXAlign := 1 ]
     treeViewAppendColumn view col
-    return ()
 
 addTextStatColumn :: TreeView
                   -> ListStore a
