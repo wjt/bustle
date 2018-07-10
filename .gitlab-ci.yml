@@ -1,4 +1,4 @@
-image: zenhaskell/gtk:nightly-2018-06-29
+image: zenhaskell/gtk:nightly-2018-07-09
 
 before_script:
 - apt install -y libpcap-dev
