@@ -100,7 +100,7 @@ popMatchingCall name serial = do
         modify $ Map.delete key
         return call
 
-insertPending :: (MonadState PendingMessages m)
+insertPending :: MonadState PendingMessages m
               => Maybe BusName
               -> Serial
               -> MethodCall
@@ -158,11 +158,11 @@ tryBustlifyGetNameOwnerReply maybeCall mr = do
                          , fromVariant (head (methodReturnBody mr))
                          )
 
-bustlify :: Monad m
+bustlify :: MonadState PendingMessages m
          => B.Microseconds
          -> Int
          -> ReceivedMessage
-         -> StateT PendingMessages m B.DetailedEvent
+         -> m B.DetailedEvent
 bustlify µs bytes m = do
     bm <- buildBustledMessage
     return $ B.Detailed µs bm bytes m
@@ -214,10 +214,10 @@ bustlify µs bytes m = do
 
         _ -> error "woah there! someone added a new message type."
 
-convert :: Monad m
+convert :: MonadState PendingMessages m
         => B.Microseconds
         -> BS.ByteString
-        -> StateT PendingMessages m (Either String B.DetailedEvent)
+        -> m (Either String B.DetailedEvent)
 convert µs body =
     case unmarshal body of
         Left e  -> return $ Left $ unmarshalErrorMessage e
@@ -228,10 +228,10 @@ data Result e a =
   | Packet (Either e a)
   deriving Show
 
-readOne :: (Monad m, MonadIO m)
+readOne :: (MonadState s m, MonadIO m)
         => PcapHandle
-        -> (B.Microseconds -> BS.ByteString -> StateT s m (Either e a))
-        -> StateT s m (Result e a)
+        -> (B.Microseconds -> BS.ByteString -> m (Either e a))
+        -> m (Result e a)
 readOne p f = do
     (hdr, body) <- liftIO $ nextBS p
     -- No really, nextBS just returns null packets when you hit the end of the
@@ -245,10 +245,10 @@ readOne p f = do
 
 -- This shows up as the biggest thing on the heap profile. Which is kind of a
 -- surprise. It's supposedly the list.
-mapBodies :: (Monad m, MonadIO m)
+mapBodies :: (MonadState s m, MonadIO m)
           => PcapHandle
-          -> (B.Microseconds -> BS.ByteString -> StateT s m (Either e a))
-          -> StateT s m [Either e a]
+          -> (B.Microseconds -> BS.ByteString -> m (Either e a))
+          -> m [Either e a]
 mapBodies p f = do
     ret <- readOne p f
     case ret of
@@ -257,9 +257,10 @@ mapBodies p f = do
             xs <- mapBodies p f
             return $ x:xs
 
-readPcap :: FilePath
-         -> IO (Either IOError ([String], [B.DetailedEvent]))
-readPcap path = try $ do
+readPcap :: MonadIO m
+         => FilePath
+         -> m (Either IOError ([String], [B.DetailedEvent]))
+readPcap path = liftIO $ try $ do
     p_ <- tryJust matchSnaplenBug $ openOffline path
     p <- either ioError return p_
     dlt <- datalink p
