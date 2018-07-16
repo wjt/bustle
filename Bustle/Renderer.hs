@@ -209,14 +209,11 @@ newtype Renderer a =
                  (StateT RendererState Identity)
                     a)
   deriving ( Functor
+           , Applicative
            , Monad
            , MonadState RendererState
            , MonadWriter RendererOutput
            )
-
-instance Applicative Renderer where
-    pure = return
-    (<*>) = ap
 
 runRenderer :: Renderer ()
             -> RendererState
