@@ -1,29 +1,49 @@
-image: zenhaskell/gtk:nightly-2018-07-09
-
-before_script:
-- apt install -y libpcap-dev
-
-cache:
-  key: "stack-work"
-  paths:
-  - .stack-work
-
 stages:
-  - build
   - lint
-  - test
+  - build
+
+variables:
+  ZENHASKELL_IMAGE: "zenhaskell/gtk:nightly-2018-07-09"
 
 lint:
   stage: lint
+  image: ${ZENHASKELL_IMAGE}
   script:
   - hlint .
 
-build:
+stack-build-test:
   stage: build
+  image: ${ZENHASKELL_IMAGE}
+  before_script:
+    - apt install -y libpcap-dev
   script:
-  - stack build
+    - stack build
+    - stack test
+  cache:
+    key: "stack-work"
+    paths:
+      - .stack-work
 
-test:
-  stage: test
+flatpak-build:
+  stage: build
+  image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:3.28
+
+  variables:
+    APP_ID: "org.freedesktop.Bustle"
+    BUNDLE: "${APP_ID}.flatpak"
+    REPO: "repo"
+    RUNTIME_REPO: "https://flathub.org/repo/flathub.flatpakrepo"
+
   script:
-  - stack test
+    - flatpak-builder --repo ${REPO} app flatpak/${APP_ID}.yaml
+    - flatpak build-bundle --runtime-repo=${RUNTIME_REPO} ${REPO} ${BUNDLE} ${APP_ID}
+
+  artifacts:
+    paths:
+      - ${BUNDLE}
+    expire_in: 30 days
+
+  cache:
+    key: "flatpak-builder-cache"
+    paths:
+      - .flatpak-builder/cache
