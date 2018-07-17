@@ -182,8 +182,8 @@ modules:
   - name: flatpak-xdg-utils
     sources:
       - type: git
-        url: https://github.com/wjt/flatpak-xdg-utils.git
-        commit: 54c5800fe064a33311e543f928ccc0620e2cef4e
+        url: https://github.com/flatpak/flatpak-xdg-utils.git
+        commit: a9afa997da8217bd03ece72fd04221d1597acdb3
     cleanup:
       - /bin/xdg-email
       - /bin/xdg-open
