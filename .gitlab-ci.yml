@@ -27,6 +27,11 @@ stack-build-test:
 flatpak-build:
   stage: build
   image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:3.28
+  only:
+    refs:
+    - master
+    - /^staging/.*$/
+    - /^flatpak/.*$/
 
   variables:
     APP_ID: "org.freedesktop.Bustle"
