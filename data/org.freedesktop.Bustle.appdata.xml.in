@@ -38,6 +38,13 @@
 		<id>bustle.desktop</id>
 	</provides>
 	<releases>
+		<release date="2018-07-24" version="0.7.2">
+			<description>
+				<p>You can now explore messages while they're being recorded. (Filtering, statistics and exporting are still only available once you stop recording.)</p>
+				<p>The raw sender and destination for each message is now shown in the details pane.</p>
+				<p>Bytestrings with embedded NULs which are otherwise ASCII are now shown as ASCII strings.</p>
+			</description>
+		</release>
 		<release date="2018-06-15" version="0.7.1">
 			<description>
 				<p>It's now possible to monitor the system bus (from the user interface and with the bustle-pcap command-line tool), with no need to reconfigure the system bus. It's also possible to monitor an arbitrary bus by address.</p>

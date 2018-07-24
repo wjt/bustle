@@ -1,3 +1,23 @@
+Bustle 0.7.2 (2018-07-24)
+-------------------------
+
+User-facing changes:
+
+* You can now explore messages while they're being recorded. (Filtering,
+  statistics and exporting are still only available once you stop
+  recording.)
+* The raw sender and destination for each message is now shown in the
+  details pane.
+* Bytestrings with embedded NULs which are otherwise ASCII are now shown
+  as ASCII strings.
+
+Internal changes:
+
+* New contributor Daniel Firth set up GitLab CI, with a linter, and
+  provided many patches to clean up and modernize the code.
+* Jan Tojnar provided a build fix for Nix (and perhaps other distros).
+* GHC 8.4 is now required to build Bustle.
+
 Bustle 0.7.1 (2018-06-15)
 -------------------------
 
