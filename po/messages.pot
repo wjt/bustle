@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-06-15 09:25+0100\n"
+"POT-Creation-Date: 2018-07-24 22:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: Bustle/StatisticsPane.hs:191 Bustle/StatisticsPane.hs:194
+#: Bustle/StatisticsPane.hs:189 Bustle/StatisticsPane.hs:192
 msgid "%.1f ms"
 msgstr ""
 
@@ -31,83 +31,83 @@ msgstr ""
 msgid "Bustle"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:192
+#: Bustle/StatisticsPane.hs:190
 msgid "Calls"
 msgstr ""
 
-#: Bustle/UI.hs:317
+#: Bustle/UI.hs:456
 msgid "Close _Without Saving"
 msgstr ""
 
-#: Bustle/UI.hs:210
+#: Bustle/UI.hs:226
 msgid "Could not read '%s'"
+msgstr ""
+
+#: Bustle/UI.hs:763
+msgid "Couldn't export log as PDF: "
 msgstr ""
 
 #: Bustle/Noninteractive.hs:48
 msgid "Couldn't parse '%s': %s"
 msgstr ""
 
-#: Bustle/UI.hs:282
-msgid "Couldn't save log"
+#: Bustle/UI.hs:431
+msgid "Couldn't save log: "
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:224 data/bustle.ui:610
+#: Bustle/StatisticsPane.hs:222 data/bustle.ui:787
 msgid "Error"
 msgstr ""
 
-#: Bustle/UI.hs:285
-msgid ""
-"Error: <i>%s</i>\n"
-"\n"
-"You might want to manually recover the log from the temporary file at\n"
-"<tt>%s</tt>"
-msgstr ""
-
-#: Bustle/StatisticsPane.hs:152
+#: Bustle/StatisticsPane.hs:150
 msgid "Frequency"
 msgstr ""
 
-#: Bustle/UI.hs:316
+#: Bustle/UI.hs:455
 msgid "If you don't save, this log will be lost forever."
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:231
+#: Bustle/StatisticsPane.hs:229
 msgid "Largest"
 msgstr ""
 
-#: Bustle/UI/Recorder.hs:86 Bustle/UI/Recorder.hs:111
-msgid "Logged <b>%u</b> messages&#8230;"
+#: Bustle/UI.hs:239
+msgid "Logged <b>%u</b> messages"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:193 Bustle/StatisticsPane.hs:230
+#: Bustle/StatisticsPane.hs:191 Bustle/StatisticsPane.hs:228
 msgid "Mean"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:137 Bustle/StatisticsPane.hs:215 data/bustle.ui:511
+#: Bustle/StatisticsPane.hs:135 Bustle/StatisticsPane.hs:213 data/bustle.ui:688
 msgid "Member"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:144 Bustle/StatisticsPane.hs:181
+#: Bustle/StatisticsPane.hs:142 Bustle/StatisticsPane.hs:179
 msgid "Method"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:222 data/bustle.ui:585
+#: Bustle/StatisticsPane.hs:220 data/bustle.ui:762
 msgid "Method call"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:223 data/bustle.ui:597
+#: Bustle/StatisticsPane.hs:221 data/bustle.ui:774
 msgid "Method return"
 msgstr ""
 
-#: Bustle/UI.hs:309
+#: Bustle/UI.hs:348
+msgid "Recording %s&#8230;"
+msgstr ""
+
+#: Bustle/UI.hs:448
 msgid "Save log '%s' before closing?"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:145 Bustle/StatisticsPane.hs:225 data/bustle.ui:623
+#: Bustle/StatisticsPane.hs:143 Bustle/StatisticsPane.hs:223 data/bustle.ui:800
 msgid "Signal"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:229
+#: Bustle/StatisticsPane.hs:227
 msgid "Smallest"
 msgstr ""
 
@@ -115,7 +115,7 @@ msgstr ""
 msgid "Someone's favourite D-Bus profiler"
 msgstr ""
 
-#: Bustle/StatisticsPane.hs:190
+#: Bustle/StatisticsPane.hs:188
 msgid "Total"
 msgstr ""
 
@@ -126,8 +126,13 @@ msgid ""
 "corresponding returns, and all signals it emits will be hidden."
 msgstr ""
 
-#: Bustle/Util.hs:53
+#: Bustle/Util.hs:48
 msgid "Warning: "
+msgstr ""
+
+#: Bustle/UI.hs:433
+msgid ""
+"You might want to manually recover the log from the temporary file at \"%s\"."
 msgstr ""
 
 #: Bustle/Loader/Pcap.hs:276
@@ -169,66 +174,86 @@ msgstr ""
 msgid "Record _Address…"
 msgstr ""
 
-#: data/bustle.ui:136
+#: data/bustle.ui:138
 msgid "Record a new log"
 msgstr ""
 
-#: data/bustle.ui:147
+#: data/bustle.ui:149
 msgid "_Record"
 msgstr ""
 
-#: data/bustle.ui:183
+#: data/bustle.ui:182
+msgid "_Stop"
+msgstr ""
+
+#: data/bustle.ui:200
 msgid "Open an existing log"
 msgstr ""
 
-#: data/bustle.ui:230
+#: data/bustle.ui:310
 msgid "Export as PDF"
 msgstr ""
 
-#: data/bustle.ui:254
+#: data/bustle.ui:334
 msgid "Save"
 msgstr ""
 
-#: data/bustle.ui:316
+#: data/bustle.ui:408
+msgid "<b>Oh no</b>"
+msgstr ""
+
+#: data/bustle.ui:424
+msgid "<small>very sad</small>"
+msgstr ""
+
+#: data/bustle.ui:493
 msgid ""
 "Start recording D-Bus activity with the <b>Record</b> button above\n"
 " You can also run <i>dbus-monitor --pcap</i> from the command line"
 msgstr ""
 
-#: data/bustle.ui:335
+#: data/bustle.ui:512
 msgid "Welcome to Bustle"
 msgstr ""
 
-#: data/bustle.ui:360
+#: data/bustle.ui:537
 msgid "<big><b>Waiting for D-Bus traffic; please hold…</b></big>"
 msgstr ""
 
-#: data/bustle.ui:387
+#: data/bustle.ui:564
 msgid "Frequencies"
 msgstr ""
 
-#: data/bustle.ui:401
+#: data/bustle.ui:578
 msgid "Durations"
 msgstr ""
 
-#: data/bustle.ui:416
+#: data/bustle.ui:593
 msgid "Sizes"
 msgstr ""
 
-#: data/bustle.ui:463
+#: data/bustle.ui:640
 msgid "Type"
 msgstr ""
 
-#: data/bustle.ui:479
+#: data/bustle.ui:656
 msgid "Path"
 msgstr ""
 
-#: data/bustle.ui:543
+#: data/bustle.ui:720
 msgid "Arguments"
 msgstr ""
 
-#: data/bustle.ui:636
+#: data/bustle.ui:813
 msgid "Directed signal"
+msgstr ""
+
+#: data/bustle.ui:832
+msgid "Sender"
+msgstr ""
+
+#: data/bustle.ui:848
+msgid "Destination"
 msgstr ""
 
 #: data/org.freedesktop.Bustle.desktop.in:4
