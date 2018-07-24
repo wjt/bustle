@@ -106,7 +106,7 @@ org.freedesktop.Bustle.flatpak: flatpak/org.freedesktop.Bustle.json
 
 # Maintainer stuff
 maintainer-update-messages-pot:
-	find Bustle -name '*.hs' -print0 | xargs -0 hgettext -k __ -o po/messages.pot
+	find Bustle -name '*.hs' -print0 | xargs -0 stack exec -- hgettext -k __ -o po/messages.pot
 	xgettext data/bustle.ui data/org.freedesktop.Bustle.desktop.in \
 		data/org.freedesktop.Bustle.appdata.xml.in --join-existing -o po/messages.pot
 
