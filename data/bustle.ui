@@ -405,7 +405,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="halign">start</property>
-                        <property name="label" translatable="yes">&lt;b&gt;Oh no&lt;/b&gt;</property>
+                        <property name="label">&lt;b&gt;Oh no&lt;/b&gt;</property>
                         <property name="use_markup">True</property>
                         <property name="wrap">True</property>
                         <property name="selectable">True</property>
@@ -421,7 +421,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="halign">start</property>
-                        <property name="label" translatable="yes">&lt;small&gt;very sad&lt;/small&gt;</property>
+                        <property name="label">&lt;small&gt;very sad&lt;/small&gt;</property>
                         <property name="use_markup">True</property>
                         <property name="wrap">True</property>
                         <property name="selectable">True</property>
