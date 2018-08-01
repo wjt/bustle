@@ -8,6 +8,8 @@ times.
 
 [![pipeline status](https://gitlab.freedesktop.org/bustle/bustle/badges/master/pipeline.svg)](https://gitlab.freedesktop.org/bustle/bustle/commits/master)
 
+<a href='https://flathub.org/apps/details/org.freedesktop.Bustle'><img width='240' alt='Download on Flathub' src='https://flathub.org/assets/badges/flathub-badge-en.png'/></a>
+
 
 Using Bustle
 ============
