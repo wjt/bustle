@@ -44,7 +44,7 @@ modules:
       - x86_64
     sources:
       - type: archive
-        url: https://haskell.org/platform/download/8.4.2/haskell-platform-8.4.2-unknown-posix--full-x86_64.tar.gz
+        url: https://downloads.haskell.org/~platform/8.4.2/haskell-platform-8.4.2-unknown-posix--full-x86_64.tar.gz
         sha256: f0d0efcd961c52ee0833941047c8d2cda5c0736ad2715edc41079286de57ac8f
         # there are no leading compoments in this file; so the default of 1 makes tar silently extract no files!
         strip-components: 0
@@ -64,7 +64,7 @@ modules:
       - i386
     sources:
       - type: archive
-        url: https://haskell.org/platform/download/8.4.2/haskell-platform-8.4.2-unknown-posix--full-i386.tar.gz
+        url: https://downloads.haskell.org/~platform/8.4.2/haskell-platform-8.4.2-unknown-posix--full-i386.tar.gz
         sha256: bd40cf359b47c88ee9538d9ce47ff42038d88b47533173a957979097d6504565
         # there are no leading compoments in this file; so the default of 1 makes tar silently extract no files!
         strip-components: 0
