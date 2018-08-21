@@ -27,10 +27,6 @@
 #include <pcap/pcap.h>
 #include <gio/gunixinputstream.h>
 
-#ifndef DLT_DBUS
-# define DLT_DBUS 231
-#endif
-
 /* Prefix of name claimed by the connection that collects name owners. */
 const char *BUSTLE_MONITOR_NAME_PREFIX = "org.freedesktop.Bustle.Monitor.";
 
