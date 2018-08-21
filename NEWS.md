@@ -1,3 +1,15 @@
+Bustle 0.7.3 (UNRELEASED)
+-------------------------
+
+Internal changes:
+
+* Packagers should add a dependency on libpcap >= 1.9.0. This is not
+  checked during build or at runtime (`pcap-config` does not accept a
+  version check; libpcap does not provide a `.pc` file; and
+  `pcap_lib_version()` returns a human-readable string of unspecified
+  format) but is recommended to avoid running Bustle against libpcap
+  1.8.x, with which it is incompatible.
+
 Bustle 0.7.2 (2018-07-24)
 -------------------------
 
