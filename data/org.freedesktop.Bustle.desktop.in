@@ -1,10 +1,11 @@
 [Desktop Entry]
 Name=Bustle
 Comment=Draw sequence diagrams of D-Bus activity
-Exec=bustle
+Exec=bustle %F
 Icon=org.freedesktop.Bustle
 Terminal=false
 Type=Application
 Categories=GTK;Development;Debugger;Profiling;
 StartupNotify=true
 Keywords=debug;profile;d-bus;dbus;sequence;monitor;
+MimeType=application/vnd.tcpdump.pcap;
