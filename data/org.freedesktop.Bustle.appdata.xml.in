@@ -38,6 +38,11 @@
 		<id>bustle.desktop</id>
 	</provides>
 	<releases>
+		<release date="UNRELEASED" version="0.7.3">
+			<description>
+				<p>Bustle now handles the application/vnd.tcpdump.pcap MIME type, which in practice means that your file manager will offer to open pcap files with Bustle.</p>
+			</description>
+		</release>
 		<release date="2018-07-24" version="0.7.2">
 			<description>
 				<p>You can now explore messages while they're being recorded. (Filtering, statistics and exporting are still only available once you stop recording.)</p>

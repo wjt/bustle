@@ -1,8 +1,15 @@
 Bustle 0.7.3 (UNRELEASED)
 -------------------------
 
+User-facing changes:
+
+* Bustle now handles the application/vnd.tcpdump.pcap MIME type, which
+  in practice means that your file manager will offer to open pcap files
+  with Bustle.
+
 Internal changes:
 
+* Scalable non-symbolic icon is now installed.
 * Packagers should add a dependency on libpcap >= 1.9.0. This is not
   checked during build or at runtime (`pcap-config` does not accept a
   version check; libpcap does not provide a `.pc` file; and
