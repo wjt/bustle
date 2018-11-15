@@ -1,4 +1,4 @@
-Bustle 0.7.3 (UNRELEASED)
+Bustle 0.7.3 (2018-11-15)
 -------------------------
 
 User-facing changes:
