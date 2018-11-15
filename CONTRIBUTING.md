@@ -48,7 +48,10 @@ cp dist/bustle-x.y.z* x.y.z/
 scp -r x.y.z annarchy.freedesktop.org:/srv/www.freedesktop.org/www/software/bustle/
 
 # Upload source to Hackage
-stack upload
+stack upload .
 
 git push origin --tags master
 ```
+
+* Add `.1` to version number in `bustle.cabal`
+* Update <https://github.com/flathub/org.freedesktop.Bustle>
