@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-07-24 22:05+0100\n"
+"POT-Creation-Date: 2018-11-15 08:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -135,15 +135,6 @@ msgid ""
 "You might want to manually recover the log from the temporary file at \"%s\"."
 msgstr ""
 
-#: Bustle/Loader/Pcap.hs:276
-msgid ""
-"libpcap 1.8.0 and 1.8.1 are incompatible with Bustle. See https://bugs."
-"freedesktop.org/show_bug.cgi?id=100220#c7 for details. Distributions should "
-"apply downstream patches until until a new upstream release is made; users "
-"should install Bustle from Flathub, which already includes the necessary "
-"patches: https://flathub.org/apps/details/org.freedesktop.Bustle"
-msgstr ""
-
 #: data/bustle.ui:14
 msgid "_Filter Visible Services…"
 msgstr ""
@@ -196,14 +187,6 @@ msgstr ""
 
 #: data/bustle.ui:334
 msgid "Save"
-msgstr ""
-
-#: data/bustle.ui:408
-msgid "<b>Oh no</b>"
-msgstr ""
-
-#: data/bustle.ui:424
-msgid "<small>very sad</small>"
 msgstr ""
 
 #: data/bustle.ui:493
@@ -290,4 +273,42 @@ msgstr ""
 
 #: data/org.freedesktop.Bustle.appdata.xml.in:31
 msgid "Relax with this soothing greyscale welcome page"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:43
+msgid ""
+"Bustle now handles the application/vnd.tcpdump.pcap MIME type, which in "
+"practice means that your file manager will offer to open pcap files with "
+"Bustle."
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:48
+msgid ""
+"You can now explore messages while they're being recorded. (Filtering, "
+"statistics and exporting are still only available once you stop recording.)"
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:49
+msgid ""
+"The raw sender and destination for each message is now shown in the details "
+"pane."
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:50
+msgid ""
+"Bytestrings with embedded NULs which are otherwise ASCII are now shown as "
+"ASCII strings."
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:55
+msgid ""
+"It's now possible to monitor the system bus (from the user interface and "
+"with the bustle-pcap command-line tool), with no need to reconfigure the "
+"system bus. It's also possible to monitor an arbitrary bus by address."
+msgstr ""
+
+#: data/org.freedesktop.Bustle.appdata.xml.in:56
+msgid ""
+"Bustle now requires that dbus-monitor (≥ 1.9.10) and pkexec are installed on "
+"your system."
 msgstr ""
